@@ -22,7 +22,7 @@
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
 
   <!-- =======================================================================
-       KIOSCO DE MARCACIÓN (SOLO EMPLEADOS - SOPORTA TURNOS NOCTURNOS Y OFFLINE)
+       KIOSCO DE MARCACIÓN (SOLO EMPLEADOS)
   ======================================================================= -->
   <div id="kiosk-shell" class="hidden min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-8">
     <header class="max-w-3xl w-full mx-auto flex items-center justify-between border-b border-slate-800 pb-4">
@@ -259,7 +259,7 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div>
             <h2 class="font-bold text-slate-800 text-base">Base de Datos de Turnantes</h2>
-            <p class="text-xs text-slate-500">Registra individualmente o pega una lista desde Excel; quedan activos al instante en todos los equipos.</p>
+            <p class="text-xs text-slate-500">Registra o edita sus datos bancarios para que aparezcan automáticamente en las Cuentas de Cobro.</p>
           </div>
           <div class="flex flex-wrap gap-2">
             <button onclick="openExcelPasteModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow-xs">Pegar desde Excel</button>
@@ -416,14 +416,15 @@
     </div>
   </div>
 
-  <!-- MODAL 2: REGISTRO MANUAL INDIVIDUAL -->
+  <!-- MODAL 2: CREAR / EDITAR TURNANTE (CON BANCO Y NÚMERO DE CUENTA) -->
   <div id="emp-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print">
-    <div class="bg-white rounded-2xl max-w-md w-full shadow-xl overflow-hidden">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-xl overflow-hidden">
       <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
-        <h3 class="font-bold text-base">Registrar Turnante Manual</h3>
+        <h3 id="emp-modal-title" class="font-bold text-base">Registrar Turnante</h3>
         <button onclick="closeModal('emp-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
       </div>
       <form onsubmit="saveTurnante(event)" class="p-6 space-y-4">
+        <input type="hidden" id="edit-emp-id" />
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo *</label>
           <input type="text" id="e-nombre" required placeholder="Ej: Carlos Pérez" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
@@ -434,10 +435,42 @@
             <input type="text" id="e-doc" inputmode="numeric" required placeholder="Ej: 1094912345" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Celular / Cuenta Pago</label>
-            <input type="text" id="e-tel" placeholder="300 000 0000" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Celular</label>
+            <input type="tel" id="e-tel" placeholder="300 000 0000" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
           </div>
         </div>
+
+        <!-- Datos Bancarios / Billetera Virtual -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Banco o Billetera Virtual *</label>
+            <select id="e-banco" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white font-medium">
+              <option value="">-- Seleccionar --</option>
+              <option value="Nequi">Nequi</option>
+              <option value="Daviplata">Daviplata</option>
+              <option value="Bancolombia">Bancolombia</option>
+              <option value="Banco Davivienda">Banco Davivienda</option>
+              <option value="Banco de Bogotá">Banco de Bogotá</option>
+              <option value="Banco Agrario">Banco Agrario</option>
+              <option value="BBVA Colombia">BBVA Colombia</option>
+              <option value="Banco de Occidente">Banco de Occidente</option>
+              <option value="Banco Popular">Banco Popular</option>
+              <option value="Banco AV Villas">Banco AV Villas</option>
+              <option value="Banco Caja Social">Banco Caja Social</option>
+              <option value="Scotiabank Colpatria">Scotiabank Colpatria</option>
+              <option value="Nu Colombia">Nu Colombia</option>
+              <option value="Lulo Bank">Lulo Bank</option>
+              <option value="Movii">Movii</option>
+              <option value="Dale!">Dale!</option>
+              <option value="Efectivo">Efectivo</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1">Número de Cuenta / Celular *</label>
+            <input type="text" id="e-cuenta" inputmode="numeric" required placeholder="Ej: 3001234567" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-mono font-bold bg-white" />
+          </div>
+        </div>
+
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">Cargo</label>
@@ -458,18 +491,18 @@
 
   <!-- MODAL 3: PEGAR LISTA DESDE EXCEL -->
   <div id="excel-paste-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4 no-print">
-    <div class="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div class="bg-white rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
       <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
         <div>
           <h3 class="font-bold text-base">Pegar Lista de Turnantes desde Excel</h3>
-          <p class="text-[11px] text-slate-400">Copia las celdas en Excel (Nombre y Cédula, en cualquier orden) y pégalas aquí abajo</p>
+          <p class="text-[11px] text-slate-400">Copia columnas de Excel: Nombre, Cédula, Banco/Billetera y Número de Cuenta</p>
         </div>
         <button onclick="closeModal('excel-paste-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
       </div>
       <div class="p-6 space-y-4 overflow-y-auto">
         <div>
           <label class="block text-xs font-bold text-slate-700 mb-1">Pega aquí las filas de Excel (Ctrl + V):</label>
-          <textarea id="excel-paste-area" rows="5" oninput="parseExcelPasteText()" placeholder="Ejemplo (copiado directo de Excel):&#10;Ender Gómez	1094912345	Operario&#10;María Fernanda Ruiz	1094987654	Empaque&#10;1094955443	Juan Carlos Toro" class="w-full border-2 border-slate-300 focus:border-emerald-500 rounded-xl p-3 text-xs font-mono outline-none"></textarea>
+          <textarea id="excel-paste-area" rows="5" oninput="parseExcelPasteText()" placeholder="Ejemplo (copiado directo de Excel):&#10;Ender Gómez	1094912345	Nequi	3124567890	Operario&#10;María Fernanda Ruiz	1094987654	Bancolombia	03124567891	Empaque" class="w-full border-2 border-slate-300 focus:border-emerald-500 rounded-xl p-3 text-xs font-mono outline-none"></textarea>
         </div>
         <div id="excel-preview-box" class="hidden space-y-2">
           <div class="flex items-center justify-between">
@@ -482,7 +515,8 @@
                 <tr class="bg-slate-50 border-b border-slate-200 font-bold text-slate-600 sticky top-0">
                   <th class="py-2 px-3">Nombre Completo</th>
                   <th class="py-2 px-3">Cédula</th>
-                  <th class="py-2 px-3">Cargo</th>
+                  <th class="py-2 px-3">Banco / Billetera</th>
+                  <th class="py-2 px-3">N° Cuenta</th>
                   <th class="py-2 px-3">Estado</th>
                 </tr>
               </thead>
@@ -594,6 +628,14 @@
       return `${n.getDate()} de ${meses[n.getMonth()]} de ${n.getFullYear()}`;
     }
 
+    function formatShortSpanishDay(dateISO) {
+      const [y, m, d] = String(dateISO).slice(0, 10).split('-').map(Number);
+      const dias = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+      const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      const dt = new Date(y, m - 1, d);
+      return `${dias[dt.getDay()]} ${d} ${meses[m - 1]}`;
+    }
+
     function getCurrentHHMM() {
       const n = new Date();
       return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
@@ -624,7 +666,6 @@
       return new Date(y, m - 1, d, hh, mm, 0);
     }
 
-    // Calcula segundos reales transcurridos incluso si el turno cruzó medianoche (ej: 21:00 -> 05:00)
     function getShiftElapsedSeconds(shift, nowDate = new Date()) {
       const startDt = parseLocalDateTime(shift.fecha_turno, shift.hora_ingreso);
       if (!startDt) return 0;
@@ -647,12 +688,12 @@
       let ma = 0;
       if (mAi !== null && mAo !== null) {
         let diffAlm = mAo - mAi;
-        if (diffAlm < 0) diffAlm += 1440; // Almuerzo cruzando medianoche (ej: 23:45 a 00:30)
+        if (diffAlm < 0) diffAlm += 1440;
         ma = diffAlm;
       }
       if (mI === null || mO === null) return { minutosAlmuerzo: ma, horasEfectivas: 0, valorTotal: 0 };
       let tb = mO - mI;
-      if (tb < 0) tb += 1440; // Turno nocturno cruzando medianoche
+      if (tb < 0) tb += 1440;
       const me = Math.max(0, tb - ma);
       const he = Number((me / 60).toFixed(4));
       return { minutosAlmuerzo: ma, horasEfectivas: he, valorTotal: Math.round(he * Number(vh || VALOR_HORA_EFECTIVA)) };
@@ -745,9 +786,13 @@
 
       const empData = appState.turnantes.find(e => String(e.id) === String(group.id_turnante)) || {};
       const cedula = empData.documento || (group.turnos[0] && group.turnos[0].documento) || "N/A";
-      const telefono = empData.telefono || "";
-      const totalHoras = group.turnos.reduce((s, t) => s + Number(t.horas_efectivas || 0), 0);
-      const totalDinero = group.turnos.reduce((s, t) => s + Number(t.valor_total || 0), 0);
+      const banco = String(empData.banco || "").trim();
+      const numeroCuenta = String(empData.numero_cuenta || "").trim();
+
+      // Ordenar turnos cronológicamente
+      const sortedTurnos = [...group.turnos].sort((a, b) => String(a.fecha_turno).localeCompare(String(b.fecha_turno)));
+      const totalHoras = sortedTurnos.reduce((s, t) => s + Number(t.horas_efectivas || 0), 0);
+      const totalDinero = sortedTurnos.reduce((s, t) => s + Number(t.valor_total || 0), 0);
 
       const empresaNombre = (cloudConfig.empNombre || DEFAULT_COMPANY.nombre).toUpperCase();
       const empresaNit = cloudConfig.empNit || DEFAULT_COMPANY.nit;
@@ -755,74 +800,85 @@
       const fechaGeneracion = getDynamicSpanishDate();
       const consecutivo = `CC-${corteInfo.corte_inicio.replace(/-/g, '')}-${String(cedula).slice(-4)}`;
 
+      // Ciudad y Fecha Dinámica
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(60, 60, 60);
-      doc.text(`${empresaCiudad}, ${fechaGeneracion}`, 20, 24);
+      doc.text(`${empresaCiudad}, ${fechaGeneracion}`, 20, 22);
 
+      // Título
       doc.setFont("helvetica", "bold");
       doc.setFontSize(15);
       doc.setTextColor(15, 23, 42);
-      doc.text(`CUENTA DE COBRO N° ${consecutivo}`, 108, 38, { align: "center" });
+      doc.text(`CUENTA DE COBRO N° ${consecutivo}`, 108, 35, { align: "center" });
 
+      // Empresa Deudora (FAGOSA SAS)
       doc.setDrawColor(203, 213, 225);
       doc.setFillColor(248, 250, 252);
-      doc.roundedRect(20, 45, 176, 22, 2, 2, "FD");
+      doc.roundedRect(20, 41, 176, 20, 2, 2, "FD");
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
       doc.setTextColor(15, 23, 42);
-      doc.text(empresaNombre, 108, 54, { align: "center" });
+      doc.text(empresaNombre, 108, 49, { align: "center" });
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(71, 85, 105);
-      doc.text(`NIT: ${empresaNit}`, 108, 61, { align: "center" });
+      doc.text(`NIT: ${empresaNit}`, 108, 56, { align: "center" });
 
+      // Acreedor (Turnante - solo Nombre y Cédula)
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(15, 23, 42);
-      doc.text("DEBE A:", 108, 77, { align: "center" });
+      doc.text("DEBE A:", 108, 70, { align: "center" });
 
       doc.setFontSize(13);
-      doc.text(String(group.nombre || "").toUpperCase(), 108, 84, { align: "center" });
+      doc.text(String(group.nombre || "").toUpperCase(), 108, 77, { align: "center" });
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(51, 65, 85);
-      doc.text(`C.C. N° ${cedula}${telefono ? '  •  Tel/Cuenta: ' + telefono : ''}`, 108, 90, { align: "center" });
+      doc.text(`C.C. N° ${cedula}`, 108, 83, { align: "center" });
 
+      // Valor en Números y Letras
       doc.setDrawColor(16, 185, 129);
       doc.setFillColor(236, 253, 245);
-      doc.roundedRect(20, 97, 176, 22, 2, 2, "FD");
+      doc.roundedRect(20, 89, 176, 21, 2, 2, "FD");
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(6, 95, 70);
-      doc.text(`LA SUMA DE: ${formatCOP(totalDinero)}`, 108, 105, { align: "center" });
+      doc.text(`LA SUMA DE: ${formatCOP(totalDinero)}`, 108, 97, { align: "center" });
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(15, 23, 42);
       const letrasSplit = doc.splitTextToSize(`(${numeroALetrasCOP(totalDinero)})`, 166);
-      doc.text(letrasSplit, 108, 112, { align: "center" });
+      doc.text(letrasSplit, 108, 104, { align: "center" });
 
+      // Concepto con los días laborados y horas de cada día
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
-      doc.text("POR CONCEPTO DE:", 20, 129);
+      doc.text("POR CONCEPTO DE:", 20, 120);
+
+      const detalleDiasTexto = sortedTurnos
+        .map(t => `${formatShortSpanishDay(t.fecha_turno)} (${Number(t.horas_efectivas || 0).toFixed(2)}h)`)
+        .join(", ");
 
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(10);
+      doc.setFontSize(9.5);
       doc.setTextColor(51, 65, 85);
-      const conceptoTexto = `Prestación de servicios operativos por turnos laborados durante el corte semanal comprendido entre ${corteInfo.label}, totalizando ${totalHoras.toFixed(2)} horas efectivas trabajadas (descontando tiempos de almuerzo no remunerados), según el siguiente detalle:`;
+      const conceptoTexto = `Prestación de servicios operativos durante el corte semanal ${corteInfo.label}, correspondientes a ${sortedTurnos.length} día(s) laborado(s): ${detalleDiasTexto}, para un total de ${totalHoras.toFixed(2)} horas efectivas trabajadas (descontando tiempos de almuerzo no remunerados), discriminados así:`;
       const conceptoLines = doc.splitTextToSize(conceptoTexto, 176);
-      doc.text(conceptoLines, 20, 135);
+      doc.text(conceptoLines, 20, 126);
 
-      const tableStartY = 135 + (conceptoLines.length * 5) + 4;
+      const tableStartY = 126 + (conceptoLines.length * 4.5) + 3;
 
-      const tableBody = group.turnos.map(t => [
-        t.fecha_turno,
+      // Tabla detallada día por día
+      const tableBody = sortedTurnos.map(t => [
+        `${formatShortSpanishDay(t.fecha_turno)} (${t.fecha_turno})`,
         t.hora_ingreso || "--:--",
         t.hora_salida || "--:--",
         `${t.minutos_almuerzo || 0} min`,
@@ -833,22 +889,41 @@
       doc.autoTable({
         startY: tableStartY,
         margin: { left: 20, right: 20 },
-        head: [['Fecha Turno', 'Ingreso', 'Salida', 'Almuerzo', 'Horas Ef.', 'Valor']],
+        head: [['Día Laborado', 'Ingreso', 'Salida', 'Almuerzo', 'Horas Ef.', 'Valor']],
         body: tableBody,
-        foot: [['TOTAL CORTE', '', '', '', `${totalHoras.toFixed(2)} h`, formatCOP(totalDinero)]],
+        foot: [[`TOTAL (${sortedTurnos.length} día(s))`, '', '', '', `${totalHoras.toFixed(2)} h`, formatCOP(totalDinero)]],
         theme: 'grid',
         headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8.5, halign: 'center' },
         bodyStyles: { fontSize: 8.5, halign: 'center', textColor: [30, 41, 59] },
         footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9, halign: 'center' },
-        columnStyles: { 5: { halign: 'right' } }
+        columnStyles: { 0: { halign: 'left' }, 5: { halign: 'right' } }
       });
 
-      let finalY = doc.lastAutoTable.finalY + 10;
-      if (finalY > 225) {
+      let finalY = doc.lastAutoTable.finalY + 8;
+      if (finalY > 210) {
         doc.addPage();
         finalY = 25;
       }
 
+      // Leyenda solicitada con Banco y Número de Cuenta anclado al usuario
+      const cuentaTexto = (banco && numeroCuenta)
+        ? `${banco} N° ${numeroCuenta}`
+        : (banco || numeroCuenta || "____________________________");
+
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(20, finalY, 176, 16, 2, 2, "FD");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      const leyendaPago = `Solicito realizar el pago mediante transferencia a mi cuenta ${cuentaTexto} de la cual soy titular.`;
+      const leyendaLines = doc.splitTextToSize(leyendaPago, 168);
+      doc.text(leyendaLines, 24, finalY + 6.5);
+
+      finalY += 22;
+
+      // Declaración tributaria estándar Colombia
       doc.setFont("helvetica", "italic");
       doc.setFontSize(8.5);
       doc.setTextColor(71, 85, 105);
@@ -856,14 +931,15 @@
       const notaLines = doc.splitTextToSize(notaLegal, 176);
       doc.text(notaLines, 20, finalY);
 
-      finalY += (notaLines.length * 4.5) + 18;
+      finalY += (notaLines.length * 4.5) + 14;
 
+      // Firma del turnante
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
       doc.text("Atentamente,", 20, finalY);
 
-      finalY += 18;
+      finalY += 16;
       doc.setDrawColor(100, 116, 139);
       doc.line(20, finalY, 95, finalY);
 
@@ -872,11 +948,8 @@
       doc.text(String(group.nombre || "").toUpperCase(), 20, finalY + 5);
 
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(9);
+      doc.setFontSize(9.5);
       doc.text(`C.C. ${cedula}`, 20, finalY + 10);
-      if (telefono) {
-        doc.text(`Tel / Cuenta: ${telefono}`, 20, finalY + 15);
-      }
 
       const safeName = String(group.nombre || "Turnante").trim().replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]/g, '_');
       const fileName = `Cuenta_Cobro_${safeName}_${corteInfo.corte_inicio}.pdf`;
@@ -1044,7 +1117,7 @@
     }
 
     /* =======================================================================
-       PEGAR DESDE EXCEL
+       PEGAR DESDE EXCEL (INCLUYE BANCO Y NÚMERO DE CUENTA)
     ======================================================================= */
     function openExcelPasteModal() {
       excelParsedRows = [];
@@ -1067,19 +1140,29 @@
         cols = cols.map(c => c.trim()).filter(Boolean);
         if (cols.length === 0) return;
 
-        let cedula = "", nombre = "", cargo = "Turnante";
+        let cedula = "", nombre = "", banco = "", numeroCuenta = "", cargo = "Turnante";
         const docIdx = cols.findIndex(c => /^\d{6,12}$/.test(c.replace(/\./g, '')));
         if (docIdx !== -1) {
           cedula = cols[docIdx].replace(/\./g, '');
           const rest = cols.filter((_, idx) => idx !== docIdx);
           if (rest.length > 0) nombre = rest[0];
-          if (rest.length > 1) cargo = rest[1];
+          if (rest.length > 1) banco = rest[1];
+          if (rest.length > 2) numeroCuenta = rest[2].replace(/\s+/g, '');
+          if (rest.length > 3) cargo = rest[3];
         } else {
           nombre = cols[0];
         }
         const isDup = cedula && (existingDocs.has(cedula) || batchDocs.has(cedula));
         if (cedula && !isDup) batchDocs.add(cedula);
-        excelParsedRows.push({ nombre, cedula, cargo, valid: Boolean(nombre && cedula && !isDup), isDup });
+        excelParsedRows.push({
+          nombre,
+          cedula,
+          banco,
+          numeroCuenta,
+          cargo,
+          valid: Boolean(nombre && cedula && !isDup),
+          isDup
+        });
       });
 
       const box = document.getElementById('excel-preview-box');
@@ -1101,7 +1184,8 @@
         <tr>
           <td class="py-1.5 px-3 font-semibold text-slate-900">${r.nombre || '<span class="text-rose-500">Sin nombre</span>'}</td>
           <td class="py-1.5 px-3 font-mono font-bold">${r.cedula || '<span class="text-rose-500">Sin cédula</span>'}</td>
-          <td class="py-1.5 px-3 text-slate-500">${r.cargo}</td>
+          <td class="py-1.5 px-3 text-slate-700">${r.banco || '<span class="text-slate-400">Sin banco</span>'}</td>
+          <td class="py-1.5 px-3 font-mono text-slate-700">${r.numeroCuenta || '<span class="text-slate-400">Sin cuenta</span>'}</td>
           <td class="py-1.5 px-3">${r.isDup ? '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">Duplicada</span>' : (r.valid ? '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Listo</span>' : '<span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">Incompleto</span>')}</td>
         </tr>
       `).join('');
@@ -1116,6 +1200,8 @@
           nombre: r.nombre,
           documento: r.cedula,
           telefono: "",
+          banco: r.banco || "",
+          numero_cuenta: r.numeroCuenta || "",
           cargo: r.cargo || "Turnante",
           valor_hora_efectiva: VALOR_HORA_EFECTIVA,
           estado: "Activo",
@@ -1134,7 +1220,6 @@
     /* =======================================================================
        KIOSCO DE MARCACIÓN (SOPORTA TURNOS NOCTURNOS Y COLA OFFLINE)
     ======================================================================= */
-    // Busca cualquier turno abierto (sin salida) de las últimas 36 horas, sin importar si cruzó medianoche
     function getOpenShiftForEmp(empId) {
       const now = new Date();
       const openShifts = appState.asistencia.filter(t =>
@@ -1152,7 +1237,7 @@
 
       const latest = openShifts[0];
       const startDt = parseLocalDateTime(latest.fecha_turno, latest.hora_ingreso);
-      if (startDt && (now - startDt) > 36 * 3600 * 1000) return null; // Ignorar abandonados > 36h
+      if (startDt && (now - startDt) > 36 * 3600 * 1000) return null;
       return latest;
     }
 
@@ -1173,7 +1258,6 @@
       const doc = document.getElementById('kiosk-cedula-input').value.trim();
       const err = document.getElementById('kiosk-error-msg');
 
-      // Intentar actualizar desde Drive si hay internet, pero si falla usar caché local
       await syncAllWithCloud(true);
 
       const emp = appState.turnantes.find(t => String(t.documento).trim() === doc && t.estado !== 'Inactivo');
@@ -1359,7 +1443,6 @@
     }
 
     function enqueueAtomicOp(op) {
-      // Si ya existe una operación pendiente para el mismo registro, reemplazarla con la más reciente
       if (op.type === "UPSERT_TURNO" && op.record) {
         offlineQueue = offlineQueue.filter(q => !(q.type === "UPSERT_TURNO" && q.record && q.record.id_turno === op.record.id_turno));
       } else if (op.type === "UPSERT_TURNANTE" && op.record) {
@@ -1407,7 +1490,6 @@
         });
         const json = await res.json();
         if (json.status === 'ok') {
-          // Eliminar solo las operaciones que ya fueron confirmadas por el servidor
           const processedTimestamps = new Set(batch.map(b => b.queued_at));
           offlineQueue = offlineQueue.filter(q => !processedTimestamps.has(q.queued_at));
           persistLocal();
@@ -1434,7 +1516,6 @@
         const res = await fetch(`${cloudConfig.url}?token=${encodeURIComponent(cloudConfig.token)}&t=${Date.now()}`, { cache: 'no-store' });
         const json = await res.json();
         if (json.status === 'ok' && json.data) {
-          // Proteger cualquier cambio local que aún esté en la cola offline para no sobrescribirlo
           const pendingTurnoUpserts = new Map();
           const pendingTurnoDeletes = new Set();
           const pendingEmpUpserts = new Map();
@@ -1454,6 +1535,8 @@
                 mergedEmps.set(t.id, {
                   ...t,
                   documento: String(t.documento || '').trim(),
+                  banco: String(t.banco || '').trim(),
+                  numero_cuenta: String(t.numero_cuenta || '').trim(),
                   valor_hora_efectiva: Number(t.valor_hora_efectiva || t.valor_hora || VALOR_HORA_EFECTIVA)
                 });
               }
@@ -1690,12 +1773,15 @@
         const th = g.turnos.reduce((s, t) => s + Number(t.horas_efectivas), 0);
         const tdn = g.turnos.reduce((s, t) => s + Number(t.valor_total), 0);
         const pt = g.turnos.filter(t => t.estado_pago === 'PENDIENTE');
+        const empObj = appState.turnantes.find(e => String(e.id) === String(g.id_turnante)) || {};
+        const bankLabel = (empObj.banco && empObj.numero_cuenta) ? `${empObj.banco} (${empObj.numero_cuenta})` : "Sin cuenta registrada";
+
         return `
           <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
               <div>
                 <h3 class="font-bold text-slate-900 text-base">${g.nombre}</h3>
-                <p class="text-xs text-slate-500">${g.turnos.length} turno(s) • <strong>${formatHoursDisplay(th)}</strong> • Pago: <strong>${info.pagoLabel}</strong></p>
+                <p class="text-xs text-slate-500">${g.turnos.length} día(s) • <strong>${formatHoursDisplay(th)}</strong> • Pago: <strong>${info.pagoLabel}</strong> • <span class="text-slate-700 font-medium">${bankLabel}</span></p>
               </div>
               <div class="flex flex-wrap items-center gap-2.5">
                 <div class="text-right mr-2">
@@ -1755,21 +1841,30 @@
         g.innerHTML = `<div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-400">Aún no hay turnantes registrados. Haz clic en "+ Nuevo Turnante" o "Pegar desde Excel".</div>`;
         return;
       }
-      g.innerHTML = appState.turnantes.map(e => `
-        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between gap-3">
-          <div class="flex items-start justify-between">
-            <div>
-              <h3 class="font-bold text-slate-900 text-base">${e.nombre}</h3>
-              <p class="text-xs text-slate-500">${e.cargo || 'Turnante'} • Tel/Cuenta: ${e.telefono || 'N/A'}</p>
+      g.innerHTML = appState.turnantes.map(e => {
+        const hasBank = e.banco && e.numero_cuenta;
+        return `
+          <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between gap-3">
+            <div class="flex items-start justify-between">
+              <div>
+                <h3 class="font-bold text-slate-900 text-base">${e.nombre}</h3>
+                <p class="text-xs text-slate-500">${e.cargo || 'Turnante'}${e.telefono ? ' • Tel: ' + e.telefono : ''}</p>
+                <p class="text-xs mt-1.5 font-medium ${hasBank ? 'text-emerald-700' : 'text-amber-600'}">
+                  ${hasBank ? `${e.banco}: <strong class="font-mono">${e.numero_cuenta}</strong>` : 'Sin cuenta bancaria asignada'}
+                </p>
+              </div>
+              <span class="text-xs font-mono font-bold bg-slate-900 text-emerald-400 px-2.5 py-1 rounded-lg">CC ${e.documento}</span>
             </div>
-            <span class="text-xs font-mono font-bold bg-slate-900 text-emerald-400 px-2.5 py-1 rounded-lg">CC ${e.documento}</span>
+            <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+              <span class="text-slate-500">Tarifa: <strong>${formatCOP(e.valor_hora_efectiva || VALOR_HORA_EFECTIVA)}/h</strong></span>
+              <div class="space-x-3">
+                <button onclick="openEditEmpModal('${e.id}')" class="text-sky-600 hover:underline font-semibold">Editar</button>
+                <button onclick="deleteTurnante('${e.id}')" class="text-rose-500 hover:underline font-semibold">Eliminar</button>
+              </div>
+            </div>
           </div>
-          <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span class="text-slate-500">Tarifa: <strong>${formatCOP(e.valor_hora_efectiva || VALOR_HORA_EFECTIVA)}/h</strong></span>
-            <button onclick="deleteTurnante('${e.id}')" class="text-rose-500 hover:underline font-semibold">Eliminar</button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     function renderHistorialTable() {
@@ -1924,35 +2019,80 @@
     }
 
     function openEmpModal() {
-      ['e-nombre', 'e-doc', 'e-tel', 'e-cargo'].forEach(id => document.getElementById(id).value = "");
+      document.getElementById('emp-modal-title').textContent = "Registrar Turnante";
+      document.getElementById('edit-emp-id').value = "";
+      ['e-nombre', 'e-doc', 'e-tel', 'e-banco', 'e-cuenta', 'e-cargo'].forEach(id => document.getElementById(id).value = "");
       document.getElementById('e-valor-hora').value = VALOR_HORA_EFECTIVA.toFixed(2);
+      openModal('emp-modal');
+    }
+
+    function openEditEmpModal(id) {
+      const emp = appState.turnantes.find(x => String(x.id) === String(id));
+      if (!emp) return;
+      document.getElementById('emp-modal-title').textContent = "Editar Turnante y Datos Bancarios";
+      document.getElementById('edit-emp-id').value = emp.id;
+      document.getElementById('e-nombre').value = emp.nombre || "";
+      document.getElementById('e-doc').value = emp.documento || "";
+      document.getElementById('e-tel').value = emp.telefono || "";
+      document.getElementById('e-banco').value = emp.banco || "";
+      document.getElementById('e-cuenta').value = emp.numero_cuenta || "";
+      document.getElementById('e-cargo').value = emp.cargo || "Turnante";
+      document.getElementById('e-valor-hora').value = Number(emp.valor_hora_efectiva || VALOR_HORA_EFECTIVA).toFixed(2);
       openModal('emp-modal');
     }
 
     function saveTurnante(e) {
       e.preventDefault();
+      const editId = document.getElementById('edit-emp-id').value;
       const doc = document.getElementById('e-doc').value.trim();
-      if (appState.turnantes.some(t => String(t.documento).trim() === doc)) {
-        alert("Ya existe un turnante con esa cédula.");
+
+      const dup = appState.turnantes.find(t => String(t.documento).trim() === doc && String(t.id) !== String(editId));
+      if (dup) {
+        alert("Ya existe otro turnante con esa cédula.");
         return;
       }
-      const rec = {
-        id: "EMP-" + Date.now().toString().slice(-5) + "-" + Math.floor(Math.random() * 90 + 10),
-        nombre: document.getElementById('e-nombre').value.trim(),
-        documento: doc,
-        telefono: document.getElementById('e-tel').value.trim(),
-        cargo: document.getElementById('e-cargo').value.trim() || "Turnante",
-        valor_hora_efectiva: Number(document.getElementById('e-valor-hora').value) || VALOR_HORA_EFECTIVA,
-        estado: "Activo",
-        fecha_registro: getTodayISO()
-      };
-      appState.turnantes.push(rec);
-      enqueueAtomicOp({ type: "UPSERT_TURNANTE", record: rec });
+
+      let rec = null;
+      if (editId) {
+        const idx = appState.turnantes.findIndex(t => String(t.id) === String(editId));
+        if (idx !== -1) {
+          rec = {
+            ...appState.turnantes[idx],
+            nombre: document.getElementById('e-nombre').value.trim(),
+            documento: doc,
+            telefono: document.getElementById('e-tel').value.trim(),
+            banco: document.getElementById('e-banco').value.trim(),
+            numero_cuenta: document.getElementById('e-cuenta').value.trim(),
+            cargo: document.getElementById('e-cargo').value.trim() || "Turnante",
+            valor_hora_efectiva: Number(document.getElementById('e-valor-hora').value) || VALOR_HORA_EFECTIVA
+          };
+          appState.turnantes[idx] = rec;
+        }
+        showToast("Turnante actualizado y sincronizado");
+      } else {
+        rec = {
+          id: "EMP-" + Date.now().toString().slice(-5) + "-" + Math.floor(Math.random() * 90 + 10),
+          nombre: document.getElementById('e-nombre').value.trim(),
+          documento: doc,
+          telefono: document.getElementById('e-tel').value.trim(),
+          banco: document.getElementById('e-banco').value.trim(),
+          numero_cuenta: document.getElementById('e-cuenta').value.trim(),
+          cargo: document.getElementById('e-cargo').value.trim() || "Turnante",
+          valor_hora_efectiva: Number(document.getElementById('e-valor-hora').value) || VALOR_HORA_EFECTIVA,
+          estado: "Activo",
+          fecha_registro: getTodayISO()
+        };
+        appState.turnantes.push(rec);
+        showToast("Turnante registrado y sincronizado");
+      }
+
+      if (rec) {
+        enqueueAtomicOp({ type: "UPSERT_TURNANTE", record: rec });
+      }
       closeModal('emp-modal');
       persistLocal();
       renderAllAdmin();
       flushOfflineQueue();
-      showToast("Turnante registrado y sincronizado");
     }
 
     function deleteTurnante(id) {
@@ -1967,10 +2107,13 @@
     function liquidarGrupo(idT, ci) {
       const tg = appState.asistencia.filter(t => String(t.id_turnante) === String(idT) && t.corte_inicio === ci && t.estado_pago === 'PENDIENTE' && t.estado_jornada === 'FINALIZADO');
       if (tg.length === 0) return;
+      const empObj = appState.turnantes.find(e => String(e.id) === String(idT)) || {};
+      const defaultMetodo = (empObj.banco && empObj.numero_cuenta) ? `${empObj.banco} - ${empObj.numero_cuenta}` : "Transferencia / Nequi";
+
       const tot = tg.reduce((s, t) => s + Number(t.valor_total), 0);
       const th = tg.reduce((s, t) => s + Number(t.horas_efectivas), 0);
       const cInfo = getCorteInfo(ci);
-      const met = prompt(`Liquidar ${formatCOP(tot)} (${th.toFixed(2)}h) a ${tg[0].nombre_turnante}.\nMétodo:`, "Transferencia / Nequi");
+      const met = prompt(`Liquidar ${formatCOP(tot)} (${th.toFixed(2)}h) a ${tg[0].nombre_turnante}.\nMétodo:`, defaultMetodo);
       if (met === null) return;
 
       const idR = "REC-" + Date.now().toString().slice(-6);
@@ -1991,7 +2134,7 @@
         cantidad_turnos: tg.length,
         total_horas: Number(th.toFixed(2)),
         total_pagado: tot,
-        metodo_pago: met || "Efectivo",
+        metodo_pago: met || defaultMetodo,
         notas: `Pago ${cInfo.pagoLabel}`
       };
       appState.pagos.unshift(pagoRec);
@@ -2102,7 +2245,6 @@
       setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
     }
 
-    // Inicialización y escucha automática de recuperación de internet
     detectInitialMode();
     updateKioskClockAndTimers();
     setInterval(updateKioskClockAndTimers, 1000);
