@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; }
@@ -21,7 +22,7 @@
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
 
   <!-- =======================================================================
-       KIOSCO DE MARCACIÓN (SOLO EMPLEADOS)
+       KIOSCO DE MARCACIÓN (SOLO EMPLEADOS - SOPORTA TURNOS NOCTURNOS Y OFFLINE)
   ======================================================================= -->
   <div id="kiosk-shell" class="hidden min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-8">
     <header class="max-w-3xl w-full mx-auto flex items-center justify-between border-b border-slate-800 pb-4">
@@ -33,9 +34,9 @@
         </div>
       </div>
       <div class="flex items-center gap-2 sm:gap-3">
-        <button onclick="syncFromGoogleDrive(false)" title="Sincronizar ahora" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition">
+        <button onclick="manualForceSync()" title="Sincronizar ahora" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition">
           <span id="kiosk-sync-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          <span id="kiosk-sync-text">Drive Activo</span>
+          <span id="kiosk-sync-text">En Línea</span>
         </button>
         <button onclick="switchToAdminPrompt()" title="Acceso Super Usuario" class="text-xs text-slate-500 hover:text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 transition">SU</button>
       </div>
@@ -72,7 +73,7 @@
             <p id="kiosk-timeline-summary" class="text-xs text-slate-400 mt-2 space-y-0.5"></p>
           </div>
           <div class="text-left sm:text-right">
-            <p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold" id="kiosk-timer-label">Tiempo Efectivo Hoy</p>
+            <p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold" id="kiosk-timer-label">Tiempo Efectivo</p>
             <p id="kiosk-live-timer" class="text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5">00:00:00</p>
           </div>
         </div>
@@ -83,32 +84,33 @@
       <div id="kiosk-feedback-card" class="hidden mt-4 bg-emerald-500/15 border border-emerald-500/40 rounded-2xl p-5 text-center space-y-2">
         <p id="kiosk-feedback-title" class="text-lg font-extrabold text-emerald-300"></p>
         <p id="kiosk-feedback-detail" class="text-sm text-slate-200"></p>
+        <p id="kiosk-offline-note" class="hidden text-xs font-semibold text-amber-300">Guardado en memoria local (se subirá apenas vuelva el internet).</p>
         <p class="text-xs text-slate-400 pt-1">Volverá al inicio en <span id="kiosk-countdown" class="font-bold text-white">5</span>s...</p>
       </div>
     </main>
 
     <footer class="max-w-3xl w-full mx-auto text-center text-xs text-slate-500 border-t border-slate-800 pt-4">
-      Corte semanal: Martes a Lunes • Pagos: Días Martes • Almuerzo no remunerado.
+      Corte semanal: Martes a Lunes • Pagos: Días Martes • Soporta turnos diurnos y nocturnos.
     </footer>
   </div>
 
   <!-- =======================================================================
-       LOGIN SUPER USUARIO (SU)
+       LOGIN SUPER USUARIO (VALIDADO DIRECTAMENTE EN GOOGLE SHEETS)
   ======================================================================= -->
   <div id="su-login-shell" class="hidden min-h-screen bg-slate-900 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6">
       <div class="text-center">
         <div class="w-12 h-12 rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center font-extrabold text-2xl mx-auto mb-3">SU</div>
         <h1 class="text-xl font-extrabold text-slate-900">Acceso Super Usuario</h1>
-        <p class="text-sm text-slate-500 mt-1">Administración global sincronizada en tiempo real</p>
+        <p class="text-sm text-slate-500 mt-1">Validación segura contra Google Sheets</p>
       </div>
       <form onsubmit="handleSuLogin(event)" class="space-y-4">
         <div>
           <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">PIN de Administrador</label>
           <input type="password" id="su-pin-input" inputmode="numeric" required placeholder="••••" class="w-full text-center text-2xl font-bold tracking-[0.5em] border-2 border-slate-200 focus:border-slate-900 rounded-2xl px-4 py-3.5 outline-none" />
         </div>
-        <p id="su-login-error" class="hidden text-xs font-semibold text-rose-600 text-center">PIN incorrecto. Intenta nuevamente.</p>
-        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-2xl transition">Ingresar al Panel SU</button>
+        <p id="su-login-error" class="hidden text-xs font-semibold text-rose-600 text-center">PIN incorrecto o sin conexión para validar.</p>
+        <button type="submit" id="su-login-btn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-2xl transition">Ingresar al Panel SU</button>
       </form>
       <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
         <span id="login-cloud-status" class="text-slate-400">Verificando nube...</span>
@@ -135,7 +137,7 @@
         </div>
         <div class="flex items-center gap-2">
           <button onclick="copyKioskLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition hidden sm:inline">Copiar Link Kiosco</button>
-          <button onclick="syncFromGoogleDrive(false)" id="sync-status-btn" title="Clic para forzar sincronización" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition">
+          <button onclick="manualForceSync()" id="sync-status-btn" title="Clic para sincronizar ahora" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition">
             <span id="sync-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
             <span id="sync-label" class="hidden md:inline">Sincronizando...</span>
           </button>
@@ -188,20 +190,20 @@
         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="font-bold text-slate-800 text-base">Jornadas Activas del Día</h2>
-              <span class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> EN VIVO (5s)</span>
+              <h2 class="font-bold text-slate-800 text-base">Jornadas Activas (Diurnas y Nocturnas)</h2>
+              <span class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> EN VIVO</span>
             </div>
-            <p class="text-xs text-slate-500 mt-0.5">Actualización automática cada 5 segundos desde todos los equipos conectados.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Sincronización atómica sin colisiones. Si un turno supera 12h o un almuerzo supera 90m se resalta en alerta.</p>
           </div>
           <div class="flex gap-2">
-            <button onclick="syncFromGoogleDrive(false)" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl transition">Actualizar Ya</button>
+            <button onclick="manualForceSync()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl transition">Actualizar Ya</button>
             <button onclick="activateKioskMode()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition">Cambiar a Pantalla Kiosco</button>
           </div>
         </div>
         <div id="live-workers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </section>
 
-      <!-- VIEW 2: CORTES SEMANALES + GENERACIÓN PDF CUENTAS DE COBRO -->
+      <!-- VIEW 2: CORTES SEMANALES + ZIP CUENTAS DE COBRO -->
       <section id="view-cortes" class="hidden space-y-5">
         <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div class="flex flex-wrap items-center gap-3">
@@ -215,8 +217,8 @@
             <div id="corte-banner-info" class="text-xs font-medium px-3 py-2 rounded-lg bg-slate-100 text-slate-700"></div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <button onclick="downloadAllCuentasCobroCorte()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-xs transition flex items-center gap-1.5">
-              <span>Descargar Todas las Cuentas (PDFs)</span>
+            <button onclick="downloadAllCuentasCobroZIP()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-xs transition flex items-center gap-1.5">
+              <span>Descargar Cuentas de Cobro (.ZIP)</span>
             </button>
           </div>
         </div>
@@ -298,15 +300,15 @@
               <h2 class="font-bold text-slate-800 text-lg">Seguridad Super Usuario y Datos Corporativos</h2>
               <span class="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">Sincronizado</span>
             </div>
-            <p class="text-xs text-slate-500 mt-1">Todo cambio se replica automáticamente en todos tus dispositivos.</p>
+            <p class="text-xs text-slate-500 mt-1">El PIN de administrador se valida directamente contra Google Sheets sin exponerse en el código.</p>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">PIN Global Super Usuario</label>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Nuevo PIN Global Super Usuario</label>
               <div class="flex gap-2">
-                <input type="text" id="cfg-su-pin" maxlength="8" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold" />
-                <button onclick="updateGlobalSuPin()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-lg">Guardar PIN</button>
+                <input type="password" id="cfg-su-pin" maxlength="8" placeholder="Nuevo PIN" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold" />
+                <button onclick="updateGlobalSuPin()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-lg">Actualizar PIN</button>
               </div>
             </div>
             <div class="text-xs text-slate-600 flex flex-col justify-center">
@@ -335,9 +337,12 @@
             <button onclick="saveCompanyConfig()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg text-xs">Guardar Datos Empresa</button>
           </div>
 
-          <!-- Conexión Google Drive -->
+          <!-- Estado Cola Offline y Conexión Google Drive -->
           <div class="space-y-3 pt-2 border-t border-slate-100">
-            <h3 class="font-bold text-slate-800 text-sm">Conexión Google Drive</h3>
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-slate-800 text-sm">Conexión Google Drive y Cola Offline</h3>
+              <span id="cfg-queue-badge" class="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg">0 operaciones pendientes</span>
+            </div>
             <div>
               <label class="block text-xs font-semibold text-slate-600 mb-1">URL Apps Script (/exec)</label>
               <input type="url" id="cfg-api-url" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono" />
@@ -348,7 +353,7 @@
             </div>
             <div class="flex flex-wrap gap-2 pt-2">
               <button onclick="saveCloudConfig()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-xs">Guardar y Sincronizar</button>
-              <button onclick="pushAllToGoogleDrive(false)" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-lg text-xs">Subir Todo a Drive</button>
+              <button onclick="pushFullBackupToDrive()" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-lg text-xs">Respaldo Completo a Drive</button>
             </div>
           </div>
         </div>
@@ -371,7 +376,7 @@
             <select id="t-emp-id" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"></select>
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Fecha</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Fecha Inicio Turno</label>
             <input type="date" id="t-fecha" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
           </div>
         </div>
@@ -540,24 +545,22 @@
 
     const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxqwAjxiT00G0ioBGPTNVwBtKl-fJP88lX40MsLZTwcYoXDbqn99uCtdjqolcu-6u10/exec";
     const DEFAULT_API_TOKEN = "TURNOPAY_2026_SECRETO";
-    const DEFAULT_SU_PIN = "2026";
 
-    // Datos corporativos anclados por defecto para Cuentas de Cobro
     const DEFAULT_COMPANY = {
       nombre: "FAGOSA SAS",
       nit: "900805205",
       ciudad: "FILANDIA QUINDIO"
     };
 
-    const STORAGE_KEY = "turnopay_v5_data";
-    const CLOUD_KEY = "turnopay_v5_cloud";
+    const STORAGE_KEY = "turnopay_v6_data";
+    const CLOUD_KEY = "turnopay_v6_cloud";
+    const QUEUE_KEY = "turnopay_v6_offline_queue";
     const SU_SESSION_KEY = "turnopay_su_unlocked";
 
     let savedCloud = JSON.parse(localStorage.getItem(CLOUD_KEY)) || {};
     let cloudConfig = {
       url: savedCloud.url || DEFAULT_API_URL,
       token: savedCloud.token || DEFAULT_API_TOKEN,
-      suPin: savedCloud.suPin || DEFAULT_SU_PIN,
       empNombre: savedCloud.empNombre || DEFAULT_COMPANY.nombre,
       empNit: savedCloud.empNit || DEFAULT_COMPANY.nit,
       empCiudad: savedCloud.empCiudad || DEFAULT_COMPANY.ciudad
@@ -570,14 +573,15 @@
       config: []
     };
 
+    let offlineQueue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
     let currentReceiptText = "";
     let activeKioskEmp = null;
-    let isPushingToCloud = false;
-    let lastPushTimestamp = 0;
+    let isFlushingQueue = false;
+    let isPullingCloud = false;
     let excelParsedRows = [];
 
     /* =======================================================================
-       UTILIDADES DE FECHA, HORA Y MONEDA
+       UTILIDADES DE FECHA, HORA Y TURNOS NOCTURNOS
     ======================================================================= */
     function getTodayISO() {
       const n = new Date();
@@ -612,20 +616,50 @@
       return h * 60 + m;
     }
 
+    function parseLocalDateTime(dateISO, hhmm) {
+      if (!dateISO || !hhmm) return null;
+      const [y, m, d] = String(dateISO).slice(0, 10).split('-').map(Number);
+      const [hh, mm] = normalizeTimeStr(hhmm).split(':').map(Number);
+      if (!y || isNaN(hh)) return null;
+      return new Date(y, m - 1, d, hh, mm, 0);
+    }
+
+    // Calcula segundos reales transcurridos incluso si el turno cruzó medianoche (ej: 21:00 -> 05:00)
+    function getShiftElapsedSeconds(shift, nowDate = new Date()) {
+      const startDt = parseLocalDateTime(shift.fecha_turno, shift.hora_ingreso);
+      if (!startDt) return 0;
+
+      if (shift.estado_jornada === 'EN_ALMUERZO' && shift.almuerzo_inicio) {
+        let almStartDt = parseLocalDateTime(shift.fecha_turno, shift.almuerzo_inicio);
+        if (almStartDt && almStartDt < startDt) {
+          almStartDt.setDate(almStartDt.getDate() + 1);
+        }
+        return almStartDt ? Math.max(0, Math.floor((nowDate - almStartDt) / 1000)) : 0;
+      }
+
+      const totalElapsedSec = Math.max(0, Math.floor((nowDate - startDt) / 1000));
+      const almSec = (Number(shift.minutos_almuerzo) || 0) * 60;
+      return Math.max(0, totalElapsedSec - almSec);
+    }
+
     function calculateJornadaMetrics(i, ai, af, s, vh = VALOR_HORA_EFECTIVA) {
       const mI = timeToMinutes(i), mO = timeToMinutes(s), mAi = timeToMinutes(ai), mAo = timeToMinutes(af);
       let ma = 0;
-      if (mAi !== null && mAo !== null && mAo >= mAi) ma = mAo - mAi;
+      if (mAi !== null && mAo !== null) {
+        let diffAlm = mAo - mAi;
+        if (diffAlm < 0) diffAlm += 1440; // Almuerzo cruzando medianoche (ej: 23:45 a 00:30)
+        ma = diffAlm;
+      }
       if (mI === null || mO === null) return { minutosAlmuerzo: ma, horasEfectivas: 0, valorTotal: 0 };
       let tb = mO - mI;
-      if (tb < 0) tb += 1440;
+      if (tb < 0) tb += 1440; // Turno nocturno cruzando medianoche
       const me = Math.max(0, tb - ma);
       const he = Number((me / 60).toFixed(4));
       return { minutosAlmuerzo: ma, horasEfectivas: he, valorTotal: Math.round(he * Number(vh || VALOR_HORA_EFECTIVA)) };
     }
 
     function getCorteInfo(ds) {
-      const [y, m, d] = ds.split('-').map(Number);
+      const [y, m, d] = String(ds).slice(0, 10).split('-').map(Number);
       const dt = new Date(y, m - 1, d);
       const diff = (dt.getDay() - 2 + 7) % 7;
       const ci = new Date(dt);
@@ -660,7 +694,6 @@
       return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
     }
 
-    /* Conversión de Pesos Colombianos a Letras para Cuenta de Cobro */
     function numeroALetrasCOP(num) {
       num = Math.round(Number(num) || 0);
       if (num === 0) return "CERO PESOS M/CTE";
@@ -697,20 +730,14 @@
       const miles = Math.floor(restoMillones / 1000);
       const resto = restoMillones % 1000;
 
-      if (millones > 0) {
-        res += (millones === 1 ? "UN MILLON " : convertirMenorMil(millones) + " MILLONES ");
-      }
-      if (miles > 0) {
-        res += (miles === 1 ? "MIL " : convertirMenorMil(miles) + " MIL ");
-      }
-      if (resto > 0) {
-        res += convertirMenorMil(resto);
-      }
+      if (millones > 0) res += (millones === 1 ? "UN MILLON " : convertirMenorMil(millones) + " MILLONES ");
+      if (miles > 0) res += (miles === 1 ? "MIL " : convertirMenorMil(miles) + " MIL ");
+      if (resto > 0) res += convertirMenorMil(resto);
       return (res.trim() + " PESOS M/CTE").replace(/\s+/g, " ");
     }
 
     /* =======================================================================
-       GENERADOR DE CUENTAS DE COBRO EN PDF (SOLO SUPER USUARIO)
+       GENERADOR DE CUENTAS DE COBRO EN PDF Y EMPAQUETADO .ZIP (SOLO SU)
     ======================================================================= */
     function buildCuentaCobroPDFDoc(group, corteInfo) {
       const { jsPDF } = window.jspdf;
@@ -728,19 +755,16 @@
       const fechaGeneracion = getDynamicSpanishDate();
       const consecutivo = `CC-${corteInfo.corte_inicio.replace(/-/g, '')}-${String(cedula).slice(-4)}`;
 
-      // Encabezado Ciudad y Fecha Dinámica
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(60, 60, 60);
       doc.text(`${empresaCiudad}, ${fechaGeneracion}`, 20, 24);
 
-      // Título Cuenta de Cobro
       doc.setFont("helvetica", "bold");
       doc.setFontSize(15);
       doc.setTextColor(15, 23, 42);
       doc.text(`CUENTA DE COBRO N° ${consecutivo}`, 108, 38, { align: "center" });
 
-      // Bloque Empresa Deudora (FAGOSA SAS)
       doc.setDrawColor(203, 213, 225);
       doc.setFillColor(248, 250, 252);
       doc.roundedRect(20, 45, 176, 22, 2, 2, "FD");
@@ -755,7 +779,6 @@
       doc.setTextColor(71, 85, 105);
       doc.text(`NIT: ${empresaNit}`, 108, 61, { align: "center" });
 
-      // Bloque Acreedor (Turnante)
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(15, 23, 42);
@@ -769,7 +792,6 @@
       doc.setTextColor(51, 65, 85);
       doc.text(`C.C. N° ${cedula}${telefono ? '  •  Tel/Cuenta: ' + telefono : ''}`, 108, 90, { align: "center" });
 
-      // Suma en Números y Letras
       doc.setDrawColor(16, 185, 129);
       doc.setFillColor(236, 253, 245);
       doc.roundedRect(20, 97, 176, 22, 2, 2, "FD");
@@ -785,7 +807,6 @@
       const letrasSplit = doc.splitTextToSize(`(${numeroALetrasCOP(totalDinero)})`, 166);
       doc.text(letrasSplit, 108, 112, { align: "center" });
 
-      // Concepto
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
@@ -800,7 +821,6 @@
 
       const tableStartY = 135 + (conceptoLines.length * 5) + 4;
 
-      // Tabla de turnos del corte
       const tableBody = group.turnos.map(t => [
         t.fecha_turno,
         t.hora_ingreso || "--:--",
@@ -829,7 +849,6 @@
         finalY = 25;
       }
 
-      // Nota tributaria estándar Colombia
       doc.setFont("helvetica", "italic");
       doc.setFontSize(8.5);
       doc.setTextColor(71, 85, 105);
@@ -839,7 +858,6 @@
 
       finalY += (notaLines.length * 4.5) + 18;
 
-      // Firma del turnante
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
@@ -884,7 +902,7 @@
       showToast(`PDF generado: ${fileName}`);
     }
 
-    function downloadAllCuentasCobroCorte() {
+    async function downloadAllCuentasCobroZIP() {
       const ci = document.getElementById('filter-corte-semana').value;
       const ef = document.getElementById('filter-corte-estado').value;
       if (!ci) return;
@@ -904,18 +922,25 @@
 
       const groups = Object.values(byEmp);
       const corteInfo = getCorteInfo(ci);
-      showToast(`Generando ${groups.length} cuenta(s) de cobro en PDF...`);
+      const zip = new JSZip();
 
-      groups.forEach((g, idx) => {
-        setTimeout(() => {
-          const { doc, fileName } = buildCuentaCobroPDFDoc(g, corteInfo);
-          doc.save(fileName);
-        }, idx * 400);
+      groups.forEach(g => {
+        const { doc, fileName } = buildCuentaCobroPDFDoc(g, corteInfo);
+        const pdfArrayBuffer = doc.output('arraybuffer');
+        zip.file(fileName, pdfArrayBuffer);
       });
+
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const zipName = `Cuentas_Cobro_FAGOSA_${corteInfo.corte_inicio}_al_${corteInfo.corte_fin}.zip`;
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = zipName;
+      link.click();
+      showToast(`ZIP descargado con ${groups.length} cuenta(s) de cobro`);
     }
 
     /* =======================================================================
-       RUTEO DE MODOS (KIOSCO vs SUPER USUARIO)
+       RUTEO DE MODOS Y LOGIN SEGURO CONTRA EXCEL
     ======================================================================= */
     function detectInitialMode() {
       const p = new URLSearchParams(window.location.search);
@@ -940,7 +965,7 @@
       document.getElementById('admin-shell').classList.add('hidden');
       document.getElementById('kiosk-shell').classList.remove('hidden');
       resetKioskScreen();
-      syncFromGoogleDrive(true);
+      pullFromGoogleDrive(true);
     }
 
     function showSuLogin() {
@@ -965,14 +990,40 @@
       sessionStorage.getItem(SU_SESSION_KEY) === 'true' ? activateAdminMode() : showSuLogin();
     }
 
-    function handleSuLogin(e) {
+    async function handleSuLogin(e) {
       e.preventDefault();
-      if (document.getElementById('su-pin-input').value.trim() === String(cloudConfig.suPin || DEFAULT_SU_PIN)) {
-        sessionStorage.setItem(SU_SESSION_KEY, 'true');
-        document.getElementById('su-login-error').classList.add('hidden');
-        activateAdminMode();
-      } else {
-        document.getElementById('su-login-error').classList.remove('hidden');
+      const pinVal = document.getElementById('su-pin-input').value.trim();
+      const errEl = document.getElementById('su-login-error');
+      const btn = document.getElementById('su-login-btn');
+
+      btn.disabled = true;
+      btn.textContent = "Validando en Excel...";
+      errEl.classList.add('hidden');
+
+      try {
+        const res = await fetch(cloudConfig.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            token: cloudConfig.token,
+            action: 'VERIFY_PIN',
+            pin: pinVal
+          })
+        });
+        const json = await res.json();
+        if (json.status === 'ok') {
+          sessionStorage.setItem(SU_SESSION_KEY, 'true');
+          activateAdminMode();
+        } else {
+          errEl.textContent = json.message || "PIN incorrecto.";
+          errEl.classList.remove('hidden');
+        }
+      } catch (err) {
+        errEl.textContent = "No hay conexión a internet para validar el PIN en Google Sheets.";
+        errEl.classList.remove('hidden');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Ingresar al Panel SU";
       }
     }
 
@@ -982,7 +1033,7 @@
       document.getElementById('admin-shell').classList.remove('hidden');
       loadCloudConfigInputs();
       renderAllAdmin();
-      syncFromGoogleDrive(true);
+      syncAllWithCloud(true);
     }
 
     function copyKioskLink() {
@@ -1060,8 +1111,8 @@
       const valid = excelParsedRows.filter(r => r.valid);
       if (valid.length === 0) return;
       valid.forEach((r, i) => {
-        appState.turnantes.push({
-          id: "EMP-" + (Date.now() + i).toString().slice(-5),
+        const rec = {
+          id: "EMP-" + (Date.now() + i).toString().slice(-6) + "-" + Math.floor(Math.random() * 90 + 10),
           nombre: r.nombre,
           documento: r.cedula,
           telefono: "",
@@ -1069,24 +1120,40 @@
           valor_hora_efectiva: VALOR_HORA_EFECTIVA,
           estado: "Activo",
           fecha_registro: getTodayISO()
-        });
+        };
+        appState.turnantes.push(rec);
+        enqueueAtomicOp({ type: "UPSERT_TURNANTE", record: rec });
       });
       closeModal('excel-paste-modal');
-      persistAndSync();
+      persistLocal();
+      renderAllAdmin();
+      flushOfflineQueue();
       showToast(`${valid.length} turnante(s) creados y sincronizados`);
     }
 
     /* =======================================================================
-       KIOSCO DE MARCACIÓN
+       KIOSCO DE MARCACIÓN (SOPORTA TURNOS NOCTURNOS Y COLA OFFLINE)
     ======================================================================= */
+    // Busca cualquier turno abierto (sin salida) de las últimas 36 horas, sin importar si cruzó medianoche
     function getOpenShiftForEmp(empId) {
-      const today = getTodayISO();
-      return appState.asistencia.find(t =>
+      const now = new Date();
+      const openShifts = appState.asistencia.filter(t =>
         String(t.id_turnante).trim() === String(empId).trim() &&
-        String(t.fecha_turno).trim() === today &&
         t.estado_jornada !== 'FINALIZADO' &&
         !normalizeTimeStr(t.hora_salida)
       );
+      if (openShifts.length === 0) return null;
+
+      openShifts.sort((a, b) => {
+        const da = parseLocalDateTime(a.fecha_turno, a.hora_ingreso) || new Date(0);
+        const db = parseLocalDateTime(b.fecha_turno, b.hora_ingreso) || new Date(0);
+        return db - da;
+      });
+
+      const latest = openShifts[0];
+      const startDt = parseLocalDateTime(latest.fecha_turno, latest.hora_ingreso);
+      if (startDt && (now - startDt) > 36 * 3600 * 1000) return null; // Ignorar abandonados > 36h
+      return latest;
     }
 
     function updateKioskClockAndTimers() {
@@ -1105,7 +1172,10 @@
       e.preventDefault();
       const doc = document.getElementById('kiosk-cedula-input').value.trim();
       const err = document.getElementById('kiosk-error-msg');
-      await syncFromGoogleDrive(true);
+
+      // Intentar actualizar desde Drive si hay internet, pero si falla usar caché local
+      await syncAllWithCloud(true);
+
       const emp = appState.turnantes.find(t => String(t.documento).trim() === doc && t.estado !== 'Inactivo');
       if (!emp) {
         err.textContent = `No se encontró turnante activo con cédula "${doc}".`;
@@ -1132,20 +1202,21 @@
 
       if (!shift) {
         badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-slate-700 text-slate-200";
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span> Sin turno abierto hoy`;
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span> Sin turno abierto`;
         tl.innerHTML = `Listo para registrar entrada.`;
         btns.innerHTML = `<button onclick="executeKioskPunch('INGRESO')" class="sm:col-span-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-5 rounded-2xl shadow-lg transition">Registrar Ingreso (${getCurrentHHMM()})</button>`;
       } else if (shift.estado_jornada === 'TRABAJANDO') {
+        const isOvernight = shift.fecha_turno !== getTodayISO();
         badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
-        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> En Turno`;
-        let l = [`Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong>`];
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> ${isOvernight ? 'Turno Nocturno Activo' : 'En Turno'}`;
+        let l = [`Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong> (${shift.fecha_turno})`];
         if (shift.almuerzo_inicio && shift.almuerzo_fin) l.push(`Almuerzo: <strong class="text-amber-300">${shift.almuerzo_inicio}-${shift.almuerzo_fin}</strong> (${shift.minutos_almuerzo}m)`);
         tl.innerHTML = l.join(' • ');
         btns.innerHTML = `${!shift.almuerzo_inicio ? `<button onclick="executeKioskPunch('ALMUERZO_INICIO')" class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-base py-4 px-4 rounded-2xl shadow-lg transition">Salir a Almuerzo<span class="block text-xs font-semibold opacity-80">Pausa pago</span></button>` : `<div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-4 flex items-center justify-center text-xs text-slate-400">Almuerzo registrado</div>`}<button onclick="executeKioskPunch('SALIDA')" class="bg-rose-500 hover:bg-rose-400 text-white font-extrabold text-base py-4 px-4 rounded-2xl shadow-lg transition">Finalizar Turno<span class="block text-xs font-semibold opacity-90">Marcar Salida</span></button>`;
       } else if (shift.estado_jornada === 'EN_ALMUERZO') {
         badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30";
         badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> En Almuerzo`;
-        tl.innerHTML = `Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong> • Almuerzo: <strong class="text-amber-300">${shift.almuerzo_inicio}</strong>`;
+        tl.innerHTML = `Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong> (${shift.fecha_turno}) • Almuerzo: <strong class="text-amber-300">${shift.almuerzo_inicio}</strong>`;
         btns.innerHTML = `<button onclick="executeKioskPunch('ALMUERZO_FIN')" class="sm:col-span-2 bg-sky-400 hover:bg-sky-300 text-slate-950 font-extrabold text-lg py-5 rounded-2xl shadow-lg transition">Regresar de Almuerzo (${getCurrentHHMM()})</button>`;
       }
       updateKioskTimerDisplay(shift);
@@ -1156,36 +1227,33 @@
       const lEl = document.getElementById('kiosk-timer-label');
       if (!tEl) return;
       if (!shift) {
-        lEl.textContent = "Tiempo Efectivo Hoy";
+        lEl.textContent = "Tiempo Efectivo";
         tEl.textContent = "00:00:00";
         tEl.className = "text-3xl font-extrabold tabular-nums text-slate-500 mt-0.5";
         return;
       }
-      const now = new Date();
-      const nowS = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
-      const inM = timeToMinutes(shift.hora_ingreso);
-      if (inM === null) { tEl.textContent = "00:00:00"; return; }
+      const elapsedSec = getShiftElapsedSeconds(shift, new Date());
       if (shift.estado_jornada === 'EN_ALMUERZO') {
-        const almM = timeToMinutes(shift.almuerzo_inicio);
         lEl.textContent = "Tiempo en Almuerzo";
-        tEl.textContent = formatDurationHMS(almM !== null ? Math.max(0, nowS - almM * 60) : 0);
+        tEl.textContent = formatDurationHMS(elapsedSec);
         tEl.className = "text-3xl font-extrabold tabular-nums text-amber-400 mt-0.5";
       } else {
         lEl.textContent = "Tiempo Efectivo";
-        tEl.textContent = formatDurationHMS(Math.max(0, nowS - inM * 60 - (Number(shift.minutos_almuerzo) || 0) * 60));
+        tEl.textContent = formatDurationHMS(elapsedSec);
         tEl.className = "text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5";
       }
     }
 
     function executeKioskPunch(act) {
       if (!activeKioskEmp) return;
-      const today = getTodayISO(), nowT = getCurrentHHMM();
+      const today = getTodayISO(), nowT = getCurrentHHMM(), nowIso = new Date().toISOString();
       let shift = getOpenShiftForEmp(activeKioskEmp.id), ft = "", fd = "";
 
       if (act === 'INGRESO') {
         const c = getCorteInfo(today);
+        const uniqueSuffix = Date.now() + "-" + Math.floor(Math.random() * 900 + 100);
         shift = {
-          id_turno: "TRN-" + Date.now(),
+          id_turno: "TRN-" + uniqueSuffix,
           id_turnante: activeKioskEmp.id,
           documento: activeKioskEmp.documento,
           nombre_turnante: activeKioskEmp.nombre,
@@ -1203,7 +1271,8 @@
           estado_jornada: "TRABAJANDO",
           estado_pago: "PENDIENTE",
           id_recibo: "",
-          observaciones: "Marcación Kiosco"
+          observaciones: "Marcación Kiosco",
+          updated_at: nowIso
         };
         appState.asistencia.unshift(shift);
         ft = `Ingreso: ${nowT}`;
@@ -1211,12 +1280,16 @@
       } else if (act === 'ALMUERZO_INICIO' && shift) {
         shift.almuerzo_inicio = nowT;
         shift.estado_jornada = "EN_ALMUERZO";
+        shift.updated_at = nowIso;
         ft = `Salida a Almuerzo: ${nowT}`;
         fd = `Tiempo remunerado pausado.`;
       } else if (act === 'ALMUERZO_FIN' && shift) {
         shift.almuerzo_fin = nowT;
-        shift.minutos_almuerzo = Math.max(0, (timeToMinutes(nowT) || 0) - (timeToMinutes(shift.almuerzo_inicio) || 0));
+        let diffAlm = (timeToMinutes(nowT) || 0) - (timeToMinutes(shift.almuerzo_inicio) || 0);
+        if (diffAlm < 0) diffAlm += 1440;
+        shift.minutos_almuerzo = Math.max(0, diffAlm);
         shift.estado_jornada = "TRABAJANDO";
+        shift.updated_at = nowIso;
         ft = `Regreso Almuerzo: ${nowT}`;
         fd = `Almuerzo descontado: ${shift.minutos_almuerzo} min.`;
       } else if (act === 'SALIDA' && shift) {
@@ -1227,15 +1300,22 @@
         shift.horas_efectivas = m.horasEfectivas;
         shift.valor_total = m.valorTotal;
         shift.estado_jornada = "FINALIZADO";
+        shift.updated_at = nowIso;
         ft = `Turno Finalizado: ${nowT}`;
-        fd = `Efectivo: ${formatHoursDisplay(shift.horas_efectivas)} • Pago: ${getCorteInfo(today).pagoLabel}.`;
+        fd = `Efectivo: ${formatHoursDisplay(shift.horas_efectivas)} • Pago: ${getCorteInfo(shift.fecha_turno).pagoLabel}.`;
       }
 
-      persistAndSync();
+      if (shift) {
+        enqueueAtomicOp({ type: "UPSERT_TURNO", record: shift });
+        persistLocal();
+        flushOfflineQueue();
+      }
+
       document.getElementById('kiosk-action-card').classList.add('hidden');
       const fb = document.getElementById('kiosk-feedback-card');
       document.getElementById('kiosk-feedback-title').textContent = ft;
       document.getElementById('kiosk-feedback-detail').textContent = fd;
+      document.getElementById('kiosk-offline-note').classList.toggle('hidden', navigator.onLine && offlineQueue.length === 0);
       fb.classList.remove('hidden');
 
       let s = 5;
@@ -1259,52 +1339,133 @@
     }
 
     /* =======================================================================
-       SINCRONIZACIÓN CON GOOGLE DRIVE
+       ARQUITECTURA ATÓMICA ANTI-COLISIONES + COLA OFFLINE RESILIENTE
     ======================================================================= */
     function persistLocal() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
       localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudConfig));
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(offlineQueue));
+      updateQueueBadge();
     }
 
-    function persistAndSync() {
+    function updateQueueBadge() {
+      const qb = document.getElementById('cfg-queue-badge');
+      if (qb) {
+        qb.textContent = `${offlineQueue.length} operación(es) pendiente(s)`;
+        qb.className = offlineQueue.length > 0
+          ? "text-xs font-bold bg-amber-100 text-amber-800 px-2.5 py-1 rounded-lg"
+          : "text-xs font-bold bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-lg";
+      }
+    }
+
+    function enqueueAtomicOp(op) {
+      // Si ya existe una operación pendiente para el mismo registro, reemplazarla con la más reciente
+      if (op.type === "UPSERT_TURNO" && op.record) {
+        offlineQueue = offlineQueue.filter(q => !(q.type === "UPSERT_TURNO" && q.record && q.record.id_turno === op.record.id_turno));
+      } else if (op.type === "UPSERT_TURNANTE" && op.record) {
+        offlineQueue = offlineQueue.filter(q => !(q.type === "UPSERT_TURNANTE" && q.record && q.record.id === op.record.id));
+      } else if (op.type === "UPSERT_CONFIG" && op.record) {
+        offlineQueue = offlineQueue.filter(q => !(q.type === "UPSERT_CONFIG" && q.record && q.record.clave === op.record.clave));
+      }
+      offlineQueue.push({ ...op, queued_at: Date.now() });
       persistLocal();
-      if (!document.getElementById('admin-shell').classList.contains('hidden')) renderAllAdmin();
-      pushAllToGoogleDrive(true);
     }
 
     function setSyncStatus(st, tx) {
       const d = document.getElementById('sync-dot'), l = document.getElementById('sync-label');
       const kd = document.getElementById('kiosk-sync-dot'), kt = document.getElementById('kiosk-sync-text');
       const ls = document.getElementById('login-cloud-status');
+      const pendingSuffix = offlineQueue.length > 0 ? ` (${offlineQueue.length} pend.)` : "";
+
       if (d && l) {
         const c = { ok: 'bg-emerald-400', syncing: 'bg-amber-400 animate-pulse', error: 'bg-rose-500' };
         d.className = `w-2 h-2 rounded-full ${c[st] || 'bg-slate-400'}`;
-        l.textContent = tx;
+        l.textContent = tx + pendingSuffix;
       }
       if (kd && kt) {
         kd.className = `w-2 h-2 rounded-full ${st === 'error' ? 'bg-rose-400' : (st === 'syncing' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400')}`;
-        kt.textContent = st === 'error' ? 'Sin red' : (st === 'syncing' ? 'Sincronizando...' : 'En Línea (5s)');
+        kt.textContent = (st === 'error' ? 'Modo Offline' : (st === 'syncing' ? 'Sincronizando...' : 'En Línea')) + pendingSuffix;
       }
-      if (ls) ls.textContent = st === 'ok' ? '● Nube conectada' : (st === 'syncing' ? '● Conectando...' : '● Sin conexión');
+      if (ls) ls.textContent = st === 'ok' ? '● Nube conectada' : (st === 'syncing' ? '● Conectando...' : '● Sin conexión a nube');
     }
 
-    async function syncFromGoogleDrive(silent = false) {
-      if (!cloudConfig.url) return;
-      if (isPushingToCloud || (Date.now() - lastPushTimestamp < 5000)) return;
-      if (!silent) setSyncStatus('syncing', 'Sincronizando...');
+    async function flushOfflineQueue() {
+      if (!cloudConfig.url || offlineQueue.length === 0 || isFlushingQueue) return false;
+      isFlushingQueue = true;
+      setSyncStatus('syncing', 'Subiendo cambios...');
+      const batch = [...offlineQueue];
+
+      try {
+        const res = await fetch(cloudConfig.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            token: cloudConfig.token,
+            action: 'BATCH_OPS',
+            ops: batch
+          })
+        });
+        const json = await res.json();
+        if (json.status === 'ok') {
+          // Eliminar solo las operaciones que ya fueron confirmadas por el servidor
+          const processedTimestamps = new Set(batch.map(b => b.queued_at));
+          offlineQueue = offlineQueue.filter(q => !processedTimestamps.has(q.queued_at));
+          persistLocal();
+          setSyncStatus('ok', 'Sincronizado');
+          return true;
+        } else {
+          setSyncStatus('error', 'Error servidor');
+          return false;
+        }
+      } catch (e) {
+        setSyncStatus('error', 'Sin internet (Guardado local)');
+        return false;
+      } finally {
+        isFlushingQueue = false;
+      }
+    }
+
+    async function pullFromGoogleDrive(silent = false) {
+      if (!cloudConfig.url || isPullingCloud) return;
+      isPullingCloud = true;
+      if (!silent) setSyncStatus('syncing', 'Descargando...');
+
       try {
         const res = await fetch(`${cloudConfig.url}?token=${encodeURIComponent(cloudConfig.token)}&t=${Date.now()}`, { cache: 'no-store' });
         const json = await res.json();
         if (json.status === 'ok' && json.data) {
+          // Proteger cualquier cambio local que aún esté en la cola offline para no sobrescribirlo
+          const pendingTurnoUpserts = new Map();
+          const pendingTurnoDeletes = new Set();
+          const pendingEmpUpserts = new Map();
+          const pendingEmpDeletes = new Set();
+
+          offlineQueue.forEach(op => {
+            if (op.type === "UPSERT_TURNO" && op.record) pendingTurnoUpserts.set(op.record.id_turno, op.record);
+            if (op.type === "DELETE_TURNO" && op.id) pendingTurnoDeletes.add(op.id);
+            if (op.type === "UPSERT_TURNANTE" && op.record) pendingEmpUpserts.set(op.record.id, op.record);
+            if (op.type === "DELETE_TURNANTE" && op.id) pendingEmpDeletes.add(op.id);
+          });
+
           if (Array.isArray(json.data.turnantes)) {
-            appState.turnantes = json.data.turnantes.filter(t => t.id || t.documento).map(t => ({
-              ...t,
-              documento: String(t.documento || '').trim(),
-              valor_hora_efectiva: Number(t.valor_hora_efectiva || t.valor_hora || VALOR_HORA_EFECTIVA)
-            }));
+            const mergedEmps = new Map();
+            json.data.turnantes.filter(t => t.id || t.documento).forEach(t => {
+              if (!pendingEmpDeletes.has(t.id)) {
+                mergedEmps.set(t.id, {
+                  ...t,
+                  documento: String(t.documento || '').trim(),
+                  valor_hora_efectiva: Number(t.valor_hora_efectiva || t.valor_hora || VALOR_HORA_EFECTIVA)
+                });
+              }
+            });
+            pendingEmpUpserts.forEach((rec, id) => mergedEmps.set(id, rec));
+            appState.turnantes = Array.from(mergedEmps.values());
           }
+
           if (Array.isArray(json.data.asistencia)) {
-            appState.asistencia = json.data.asistencia.filter(a => a.id_turno || a.id_turnante).map(a => {
+            const mergedTurnos = new Map();
+            json.data.asistencia.filter(a => a.id_turno || a.id_turnante).forEach(a => {
+              if (pendingTurnoDeletes.has(a.id_turno)) return;
               const hIn = normalizeTimeStr(a.hora_ingreso);
               const hOut = normalizeTimeStr(a.hora_salida);
               const aIn = normalizeTimeStr(a.almuerzo_inicio);
@@ -1313,7 +1474,7 @@
               if (!est || est === 'undefined') {
                 est = hOut ? 'FINALIZADO' : (aIn && !aOut ? 'EN_ALMUERZO' : 'TRABAJANDO');
               }
-              return {
+              mergedTurnos.set(a.id_turno, {
                 ...a,
                 documento: String(a.documento || '').trim(),
                 fecha_turno: String(a.fecha_turno || '').slice(0, 10),
@@ -1326,9 +1487,12 @@
                 valor_total: Number(a.valor_total || 0),
                 estado_jornada: est,
                 estado_pago: a.estado_pago || 'PENDIENTE'
-              };
+              });
             });
+            pendingTurnoUpserts.forEach((rec, id) => mergedTurnos.set(id, rec));
+            appState.asistencia = Array.from(mergedTurnos.values()).sort((a, b) => String(b.id_turno).localeCompare(String(a.id_turno)));
           }
+
           if (Array.isArray(json.data.pagos)) {
             appState.pagos = json.data.pagos.filter(p => p.id_recibo).map(p => ({
               ...p,
@@ -1337,43 +1501,45 @@
               total_pagado: Number(p.total_pagado || 0)
             }));
           }
+
           if (Array.isArray(json.data.config) && json.data.config.length > 0) {
             appState.config = json.data.config;
-            const rPin = json.data.config.find(c => c.clave === 'suPin');
             const rEmp = json.data.config.find(c => c.clave === 'empNombre');
             const rNit = json.data.config.find(c => c.clave === 'empNit');
             const rCiu = json.data.config.find(c => c.clave === 'empCiudad');
-            if (rPin && rPin.valor) cloudConfig.suPin = String(rPin.valor).trim();
             if (rEmp && rEmp.valor) cloudConfig.empNombre = String(rEmp.valor).trim();
             if (rNit && rNit.valor) cloudConfig.empNit = String(rNit.valor).trim();
             if (rCiu && rCiu.valor) cloudConfig.empCiudad = String(rCiu.valor).trim();
           }
+
           persistLocal();
           if (!document.getElementById('admin-shell').classList.contains('hidden')) renderAllAdmin();
           if (activeKioskEmp && !document.getElementById('kiosk-action-card').classList.contains('hidden')) renderKioskEmployeePanel();
-          setSyncStatus('ok', 'En Línea (5s)');
-          if (!silent) showToast("Sincronizado con Google Drive");
+          setSyncStatus('ok', 'En Línea');
+          if (!silent) showToast("Sincronizado con todos los dispositivos");
         } else {
           setSyncStatus('error', 'Error Token');
         }
       } catch (e) {
-        setSyncStatus('error', 'Sin conexión');
+        setSyncStatus('error', 'Sin internet');
+      } finally {
+        isPullingCloud = false;
       }
     }
 
-    async function pushAllToGoogleDrive(silent = false) {
+    async function syncAllWithCloud(silent = true) {
+      await flushOfflineQueue();
+      await pullFromGoogleDrive(silent);
+    }
+
+    async function manualForceSync() {
+      await syncAllWithCloud(false);
+    }
+
+    async function pushFullBackupToDrive() {
       if (!cloudConfig.url) return;
-      isPushingToCloud = true;
-      lastPushTimestamp = Date.now();
-      setSyncStatus('syncing', 'Guardando...');
+      setSyncStatus('syncing', 'Subiendo respaldo...');
       try {
-        const nowIso = new Date().toISOString();
-        appState.config = [
-          { clave: "suPin", valor: String(cloudConfig.suPin || DEFAULT_SU_PIN), ultima_actualizacion: nowIso },
-          { clave: "empNombre", valor: String(cloudConfig.empNombre || DEFAULT_COMPANY.nombre), ultima_actualizacion: nowIso },
-          { clave: "empNit", valor: String(cloudConfig.empNit || DEFAULT_COMPANY.nit), ultima_actualizacion: nowIso },
-          { clave: "empCiudad", valor: String(cloudConfig.empCiudad || DEFAULT_COMPANY.ciudad), ultima_actualizacion: nowIso }
-        ];
         const res = await fetch(cloudConfig.url, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -1383,21 +1549,24 @@
             turnantes: appState.turnantes,
             asistencia: appState.asistencia,
             pagos: appState.pagos,
-            config: appState.config
+            config: [
+              { clave: "empNombre", valor: cloudConfig.empNombre, ultima_actualizacion: new Date().toISOString() },
+              { clave: "empNit", valor: cloudConfig.empNit, ultima_actualizacion: new Date().toISOString() },
+              { clave: "empCiudad", valor: cloudConfig.empCiudad, ultima_actualizacion: new Date().toISOString() }
+            ]
           })
         });
         const json = await res.json();
-        lastPushTimestamp = Date.now();
         if (json.status === 'ok') {
-          setSyncStatus('ok', 'Guardado en Nube');
-          if (!silent) showToast("Datos guardados en Google Drive");
+          offlineQueue = [];
+          persistLocal();
+          setSyncStatus('ok', 'Respaldo guardado');
+          showToast("Respaldo completo guardado en Google Drive");
         } else {
-          setSyncStatus('error', 'Error al guardar');
+          setSyncStatus('error', 'Error respaldo');
         }
       } catch (e) {
-        setSyncStatus('error', 'Fallo envío');
-      } finally {
-        isPushingToCloud = false;
+        setSyncStatus('error', 'Sin conexión');
       }
     }
 
@@ -1412,6 +1581,7 @@
       renderAsistenciaTable();
       renderTurnantesGrid();
       renderHistorialTable();
+      updateQueueBadge();
     }
 
     function renderKPIs() {
@@ -1446,29 +1616,33 @@
         g.innerHTML = `<div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center"><p class="text-sm font-semibold text-slate-600">No hay turnantes activos en este momento.</p><p class="text-xs text-slate-400 mt-1">Apenas un empleado marque ingreso en el Kiosco aparecerá aquí automáticamente.</p></div>`;
         return;
       }
-      const now = new Date(), nowS = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      const now = new Date();
       g.innerHTML = act.map(s => {
         const isL = s.estado_jornada === 'EN_ALMUERZO';
-        const inM = timeToMinutes(s.hora_ingreso) || 0;
-        const almM = timeToMinutes(s.almuerzo_inicio) || 0;
-        const el = isL ? Math.max(0, nowS - almM * 60) : Math.max(0, nowS - inM * 60 - (Number(s.minutos_almuerzo) || 0) * 60);
+        const el = getShiftElapsedSeconds(s, now);
         const ep = Math.round((el / 3600) * VALOR_HORA_EFECTIVA);
+        const isAlert = (isL && el > 90 * 60) || (!isL && el > 12 * 3600);
+        const borderCls = isAlert ? 'border-rose-400 ring-2 ring-rose-100' : (isL ? 'border-amber-300' : 'border-emerald-300');
+
         return `
-          <div class="bg-white rounded-xl border ${isL ? 'border-amber-300' : 'border-emerald-300'} p-5 shadow-sm space-y-3">
+          <div class="bg-white rounded-xl border ${borderCls} p-5 shadow-sm space-y-3">
             <div class="flex items-start justify-between">
               <div>
-                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${isL ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
-                  <span class="w-1.5 h-1.5 rounded-full ${isL ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-ping'}"></span>${isL ? 'EN ALMUERZO' : 'TRABAJANDO'}
-                </span>
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${isL ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
+                    <span class="w-1.5 h-1.5 rounded-full ${isL ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-ping'}"></span>${isL ? 'EN ALMUERZO' : 'TRABAJANDO'}
+                  </span>
+                  ${isAlert ? `<span class="text-[10px] font-extrabold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">EXCESO TIEMPO</span>` : ''}
+                </div>
                 <h3 class="font-bold text-slate-900 text-base mt-1.5">${s.nombre_turnante}</h3>
-                <p class="text-xs text-slate-500">CC ${s.documento} • Ingreso: <strong>${s.hora_ingreso}</strong></p>
+                <p class="text-xs text-slate-500">CC ${s.documento} • Ingreso: <strong>${s.hora_ingreso}</strong> (${s.fecha_turno})</p>
               </div>
               <button onclick="openEditTurnoModal('${s.id_turno}')" class="text-xs font-semibold text-slate-500 hover:text-slate-900 underline">Corregir</button>
             </div>
             <div class="bg-slate-50 rounded-lg p-3 flex items-center justify-between">
               <div>
                 <p class="text-[11px] text-slate-500">${isL ? 'Almuerzo' : 'Efectivo'}</p>
-                <p class="text-lg font-extrabold tabular-nums ${isL ? 'text-amber-600' : 'text-emerald-600'}">${formatDurationHMS(el)}</p>
+                <p class="text-lg font-extrabold tabular-nums ${isAlert ? 'text-rose-600' : (isL ? 'text-amber-600' : 'text-emerald-600')}">${formatDurationHMS(el)}</p>
               </div>
               <div class="text-right">
                 <p class="text-[11px] text-slate-500">Causado</p>
@@ -1675,11 +1849,13 @@
       const m = calculateJornadaMetrics(i, ai, af, s, emp.valor_hora_efectiva);
       const c = getCorteInfo(f);
       const ej = s ? "FINALIZADO" : (ai && !af ? "EN_ALMUERZO" : "TRABAJANDO");
+      const nowIso = new Date().toISOString();
 
+      let targetRecord = null;
       if (eid) {
         const idx = appState.asistencia.findIndex(x => x.id_turno === eid);
         if (idx !== -1) {
-          appState.asistencia[idx] = {
+          targetRecord = {
             ...appState.asistencia[idx],
             id_turnante: emp.id,
             documento: emp.documento,
@@ -1696,13 +1872,15 @@
             corte_fin: c.corte_fin,
             fecha_pago_martes: c.fecha_pago_martes,
             estado_jornada: ej,
-            observaciones: obs || "Corregido SU"
+            observaciones: obs || "Corregido SU",
+            updated_at: nowIso
           };
+          appState.asistencia[idx] = targetRecord;
         }
         showToast("Marcaje actualizado");
       } else {
-        appState.asistencia.unshift({
-          id_turno: "TRN-" + Date.now(),
+        targetRecord = {
+          id_turno: "TRN-" + Date.now() + "-" + Math.floor(Math.random() * 900 + 100),
           id_turnante: emp.id,
           documento: emp.documento,
           nombre_turnante: emp.nombre,
@@ -1720,18 +1898,29 @@
           estado_jornada: ej,
           estado_pago: "PENDIENTE",
           id_recibo: "",
-          observaciones: obs || "Registro SU"
-        });
+          observaciones: obs || "Registro SU",
+          updated_at: nowIso
+        };
+        appState.asistencia.unshift(targetRecord);
         showToast("Turno registrado");
       }
+
+      if (targetRecord) {
+        enqueueAtomicOp({ type: "UPSERT_TURNO", record: targetRecord });
+        persistLocal();
+        renderAllAdmin();
+        flushOfflineQueue();
+      }
       closeModal('turno-modal');
-      persistAndSync();
     }
 
     function deleteTurno(id) {
       if (!confirm("¿Eliminar marcación?")) return;
       appState.asistencia = appState.asistencia.filter(t => t.id_turno !== id);
-      persistAndSync();
+      enqueueAtomicOp({ type: "DELETE_TURNO", id });
+      persistLocal();
+      renderAllAdmin();
+      flushOfflineQueue();
     }
 
     function openEmpModal() {
@@ -1747,8 +1936,8 @@
         alert("Ya existe un turnante con esa cédula.");
         return;
       }
-      appState.turnantes.push({
-        id: "EMP-" + Date.now().toString().slice(-4),
+      const rec = {
+        id: "EMP-" + Date.now().toString().slice(-5) + "-" + Math.floor(Math.random() * 90 + 10),
         nombre: document.getElementById('e-nombre').value.trim(),
         documento: doc,
         telefono: document.getElementById('e-tel').value.trim(),
@@ -1756,16 +1945,23 @@
         valor_hora_efectiva: Number(document.getElementById('e-valor-hora').value) || VALOR_HORA_EFECTIVA,
         estado: "Activo",
         fecha_registro: getTodayISO()
-      });
+      };
+      appState.turnantes.push(rec);
+      enqueueAtomicOp({ type: "UPSERT_TURNANTE", record: rec });
       closeModal('emp-modal');
-      persistAndSync();
+      persistLocal();
+      renderAllAdmin();
+      flushOfflineQueue();
       showToast("Turnante registrado y sincronizado");
     }
 
     function deleteTurnante(id) {
       if (!confirm("¿Eliminar turnante?")) return;
       appState.turnantes = appState.turnantes.filter(t => String(t.id) !== String(id));
-      persistAndSync();
+      enqueueAtomicOp({ type: "DELETE_TURNANTE", id });
+      persistLocal();
+      renderAllAdmin();
+      flushOfflineQueue();
     }
 
     function liquidarGrupo(idT, ci) {
@@ -1776,9 +1972,17 @@
       const cInfo = getCorteInfo(ci);
       const met = prompt(`Liquidar ${formatCOP(tot)} (${th.toFixed(2)}h) a ${tg[0].nombre_turnante}.\nMétodo:`, "Transferencia / Nequi");
       if (met === null) return;
+
       const idR = "REC-" + Date.now().toString().slice(-6);
-      tg.forEach(t => { t.estado_pago = "PAGADO"; t.id_recibo = idR; });
-      appState.pagos.unshift({
+      const nowIso = new Date().toISOString();
+      tg.forEach(t => {
+        t.estado_pago = "PAGADO";
+        t.id_recibo = idR;
+        t.updated_at = nowIso;
+        enqueueAtomicOp({ type: "UPSERT_TURNO", record: t });
+      });
+
+      const pagoRec = {
         id_recibo: idR,
         fecha_liquidacion: getTodayISO(),
         corte_semana: cInfo.label,
@@ -1789,8 +1993,13 @@
         total_pagado: tot,
         metodo_pago: met || "Efectivo",
         notas: `Pago ${cInfo.pagoLabel}`
-      });
-      persistAndSync();
+      };
+      appState.pagos.unshift(pagoRec);
+      enqueueAtomicOp({ type: "UPSERT_PAGO", record: pagoRec });
+
+      persistLocal();
+      renderAllAdmin();
+      flushOfflineQueue();
       viewReceipt(idR);
     }
 
@@ -1818,35 +2027,46 @@
     }
 
     function loadCloudConfigInputs() {
-      document.getElementById('cfg-su-pin').value = cloudConfig.suPin || DEFAULT_SU_PIN;
+      document.getElementById('cfg-su-pin').value = "";
       document.getElementById('cfg-emp-nombre').value = cloudConfig.empNombre || DEFAULT_COMPANY.nombre;
       document.getElementById('cfg-emp-nit').value = cloudConfig.empNit || DEFAULT_COMPANY.nit;
       document.getElementById('cfg-emp-ciudad').value = cloudConfig.empCiudad || DEFAULT_COMPANY.ciudad;
       document.getElementById('cfg-api-url').value = cloudConfig.url || DEFAULT_API_URL;
       document.getElementById('cfg-api-token').value = cloudConfig.token || DEFAULT_API_TOKEN;
+      updateQueueBadge();
     }
 
     function updateGlobalSuPin() {
       const np = document.getElementById('cfg-su-pin').value.trim();
-      if (np.length < 4) { alert("Mínimo 4 dígitos."); return; }
-      cloudConfig.suPin = np;
-      persistAndSync();
-      showToast("PIN global actualizado");
+      if (np.length < 4) { alert("El PIN debe tener mínimo 4 dígitos."); return; }
+      enqueueAtomicOp({
+        type: "UPSERT_CONFIG",
+        record: { clave: "suPin", valor: np, ultima_actualizacion: new Date().toISOString() }
+      });
+      document.getElementById('cfg-su-pin').value = "";
+      persistLocal();
+      flushOfflineQueue();
+      showToast("Nuevo PIN enviado a Google Sheets");
     }
 
     function saveCompanyConfig() {
       cloudConfig.empNombre = document.getElementById('cfg-emp-nombre').value.trim() || DEFAULT_COMPANY.nombre;
       cloudConfig.empNit = document.getElementById('cfg-emp-nit').value.trim() || DEFAULT_COMPANY.nit;
       cloudConfig.empCiudad = document.getElementById('cfg-emp-ciudad').value.trim() || DEFAULT_COMPANY.ciudad;
-      persistAndSync();
-      showToast("Datos de empresa actualizados");
+      const nowIso = new Date().toISOString();
+      enqueueAtomicOp({ type: "UPSERT_CONFIG", record: { clave: "empNombre", valor: cloudConfig.empNombre, ultima_actualizacion: nowIso } });
+      enqueueAtomicOp({ type: "UPSERT_CONFIG", record: { clave: "empNit", valor: cloudConfig.empNit, ultima_actualizacion: nowIso } });
+      enqueueAtomicOp({ type: "UPSERT_CONFIG", record: { clave: "empCiudad", valor: cloudConfig.empCiudad, ultima_actualizacion: nowIso } });
+      persistLocal();
+      flushOfflineQueue();
+      showToast("Datos de empresa guardados");
     }
 
     function saveCloudConfig() {
       cloudConfig.url = document.getElementById('cfg-api-url').value.trim();
       cloudConfig.token = document.getElementById('cfg-api-token').value.trim();
       persistLocal();
-      syncFromGoogleDrive(false);
+      syncAllWithCloud(false);
     }
 
     function switchTab(tab) {
@@ -1882,12 +2102,14 @@
       setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
     }
 
+    // Inicialización y escucha automática de recuperación de internet
     detectInitialMode();
     updateKioskClockAndTimers();
     setInterval(updateKioskClockAndTimers, 1000);
-    syncFromGoogleDrive(true);
-    setInterval(() => syncFromGoogleDrive(true), 5000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) syncFromGoogleDrive(true); });
+    syncAllWithCloud(true);
+    setInterval(() => syncAllWithCloud(true), 6000);
+    window.addEventListener('online', () => { showToast("Conexión restablecida. Sincronizando..."); syncAllWithCloud(true); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) syncAllWithCloud(true); });
   </script>
 </body>
 </html>
