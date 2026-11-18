@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/marcacion", "destination": "/index.html?modo=marcacion" },
+    { "source": "/kiosco", "destination": "/index.html?modo=marcacion" }
+  ]
+}
