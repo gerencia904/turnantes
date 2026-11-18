@@ -22,7 +22,7 @@
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
 
   <!-- =======================================================================
-       KIOSCO DE MARCACIÓN (SOLO EMPLEADOS)
+       KIOSCO DE MARCACIÓN (HORA OFICIAL COLOMBIA + 2 DISPOSITIVOS AUTORIZADOS)
   ======================================================================= -->
   <div id="kiosk-shell" class="hidden min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-8">
     <header class="max-w-3xl w-full mx-auto flex items-center justify-between border-b border-slate-800 pb-4">
@@ -30,7 +30,7 @@
         <div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-extrabold text-xl">T</div>
         <div>
           <h1 class="font-bold text-lg tracking-tight leading-none">TurnoPay <span class="text-emerald-400">Kiosco</span></h1>
-          <p class="text-xs text-slate-400 mt-1">Registro Oficial de Asistencia y Almuerzo</p>
+          <p class="text-xs text-slate-400 mt-1" id="kiosk-device-badge">Verificando equipo autorizado...</p>
         </div>
       </div>
       <div class="flex items-center gap-2 sm:gap-3">
@@ -43,54 +43,72 @@
     </header>
 
     <main class="max-w-2xl w-full mx-auto my-auto py-8">
-      <div class="text-center mb-8">
-        <p id="kiosk-date" class="text-sm sm:text-base font-medium text-emerald-400 uppercase tracking-widest mb-1"></p>
-        <div id="kiosk-clock" class="text-5xl sm:text-7xl font-extrabold tracking-tight tabular-nums text-white">00:00:00</div>
+      <!-- Bloqueo si el dispositivo no es uno de los 2 preestablecidos -->
+      <div id="kiosk-unauthorized-card" class="hidden bg-rose-950/70 border border-rose-500/40 rounded-3xl p-8 text-center space-y-4 shadow-2xl">
+        <div class="w-14 h-14 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center font-extrabold text-2xl mx-auto">!</div>
+        <h2 class="text-xl font-extrabold text-white">Dispositivo No Autorizado para Marcación</h2>
+        <p class="text-sm text-slate-300">Este equipo no está registrado dentro de los 2 dispositivos permitidos por administración.</p>
+        <div class="bg-slate-900/90 border border-slate-700 rounded-xl p-3 text-xs font-mono text-amber-300">
+          ID de este equipo: <strong id="unauth-device-id"></strong>
+        </div>
+        <p class="text-xs text-slate-400">Si eres el Super Usuario, ingresa al panel SU → Configuración SU para autorizar este ID.</p>
+        <button onclick="switchToAdminPrompt()" class="bg-white text-slate-900 font-bold text-xs px-5 py-3 rounded-xl hover:bg-slate-200 transition">Ir a Acceso Super Usuario</button>
       </div>
 
-      <div id="kiosk-lookup-card" class="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl">
-        <label for="kiosk-cedula-input" class="block text-sm font-semibold text-slate-300 mb-2 text-center">Digita tu número de cédula para registrar marcación</label>
-        <form onsubmit="handleKioskLookup(event)" class="space-y-4">
-          <input type="text" id="kiosk-cedula-input" inputmode="numeric" autocomplete="off" required placeholder="Ej: 1094912345" class="w-full text-center text-2xl sm:text-3xl font-bold tracking-wider bg-slate-900 border-2 border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-4 text-white outline-none transition tabular-nums" />
-          <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-4 rounded-2xl shadow-lg shadow-emerald-500/20 transition">Continuar</button>
-        </form>
-        <p id="kiosk-error-msg" class="hidden mt-4 text-center text-sm font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl py-2.5 px-4"></p>
-      </div>
-
-      <div id="kiosk-action-card" class="hidden bg-slate-800/90 border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
-        <div class="flex items-start justify-between border-b border-slate-700 pb-4">
-          <div>
-            <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Turnante Identificado</span>
-            <h2 id="kiosk-emp-name" class="text-2xl sm:text-3xl font-extrabold text-white mt-0.5"></h2>
-            <p id="kiosk-emp-meta" class="text-sm text-slate-400 mt-0.5"></p>
+      <div id="kiosk-main-wrapper">
+        <div class="text-center mb-8">
+          <div class="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-widest text-emerald-400 mb-1">
+            <span>Hora Oficial Colombia</span>
+            <span id="kiosk-time-source" class="text-[10px] bg-emerald-500/20 px-2 py-0.5 rounded-full">Sincronizada</span>
           </div>
-          <button onclick="resetKioskScreen()" class="text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl transition">Cambiar Cédula</button>
+          <p id="kiosk-date" class="text-sm sm:text-base font-medium text-slate-300 capitalize mb-1"></p>
+          <div id="kiosk-clock" class="text-5xl sm:text-7xl font-extrabold tracking-tight tabular-nums text-white">00:00:00</div>
         </div>
 
-        <div id="kiosk-status-panel" class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <span id="kiosk-state-badge" class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full"></span>
-            <p id="kiosk-timeline-summary" class="text-xs text-slate-400 mt-2 space-y-0.5"></p>
-          </div>
-          <div class="text-left sm:text-right">
-            <p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold" id="kiosk-timer-label">Tiempo Efectivo</p>
-            <p id="kiosk-live-timer" class="text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5">00:00:00</p>
-          </div>
+        <div id="kiosk-lookup-card" class="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl">
+          <label for="kiosk-cedula-input" class="block text-sm font-semibold text-slate-300 mb-2 text-center">Digita tu número de cédula para registrar marcación</label>
+          <form onsubmit="handleKioskLookup(event)" class="space-y-4">
+            <input type="text" id="kiosk-cedula-input" inputmode="numeric" autocomplete="off" required placeholder="Ej: 1094912345" class="w-full text-center text-2xl sm:text-3xl font-bold tracking-wider bg-slate-900 border-2 border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-4 text-white outline-none transition tabular-nums" />
+            <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-4 rounded-2xl shadow-lg shadow-emerald-500/20 transition">Continuar</button>
+          </form>
+          <p id="kiosk-error-msg" class="hidden mt-4 text-center text-sm font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl py-2.5 px-4"></p>
         </div>
 
-        <div id="kiosk-buttons-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
-      </div>
+        <div id="kiosk-action-card" class="hidden bg-slate-800/90 border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+          <div class="flex items-start justify-between border-b border-slate-700 pb-4">
+            <div>
+              <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Turnante Identificado</span>
+              <h2 id="kiosk-emp-name" class="text-2xl sm:text-3xl font-extrabold text-white mt-0.5"></h2>
+              <p id="kiosk-emp-meta" class="text-sm text-slate-400 mt-0.5"></p>
+            </div>
+            <button onclick="resetKioskScreen()" class="text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl transition">Cambiar Cédula</button>
+          </div>
 
-      <div id="kiosk-feedback-card" class="hidden mt-4 bg-emerald-500/15 border border-emerald-500/40 rounded-2xl p-5 text-center space-y-2">
-        <p id="kiosk-feedback-title" class="text-lg font-extrabold text-emerald-300"></p>
-        <p id="kiosk-feedback-detail" class="text-sm text-slate-200"></p>
-        <p id="kiosk-offline-note" class="hidden text-xs font-semibold text-amber-300">Guardado en memoria local (se subirá apenas vuelva el internet).</p>
-        <p class="text-xs text-slate-400 pt-1">Volverá al inicio en <span id="kiosk-countdown" class="font-bold text-white">5</span>s...</p>
+          <div id="kiosk-status-panel" class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span id="kiosk-state-badge" class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full"></span>
+              <p id="kiosk-timeline-summary" class="text-xs text-slate-400 mt-2 space-y-0.5"></p>
+            </div>
+            <div class="text-left sm:text-right">
+              <p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold" id="kiosk-timer-label">Tiempo Efectivo</p>
+              <p id="kiosk-live-timer" class="text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5">00:00:00</p>
+            </div>
+          </div>
+
+          <div id="kiosk-buttons-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+        </div>
+
+        <div id="kiosk-feedback-card" class="hidden mt-4 bg-emerald-500/15 border border-emerald-500/40 rounded-2xl p-5 text-center space-y-2">
+          <p id="kiosk-feedback-title" class="text-lg font-extrabold text-emerald-300"></p>
+          <p id="kiosk-feedback-detail" class="text-sm text-slate-200"></p>
+          <p id="kiosk-offline-note" class="hidden text-xs font-semibold text-amber-300">Guardado en memoria local (se subirá apenas vuelva el internet).</p>
+          <p class="text-xs text-slate-400 pt-1">Volverá al inicio en <span id="kiosk-countdown" class="font-bold text-white">5</span>s...</p>
+        </div>
       </div>
     </main>
 
     <footer class="max-w-3xl w-full mx-auto text-center text-xs text-slate-500 border-t border-slate-800 pt-4">
-      Corte semanal: Martes a Lunes • Pagos: Días Martes • Soporta turnos diurnos y nocturnos.
+      Corte semanal: Martes a Lunes • Pagos: Días Martes • Hora sincronizada con servidor Colombia.
     </footer>
   </div>
 
@@ -102,7 +120,7 @@
       <div class="text-center">
         <div class="w-12 h-12 rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center font-extrabold text-2xl mx-auto mb-3">SU</div>
         <h1 class="text-xl font-extrabold text-slate-900">Acceso Super Usuario</h1>
-        <p class="text-sm text-slate-500 mt-1">Validación segura contra Google Sheets</p>
+        <p class="text-sm text-slate-500 mt-1">FAGOSA SAS • Validación segura contra Google Sheets</p>
       </div>
       <form onsubmit="handleSuLogin(event)" class="space-y-4">
         <div>
@@ -136,13 +154,16 @@
           </div>
         </div>
         <div class="flex items-center gap-2">
-          <button onclick="copyKioskLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition hidden sm:inline">Copiar Link Kiosco</button>
+          <button id="header-alerts-btn" onclick="openAlertsPopup(true)" class="hidden bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-lg text-xs font-extrabold animate-pulse transition">
+            Alertas (<span id="header-alerts-count">0</span>)
+          </button>
+          <button onclick="copyKioskLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition hidden md:inline">Link Kiosco</button>
           <button onclick="manualForceSync()" id="sync-status-btn" title="Clic para sincronizar ahora" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition">
             <span id="sync-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
             <span id="sync-label" class="hidden md:inline">Sincronizando...</span>
           </button>
           <button onclick="openTurnoModal()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs sm:text-sm transition shadow-sm">+ Marcaje</button>
-          <button onclick="logoutSuperUser()" title="Cerrar Sesión SU" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-2 rounded-lg text-xs transition shadow-sm">Salir SU</button>
+          <button onclick="logoutSuperUser()" title="Cerrar Sesión SU" class="bg-slate-700 hover:bg-rose-600 text-white font-bold px-3 py-2 rounded-lg text-xs transition shadow-sm">Salir SU</button>
         </div>
       </div>
     </header>
@@ -156,14 +177,14 @@
           <p id="kpi-live-sub" class="text-xs text-slate-400 mt-0.5">0 trabajando • 0 en almuerzo</p>
         </div>
         <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Por Pagar (Próx. Martes)</p>
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Neto Por Pagar (Martes)</p>
           <p id="kpi-next-tuesday" class="text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">$0</p>
           <p id="kpi-next-tuesday-date" class="text-xs text-slate-500 mt-0.5">Calculando corte...</p>
         </div>
         <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
-          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vencido / Hoy Martes</p>
-          <p id="kpi-overdue" class="text-2xl font-extrabold text-rose-600 mt-1 tabular-nums">$0</p>
-          <p id="kpi-overdue-count" class="text-xs text-rose-600/80 mt-0.5">0 pendientes</p>
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Alertas / Revisiones</p>
+          <p id="kpi-alerts-total" class="text-2xl font-extrabold text-rose-600 mt-1 tabular-nums">0</p>
+          <p id="kpi-alerts-sub" class="text-xs text-slate-500 mt-0.5">Turnos >16h o ARL por vencer</p>
         </div>
         <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pagado Este Mes</p>
@@ -177,8 +198,9 @@
         <div class="flex flex-wrap gap-1.5 bg-slate-200/70 p-1 rounded-xl w-fit">
           <button onclick="switchTab('live')" id="tab-btn-live" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold bg-white text-slate-900 shadow-sm transition">Monitor en Vivo</button>
           <button onclick="switchTab('cortes')" id="tab-btn-cortes" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Cortes (Mar-Lun)</button>
+          <button onclick="switchTab('novedades')" id="tab-btn-novedades" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Vales / Descuentos</button>
           <button onclick="switchTab('asistencia')" id="tab-btn-asistencia" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Auditoría</button>
-          <button onclick="switchTab('turnantes')" id="tab-btn-turnantes" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Turnantes (<span id="count-turnantes">0</span>)</button>
+          <button onclick="switchTab('turnantes')" id="tab-btn-turnantes" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Turnantes & ARL (<span id="count-turnantes">0</span>)</button>
           <button onclick="switchTab('historial')" id="tab-btn-historial" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Recibos</button>
           <button onclick="switchTab('config')" id="tab-btn-config" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Configuración SU</button>
         </div>
@@ -190,10 +212,10 @@
         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="font-bold text-slate-800 text-base">Jornadas Activas (Diurnas y Nocturnas)</h2>
+              <h2 class="font-bold text-slate-800 text-base">Jornadas Activas (Cierre automático tras 16h sin salida)</h2>
               <span class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> EN VIVO</span>
             </div>
-            <p class="text-xs text-slate-500 mt-0.5">Sincronización atómica sin colisiones. Si un turno supera 12h o un almuerzo supera 90m se resalta en alerta.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Si un empleado olvida marcar salida y pasan 16 horas, el turno se cierra automáticamente sin cálculo horario y alerta al SU.</p>
           </div>
           <div class="flex gap-2">
             <button onclick="manualForceSync()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl transition">Actualizar Ya</button>
@@ -203,9 +225,9 @@
         <div id="live-workers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </section>
 
-      <!-- VIEW 2: CORTES SEMANALES + ZIP CUENTAS DE COBRO -->
+      <!-- VIEW 2: CORTES SEMANALES + ARCHIVO SEMANAL + CUENTAS DE COBRO PDF/ZIP -->
       <section id="view-cortes" class="hidden space-y-5">
-        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col xl:flex-row xl:items-center justify-between gap-3">
           <div class="flex flex-wrap items-center gap-3">
             <label class="text-xs font-bold uppercase text-slate-500">Semana:</label>
             <select id="filter-corte-semana" onchange="renderCortesView()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 outline-none"></select>
@@ -217,24 +239,65 @@
             <div id="corte-banner-info" class="text-xs font-medium px-3 py-2 rounded-lg bg-slate-100 text-slate-700"></div>
           </div>
           <div class="flex flex-wrap items-center gap-2">
-            <button onclick="downloadAllCuentasCobroZIP()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-xs transition flex items-center gap-1.5">
-              <span>Descargar Cuentas de Cobro (.ZIP)</span>
+            <button onclick="openNovedadModal()" class="bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold px-3.5 py-2.5 rounded-lg transition">
+              + Vale / Descuento
+            </button>
+            <button onclick="archiveSelectedCorte()" title="Mover turnos pagados de esta semana a Historial_Archivo en Excel" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-lg transition">
+              Archivar Corte Pagado
+            </button>
+            <button onclick="downloadAllCuentasCobroZIP()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-xs transition">
+              Descargar Cuentas de Cobro (.ZIP)
             </button>
           </div>
         </div>
         <div id="cortes-cards-container" class="space-y-4"></div>
       </section>
 
-      <!-- VIEW 3: AUDITORÍA -->
+      <!-- VIEW 3: VALES, PRÉSTAMOS Y DESCUENTOS -->
+      <section id="view-novedades" class="hidden space-y-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="font-bold text-slate-800 text-base">Vales, Préstamos y Descuentos Semanales</h2>
+            <p class="text-xs text-slate-500">Se descuentan automáticamente del bruto a pagar en la Cuenta de Cobro y liquidación del corte correspondiente.</p>
+          </div>
+          <button onclick="openNovedadModal()" class="bg-slate-900 hover:bg-slate-800 text-white font-bold px-4 py-2 rounded-lg text-xs sm:text-sm transition">+ Registrar Vale / Descuento</button>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  <th class="py-3 px-4">Fecha / Corte</th>
+                  <th class="py-3 px-4">Turnante</th>
+                  <th class="py-3 px-4">Tipo</th>
+                  <th class="py-3 px-4">Concepto</th>
+                  <th class="py-3 px-4 text-right">Monto</th>
+                  <th class="py-3 px-4">Estado</th>
+                  <th class="py-3 px-4 text-right">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="novedades-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 4: AUDITORÍA -->
       <section id="view-asistencia" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 class="font-bold text-slate-800 text-base">Bitácora de Marcaciones</h2>
-            <p class="text-xs text-slate-500">Edita horas de ingreso, almuerzo o salida si algún empleado olvidó marcar.</p>
+            <p class="text-xs text-slate-500">Los turnos cerrados automáticamente a las 16h aparecen marcados en rojo para que asignes la hora real de salida.</p>
           </div>
-          <select id="filter-asist-emp" onchange="renderAsistenciaTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none">
-            <option value="ALL">Todos los turnantes</option>
-          </select>
+          <div class="flex flex-wrap gap-2">
+            <select id="filter-asist-estado" onchange="renderAsistenciaTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none">
+              <option value="ALL">Todos los estados</option>
+              <option value="PENDIENTE_REVISION">Solo Pendientes de Revisión (>16h)</option>
+            </select>
+            <select id="filter-asist-emp" onchange="renderAsistenciaTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none">
+              <option value="ALL">Todos los turnantes</option>
+            </select>
+          </div>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse">
@@ -245,7 +308,7 @@
                 <th class="py-3 px-4">Almuerzo</th>
                 <th class="py-3 px-4 text-right">Horas Ef.</th>
                 <th class="py-3 px-4 text-right">Valor</th>
-                <th class="py-3 px-4">Pago Martes</th>
+                <th class="py-3 px-4">Estado</th>
                 <th class="py-3 px-4 text-right">Acciones</th>
               </tr>
             </thead>
@@ -254,12 +317,12 @@
         </div>
       </section>
 
-      <!-- VIEW 4: TURNANTES -->
+      <!-- VIEW 5: TURNANTES & VIGENCIA ARL -->
       <section id="view-turnantes" class="hidden space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div>
-            <h2 class="font-bold text-slate-800 text-base">Base de Datos de Turnantes</h2>
-            <p class="text-xs text-slate-500">Registra o edita sus datos bancarios para que aparezcan automáticamente en las Cuentas de Cobro.</p>
+            <h2 class="font-bold text-slate-800 text-base">Turnantes, Cuentas Bancarias y Vigencia ARL</h2>
+            <p class="text-xs text-slate-500">Controla los datos bancarios para cuentas de cobro y la fecha de vencimiento de ARL asumida por FAGOSA SAS.</p>
           </div>
           <div class="flex flex-wrap gap-2">
             <button onclick="openExcelPasteModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow-xs">Pegar desde Excel</button>
@@ -269,7 +332,7 @@
         <div id="turnantes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
       </section>
 
-      <!-- VIEW 5: HISTORIAL DE RECIBOS -->
+      <!-- VIEW 6: HISTORIAL DE RECIBOS -->
       <section id="view-historial" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-100">
           <h2 class="font-bold text-slate-800 text-base">Comprobantes Emitidos</h2>
@@ -283,7 +346,8 @@
                 <th class="py-3 px-4">Corte</th>
                 <th class="py-3 px-4">Turnante</th>
                 <th class="py-3 px-4 text-right">Horas Ef.</th>
-                <th class="py-3 px-4 text-right">Pagado</th>
+                <th class="py-3 px-4 text-right">Descuentos</th>
+                <th class="py-3 px-4 text-right">Neto Pagado</th>
                 <th class="py-3 px-4 text-right">Acción</th>
               </tr>
             </thead>
@@ -292,15 +356,37 @@
         </div>
       </section>
 
-      <!-- VIEW 6: CONFIGURACIÓN SU -->
-      <section id="view-config" class="hidden max-w-3xl space-y-5">
+      <!-- VIEW 7: CONFIGURACIÓN SU & 2 DISPOSITIVOS AUTORIZADOS -->
+      <section id="view-config" class="hidden max-w-4xl space-y-5">
         <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-6">
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="font-bold text-slate-800 text-lg">Seguridad Super Usuario y Datos Corporativos</h2>
+              <h2 class="font-bold text-slate-800 text-lg">Seguridad, Dispositivos Kiosco y Empresa</h2>
               <span class="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">Sincronizado</span>
             </div>
-            <p class="text-xs text-slate-500 mt-1">El PIN de administrador se valida directamente contra Google Sheets sin exponerse en el código.</p>
+            <p class="text-xs text-slate-500 mt-1">Configura los 2 equipos autorizados para marcación, el PIN de administrador y los datos corporativos.</p>
+          </div>
+
+          <!-- Control de los 2 Dispositivos Preestablecidos -->
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h3 class="font-bold text-slate-800 text-sm">Dispositivos Autorizados para Kiosco (Máximo 2 equipos)</h3>
+                <p class="text-xs text-slate-500">Si la lista está vacía, cualquier equipo puede marcar. Al registrar 1 o 2 equipos, solo esos podrán abrir el Kiosco.</p>
+              </div>
+              <span class="text-xs font-mono bg-white border border-slate-300 px-2.5 py-1 rounded-lg text-slate-700">
+                Este equipo: <strong id="cfg-current-device-id"></strong>
+              </span>
+            </div>
+            <div id="authorized-devices-list" class="space-y-2"></div>
+            <div class="flex flex-wrap gap-2 pt-1">
+              <button onclick="authorizeCurrentDevice()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3.5 py-2 rounded-lg transition">
+                + Autorizar Este Equipo Actual
+              </button>
+              <button onclick="authorizeCustomDevicePrompt()" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold px-3.5 py-2 rounded-lg transition">
+                + Agregar ID de Otro Equipo
+              </button>
+            </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
@@ -337,7 +423,7 @@
             <button onclick="saveCompanyConfig()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg text-xs">Guardar Datos Empresa</button>
           </div>
 
-          <!-- Estado Cola Offline y Conexión Google Drive -->
+          <!-- Conexión Google Drive y Cola Offline -->
           <div class="space-y-3 pt-2 border-t border-slate-100">
             <div class="flex items-center justify-between">
               <h3 class="font-bold text-slate-800 text-sm">Conexión Google Drive y Cola Offline</h3>
@@ -359,6 +445,31 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- =======================================================================
+       POPUP DE ALERTAS PERSISTENTES PARA SUPER USUARIO
+       (Turnos >16h cerrados sin cálculo horario + Vencimientos de ARL)
+  ======================================================================= -->
+  <div id="alerts-popup-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
+      <div class="px-6 py-4 bg-rose-600 text-white flex items-center justify-between">
+        <div>
+          <h3 class="font-extrabold text-base">Alertas Pendientes de Revisión</h3>
+          <p class="text-xs text-rose-100">Requieren atención del Super Usuario (no bloquean el uso del portal)</p>
+        </div>
+        <button onclick="closeAlertsPopup()" class="text-rose-200 hover:text-white text-2xl leading-none">&times;</button>
+      </div>
+      <div id="alerts-popup-body" class="p-6 space-y-4 overflow-y-auto"></div>
+      <div class="px-6 py-3.5 bg-slate-100 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+        <button onclick="snoozeAlerts30Min()" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition">
+          Recordar en 30 minutos
+        </button>
+        <button onclick="closeAlertsPopup()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg transition">
+          Cerrar por ahora
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL 1: CREAR / EDITAR MARCAJE -->
@@ -410,13 +521,13 @@
         </div>
         <div class="flex justify-end gap-2 pt-2">
           <button type="button" onclick="closeModal('turno-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
-          <button type="submit" class="px-5 py-2 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg">Guardar</button>
+          <button type="submit" class="px-5 py-2 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg">Guardar y Resolver</button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- MODAL 2: CREAR / EDITAR TURNANTE (CON BANCO Y NÚMERO DE CUENTA) -->
+  <!-- MODAL 2: CREAR / EDITAR TURNANTE (CON BANCO, CUENTA Y VIGENCIA ARL) -->
   <div id="emp-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-xl overflow-hidden">
       <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
@@ -440,7 +551,6 @@
           </div>
         </div>
 
-        <!-- Datos Bancarios / Billetera Virtual -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1">Banco o Billetera Virtual *</label>
@@ -471,13 +581,17 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-3">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Vigencia ARL hasta</label>
+            <input type="date" id="e-arl" class="w-full border border-slate-300 rounded-lg px-2.5 py-2 text-xs font-semibold" />
+          </div>
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">Cargo</label>
             <input type="text" id="e-cargo" placeholder="Operario" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Valor Hora Ef. (COP)</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Valor Hora Ef.</label>
             <input type="number" id="e-valor-hora" step="0.01" value="11428.57" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold" />
           </div>
         </div>
@@ -489,7 +603,49 @@
     </div>
   </div>
 
-  <!-- MODAL 3: PEGAR LISTA DESDE EXCEL -->
+  <!-- MODAL 3: REGISTRAR VALE / PRÉSTAMO / DESCUENTO -->
+  <div id="novedad-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-xl overflow-hidden">
+      <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <h3 class="font-bold text-base">Registrar Vale o Descuento</h3>
+        <button onclick="closeModal('novedad-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+      <form onsubmit="saveNovedad(event)" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Turnante *</label>
+          <select id="n-emp-id" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Fecha *</label>
+            <input type="date" id="n-fecha" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Tipo *</label>
+            <select id="n-tipo" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white">
+              <option value="Vale / Adelanto">Vale / Adelanto</option>
+              <option value="Préstamo">Préstamo</option>
+              <option value="Descuento">Descuento</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Concepto / Motivo *</label>
+          <input type="text" id="n-concepto" required placeholder="Ej: Adelanto en efectivo miércoles" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Monto a Descontar (COP) *</label>
+          <input type="number" id="n-monto" min="100" step="100" required placeholder="Ej: 20000" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold" />
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('novedad-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+          <button type="submit" class="px-5 py-2 text-sm font-bold bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-lg">Guardar Descuento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 4: PEGAR LISTA DESDE EXCEL -->
   <div id="excel-paste-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4 no-print">
     <div class="bg-white rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
       <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
@@ -535,7 +691,7 @@
     </div>
   </div>
 
-  <!-- MODAL 4: COMPROBANTE DE PAGO -->
+  <!-- MODAL 5: COMPROBANTE DE PAGO -->
   <div id="receipt-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
       <div id="print-area" class="p-6 space-y-4">
@@ -551,12 +707,12 @@
           <div class="flex justify-between"><span class="text-slate-500">Fecha:</span><span id="rec-fecha" class="font-medium"></span></div>
         </div>
         <div class="border-t border-b border-slate-200 py-3">
-          <p class="text-[11px] font-bold uppercase text-slate-400 mb-2">Jornadas Efectivas</p>
+          <p class="text-[11px] font-bold uppercase text-slate-400 mb-2">Jornadas y Descuentos</p>
           <div id="rec-items" class="space-y-1.5 text-xs max-h-48 overflow-y-auto"></div>
         </div>
         <div class="bg-slate-50 p-3.5 rounded-xl flex items-center justify-between">
           <div>
-            <p class="text-xs text-slate-500">Total (<span id="rec-total-horas"></span>)</p>
+            <p class="text-xs text-slate-500">Neto (<span id="rec-total-horas"></span>)</p>
             <p id="rec-metodo" class="text-[11px] font-semibold text-slate-600"></p>
           </div>
           <p id="rec-total" class="text-xl font-extrabold text-emerald-600 tabular-nums"></p>
@@ -586,10 +742,23 @@
       ciudad: "FILANDIA QUINDIO"
     };
 
-    const STORAGE_KEY = "turnopay_v6_data";
-    const CLOUD_KEY = "turnopay_v6_cloud";
-    const QUEUE_KEY = "turnopay_v6_offline_queue";
+    const STORAGE_KEY = "turnopay_v7_data";
+    const CLOUD_KEY = "turnopay_v7_cloud";
+    const QUEUE_KEY = "turnopay_v7_offline_queue";
+    const DEVICE_ID_KEY = "turnopay_device_id";
     const SU_SESSION_KEY = "turnopay_su_unlocked";
+    const SNOOZE_KEY = "turnopay_alerts_snooze_until";
+
+    // Identificador único persistente de este dispositivo (para control de los 2 equipos Kiosco)
+    function getOrCreateDeviceId() {
+      let id = localStorage.getItem(DEVICE_ID_KEY);
+      if (!id) {
+        id = "EQ-" + Math.random().toString(36).substring(2, 6).toUpperCase() + "-" + Date.now().toString().slice(-4);
+        localStorage.setItem(DEVICE_ID_KEY, id);
+      }
+      return id;
+    }
+    const CURRENT_DEVICE_ID = getOrCreateDeviceId();
 
     let savedCloud = JSON.parse(localStorage.getItem(CLOUD_KEY)) || {};
     let cloudConfig = {
@@ -597,15 +766,18 @@
       token: savedCloud.token || DEFAULT_API_TOKEN,
       empNombre: savedCloud.empNombre || DEFAULT_COMPANY.nombre,
       empNit: savedCloud.empNit || DEFAULT_COMPANY.nit,
-      empCiudad: savedCloud.empCiudad || DEFAULT_COMPANY.ciudad
+      empCiudad: savedCloud.empCiudad || DEFAULT_COMPANY.ciudad,
+      authorizedDevices: Array.isArray(savedCloud.authorizedDevices) ? savedCloud.authorizedDevices : []
     };
 
     let appState = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
       turnantes: [],
       asistencia: [],
+      novedades: [],
       pagos: [],
       config: []
     };
+    if (!Array.isArray(appState.novedades)) appState.novedades = [];
 
     let offlineQueue = JSON.parse(localStorage.getItem(QUEUE_KEY)) || [];
     let currentReceiptText = "";
@@ -614,16 +786,36 @@
     let isPullingCloud = false;
     let excelParsedRows = [];
 
+    // Offset en milisegundos respecto a la hora oficial de Colombia en el servidor
+    let serverTimeOffsetMs = 0;
+    let isServerTimeSynced = false;
+
     /* =======================================================================
-       UTILIDADES DE FECHA, HORA Y TURNOS NOCTURNOS
+       HORA OFICIAL COLOMBIA (ANTI-TRAMPA RELOJ LOCAL)
     ======================================================================= */
+    function getOfficialNow() {
+      return new Date(Date.now() + serverTimeOffsetMs);
+    }
+
+    function syncColombiaOffset(serverEpochMs) {
+      if (serverEpochMs && !isNaN(serverEpochMs)) {
+        serverTimeOffsetMs = Number(serverEpochMs) - Date.now();
+        isServerTimeSynced = true;
+        const badge = document.getElementById('kiosk-time-source');
+        if (badge) {
+          badge.textContent = "Oficial Servidor";
+          badge.className = "text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full";
+        }
+      }
+    }
+
     function getTodayISO() {
-      const n = new Date();
+      const n = getOfficialNow();
       return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
     }
 
     function getDynamicSpanishDate() {
-      const n = new Date();
+      const n = getOfficialNow();
       const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
       return `${n.getDate()} de ${meses[n.getMonth()]} de ${n.getFullYear()}`;
     }
@@ -637,7 +829,7 @@
     }
 
     function getCurrentHHMM() {
-      const n = new Date();
+      const n = getOfficialNow();
       return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
     }
 
@@ -666,15 +858,13 @@
       return new Date(y, m - 1, d, hh, mm, 0);
     }
 
-    function getShiftElapsedSeconds(shift, nowDate = new Date()) {
+    function getShiftElapsedSeconds(shift, nowDate = getOfficialNow()) {
       const startDt = parseLocalDateTime(shift.fecha_turno, shift.hora_ingreso);
       if (!startDt) return 0;
 
       if (shift.estado_jornada === 'EN_ALMUERZO' && shift.almuerzo_inicio) {
         let almStartDt = parseLocalDateTime(shift.fecha_turno, shift.almuerzo_inicio);
-        if (almStartDt && almStartDt < startDt) {
-          almStartDt.setDate(almStartDt.getDate() + 1);
-        }
+        if (almStartDt && almStartDt < startDt) almStartDt.setDate(almStartDt.getDate() + 1);
         return almStartDt ? Math.max(0, Math.floor((nowDate - almStartDt) / 1000)) : 0;
       }
 
@@ -717,7 +907,8 @@
         corte_fin: fmt(cf),
         fecha_pago_martes: fmt(fp),
         label: `Mar ${sf(ci)} - Lun ${sf(cf)}`,
-        pagoLabel: `Martes ${sf(fp)}`
+        pagoLabel: `Martes ${sf(fp)}`,
+        shortRange: `${fmt(ci)}_al_${fmt(cf)}`
       };
     }
 
@@ -746,17 +937,10 @@
       function convertirMenorMil(n) {
         let out = "";
         if (n === 100) return "CIEN";
-        if (n > 100) {
-          out += centenas[Math.floor(n / 100)] + " ";
-          n %= 100;
-        }
-        if (n >= 10 && n <= 19) {
-          out += especiales[n - 10];
-          return out.trim();
-        }
+        if (n > 100) { out += centenas[Math.floor(n / 100)] + " "; n %= 100; }
+        if (n >= 10 && n <= 19) { out += especiales[n - 10]; return out.trim(); }
         if (n >= 20) {
-          const d = Math.floor(n / 10);
-          const u = n % 10;
+          const d = Math.floor(n / 10), u = n % 10;
           if (d === 2 && u > 0) out += "VEINTI" + unidades[u];
           else out += decenas[d] + (u > 0 ? " Y " + unidades[u] : "");
           return out.trim();
@@ -766,11 +950,8 @@
       }
 
       let res = "";
-      const millones = Math.floor(num / 1000000);
-      const restoMillones = num % 1000000;
-      const miles = Math.floor(restoMillones / 1000);
-      const resto = restoMillones % 1000;
-
+      const millones = Math.floor(num / 1000000), restoMillones = num % 1000000;
+      const miles = Math.floor(restoMillones / 1000), resto = restoMillones % 1000;
       if (millones > 0) res += (millones === 1 ? "UN MILLON " : convertirMenorMil(millones) + " MILLONES ");
       if (miles > 0) res += (miles === 1 ? "MIL " : convertirMenorMil(miles) + " MIL ");
       if (resto > 0) res += convertirMenorMil(resto);
@@ -778,7 +959,257 @@
     }
 
     /* =======================================================================
-       GENERADOR DE CUENTAS DE COBRO EN PDF Y EMPAQUETADO .ZIP (SOLO SU)
+       CIERRE AUTOMÁTICO DE TURNOS > 16 HORAS + ALERTAS PERSISTENTES (SU)
+    ======================================================================= */
+    function checkAndAutoCloseOverdueShifts() {
+      const now = getOfficialNow();
+      const nowIso = now.toISOString();
+      let closedCount = 0;
+
+      appState.asistencia.forEach(t => {
+        if ((t.estado_jornada === 'TRABAJANDO' || t.estado_jornada === 'EN_ALMUERZO') && !normalizeTimeStr(t.hora_salida)) {
+          const startDt = parseLocalDateTime(t.fecha_turno, t.hora_ingreso);
+          if (startDt && (now - startDt) >= 16 * 3600 * 1000) {
+            t.estado_jornada = "PENDIENTE_REVISION";
+            t.horas_efectivas = 0;
+            t.valor_total = 0;
+            t.observaciones = "Cerrado automáticamente (>16h sin salida) - Requiere revisión SU";
+            t.updated_at = nowIso;
+            enqueueAtomicOp({ type: "UPSERT_TURNO", record: t });
+            closedCount++;
+          }
+        }
+      });
+
+      if (closedCount > 0) {
+        persistLocal();
+        flushOfflineQueue();
+      }
+    }
+
+    function getActiveAlertsList() {
+      const alerts = [];
+      const todayISO = getTodayISO();
+      const [ty, tm, td] = todayISO.split('-').map(Number);
+      const todayDate = new Date(ty, tm - 1, td);
+
+      // 1. Turnos cerrados automáticamente (>16h) pendientes de revisión
+      appState.asistencia.forEach(t => {
+        if (t.estado_jornada === 'PENDIENTE_REVISION') {
+          alerts.push({
+            kind: "TURNO_16H",
+            id: t.id_turno,
+            title: `Turno sin cerrar (+16h): ${t.nombre_turnante}`,
+            detail: `Fecha: ${t.fecha_turno} • Ingreso: ${t.hora_ingreso} • Sin hora de salida (valor en $0 hasta asignar salida).`
+          });
+        }
+      });
+
+      // 2. Vigencia de ARL vencida o próxima a vencer (<= 5 días)
+      appState.turnantes.forEach(e => {
+        if (e.estado !== 'Inactivo' && e.arl_vencimiento) {
+          const [ay, am, ad] = String(e.arl_vencimiento).slice(0, 10).split('-').map(Number);
+          if (ay && am && ad) {
+            const arlDate = new Date(ay, am - 1, ad);
+            const diffDays = Math.ceil((arlDate - todayDate) / (1000 * 3600 * 24));
+            if (diffDays <= 5) {
+              alerts.push({
+                kind: "ARL",
+                id: e.id,
+                title: diffDays < 0 ? `ARL VENCIDA: ${e.nombre}` : `ARL por vencer (${diffDays} día(s)): ${e.nombre}`,
+                detail: `CC ${e.documento} • Vence: ${e.arl_vencimiento}. Renovar cobertura ARL antes del siguiente turno.`
+              });
+            }
+          }
+        }
+      });
+
+      return alerts;
+    }
+
+    function evaluateAndShowSuAlerts(forceShow = false) {
+      const alerts = getActiveAlertsList();
+      const hdrBtn = document.getElementById('header-alerts-btn');
+      const hdrCnt = document.getElementById('header-alerts-count');
+      const kpiTot = document.getElementById('kpi-alerts-total');
+      const kpiSub = document.getElementById('kpi-alerts-sub');
+
+      if (kpiTot) kpiTot.textContent = alerts.length;
+      if (kpiSub) {
+        const t16 = alerts.filter(a => a.kind === 'TURNO_16H').length;
+        const arl = alerts.filter(a => a.kind === 'ARL').length;
+        kpiSub.textContent = `${t16} turno(s) >16h • ${arl} ARL por renovar`;
+      }
+
+      if (hdrBtn && hdrCnt) {
+        hdrCnt.textContent = alerts.length;
+        hdrBtn.classList.toggle('hidden', alerts.length === 0);
+      }
+
+      if (alerts.length === 0) return;
+
+      const snoozeUntil = Number(sessionStorage.getItem(SNOOZE_KEY) || 0);
+      if (!forceShow && Date.now() < snoozeUntil) return;
+
+      const body = document.getElementById('alerts-popup-body');
+      body.innerHTML = alerts.map(a => `
+        <div class="p-4 rounded-xl border ${a.kind === 'TURNO_16H' ? 'bg-rose-50 border-rose-200' : 'bg-amber-50 border-amber-200'} flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded ${a.kind === 'TURNO_16H' ? 'bg-rose-200 text-rose-900' : 'bg-amber-200 text-amber-900'}">
+              ${a.kind === 'TURNO_16H' ? 'Cierre Automático >16h' : 'Vigencia ARL'}
+            </span>
+            <p class="font-bold text-slate-900 text-sm mt-1">${a.title}</p>
+            <p class="text-xs text-slate-600 mt-0.5">${a.detail}</p>
+          </div>
+          <button onclick="resolveAlertAction('${a.kind}', '${a.id}')" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-3.5 py-2 rounded-lg shrink-0 transition">
+            Resolver Ahora
+          </button>
+        </div>
+      `).join('');
+
+      openModal('alerts-popup-modal');
+    }
+
+    function resolveAlertAction(kind, id) {
+      closeModal('alerts-popup-modal');
+      if (kind === 'TURNO_16H') {
+        openEditTurnoModal(id);
+      } else if (kind === 'ARL') {
+        openEditEmpModal(id);
+      }
+    }
+
+    function snoozeAlerts30Min() {
+      sessionStorage.setItem(SNOOZE_KEY, String(Date.now() + 30 * 60 * 1000));
+      closeModal('alerts-popup-modal');
+      showToast("Recordatorio programado en 30 minutos");
+    }
+
+    function closeAlertsPopup() {
+      // Al cerrar sin posponer, evita reabrirse cada 6s en esta misma sesión, pero volverá al reingresar al portal SU
+      sessionStorage.setItem(SNOOZE_KEY, String(Date.now() + 24 * 3600 * 1000));
+      closeModal('alerts-popup-modal');
+    }
+
+    function openAlertsPopup(force = true) {
+      evaluateAndShowSuAlerts(force);
+    }
+
+    /* =======================================================================
+       CONTROL DE 2 DISPOSITIVOS AUTORIZADOS PARA KIOSCO
+    ======================================================================= */
+    function isCurrentDeviceAuthorized() {
+      const list = cloudConfig.authorizedDevices || [];
+      if (list.length === 0) return true; // Si aún no se han fijado equipos, permite operar
+      return list.some(d => String(d.id).trim() === CURRENT_DEVICE_ID);
+    }
+
+    function updateKioskAuthorizationUI() {
+      const authorized = isCurrentDeviceAuthorized();
+      const unauthCard = document.getElementById('kiosk-unauthorized-card');
+      const mainWrap = document.getElementById('kiosk-main-wrapper');
+      const badge = document.getElementById('kiosk-device-badge');
+
+      if (badge) {
+        badge.textContent = authorized
+          ? `Equipo Autorizado (${CURRENT_DEVICE_ID})`
+          : `Equipo No Autorizado (${CURRENT_DEVICE_ID})`;
+      }
+
+      if (!authorized) {
+        document.getElementById('unauth-device-id').textContent = CURRENT_DEVICE_ID;
+        unauthCard.classList.remove('hidden');
+        mainWrap.classList.add('hidden');
+      } else {
+        unauthCard.classList.add('hidden');
+        mainWrap.classList.remove('hidden');
+      }
+    }
+
+    function renderAuthorizedDevicesList() {
+      const container = document.getElementById('authorized-devices-list');
+      const curEl = document.getElementById('cfg-current-device-id');
+      if (curEl) curEl.textContent = CURRENT_DEVICE_ID;
+      if (!container) return;
+
+      const list = cloudConfig.authorizedDevices || [];
+      if (list.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-500 italic">Ningún dispositivo restringido aún (modo abierto). Haz clic en "+ Autorizar Este Equipo Actual" para fijar el primero.</p>`;
+        return;
+      }
+
+      container.innerHTML = list.map((d, idx) => `
+        <div class="bg-white border border-slate-200 rounded-lg px-3.5 py-2 flex items-center justify-between text-xs">
+          <div>
+            <span class="font-bold text-slate-800">Dispositivo ${idx + 1}: ${d.label || 'Kiosco'}</span>
+            <span class="font-mono text-slate-500 ml-2">(${d.id})</span>
+            ${d.id === CURRENT_DEVICE_ID ? '<span class="ml-2 bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold text-[10px]">ESTE EQUIPO</span>' : ''}
+          </div>
+          <button onclick="removeAuthorizedDevice('${d.id}')" class="text-rose-600 hover:underline font-semibold">Quitar</button>
+        </div>
+      `).join('');
+    }
+
+    function authorizeCurrentDevice() {
+      const list = cloudConfig.authorizedDevices || [];
+      if (list.some(d => d.id === CURRENT_DEVICE_ID)) {
+        showToast("Este equipo ya está autorizado.");
+        return;
+      }
+      if (list.length >= 2) {
+        alert("Ya hay 2 dispositivos autorizados. Elimina uno antes de agregar otro.");
+        return;
+      }
+      const label = prompt("Nombre identificador para este equipo (Ej: Tablet Caja / PC Recepción):", `Kiosco ${list.length + 1}`);
+      if (label === null) return;
+      list.push({ id: CURRENT_DEVICE_ID, label: label.trim() || `Kiosco ${list.length + 1}` });
+      cloudConfig.authorizedDevices = list;
+      saveAuthorizedDevicesToCloud();
+    }
+
+    function authorizeCustomDevicePrompt() {
+      const list = cloudConfig.authorizedDevices || [];
+      if (list.length >= 2) {
+        alert("Ya hay 2 dispositivos autorizados. Elimina uno antes de agregar otro.");
+        return;
+      }
+      const devId = prompt("Digita el ID del equipo que aparece en la pantalla del Kiosco (Ej: EQ-XXXX-1234):");
+      if (!devId || !devId.trim()) return;
+      const cleanId = devId.trim().toUpperCase();
+      if (list.some(d => d.id === cleanId)) {
+        showToast("Ese ID ya está autorizado.");
+        return;
+      }
+      const label = prompt("Nombre para ese equipo:", `Kiosco ${list.length + 1}`) || `Kiosco ${list.length + 1}`;
+      list.push({ id: cleanId, label: label.trim() });
+      cloudConfig.authorizedDevices = list;
+      saveAuthorizedDevicesToCloud();
+    }
+
+    function removeAuthorizedDevice(devId) {
+      if (!confirm("¿Quitar autorización a este dispositivo?")) return;
+      cloudConfig.authorizedDevices = (cloudConfig.authorizedDevices || []).filter(d => d.id !== devId);
+      saveAuthorizedDevicesToCloud();
+    }
+
+    function saveAuthorizedDevicesToCloud() {
+      enqueueAtomicOp({
+        type: "UPSERT_CONFIG",
+        record: {
+          clave: "authorizedDevices",
+          valor: JSON.stringify(cloudConfig.authorizedDevices),
+          ultima_actualizacion: new Date().toISOString()
+        }
+      });
+      persistLocal();
+      renderAuthorizedDevicesList();
+      flushOfflineQueue();
+      showToast("Lista de dispositivos autorizados actualizada");
+    }
+
+    /* =======================================================================
+       GENERADOR DE CUENTAS DE COBRO EN PDF Y EMPAQUETADO .ZIP
+       (TÍTULO LIMPIO "CUENTA DE COBRO" + NOMBRE ARCHIVO CON RANGO DE FECHAS)
     ======================================================================= */
     function buildCuentaCobroPDFDoc(group, corteInfo) {
       const { jsPDF } = window.jspdf;
@@ -789,16 +1220,19 @@
       const banco = String(empData.banco || "").trim();
       const numeroCuenta = String(empData.numero_cuenta || "").trim();
 
-      // Ordenar turnos cronológicamente
       const sortedTurnos = [...group.turnos].sort((a, b) => String(a.fecha_turno).localeCompare(String(b.fecha_turno)));
       const totalHoras = sortedTurnos.reduce((s, t) => s + Number(t.horas_efectivas || 0), 0);
-      const totalDinero = sortedTurnos.reduce((s, t) => s + Number(t.valor_total || 0), 0);
+      const brutoDinero = sortedTurnos.reduce((s, t) => s + Number(t.valor_total || 0), 0);
+
+      // Descuentos / Vales pendientes del turnante en este corte
+      const novs = getPendingNovedadesForEmpCorte(group.id_turnante, corteInfo.corte_inicio);
+      const totalDescuentos = novs.reduce((s, n) => s + Number(n.monto || 0), 0);
+      const netoAPagar = Math.max(0, brutoDinero - totalDescuentos);
 
       const empresaNombre = (cloudConfig.empNombre || DEFAULT_COMPANY.nombre).toUpperCase();
       const empresaNit = cloudConfig.empNit || DEFAULT_COMPANY.nit;
       const empresaCiudad = (cloudConfig.empCiudad || DEFAULT_COMPANY.ciudad).toUpperCase();
       const fechaGeneracion = getDynamicSpanishDate();
-      const consecutivo = `CC-${corteInfo.corte_inicio.replace(/-/g, '')}-${String(cedula).slice(-4)}`;
 
       // Ciudad y Fecha Dinámica
       doc.setFont("helvetica", "normal");
@@ -806,11 +1240,11 @@
       doc.setTextColor(60, 60, 60);
       doc.text(`${empresaCiudad}, ${fechaGeneracion}`, 20, 22);
 
-      // Título
+      // Título limpio "CUENTA DE COBRO" sin números adicionales
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(15);
+      doc.setFontSize(16);
       doc.setTextColor(15, 23, 42);
-      doc.text(`CUENTA DE COBRO N° ${consecutivo}`, 108, 35, { align: "center" });
+      doc.text("CUENTA DE COBRO", 108, 35, { align: "center" });
 
       // Empresa Deudora (FAGOSA SAS)
       doc.setDrawColor(203, 213, 225);
@@ -841,7 +1275,7 @@
       doc.setTextColor(51, 65, 85);
       doc.text(`C.C. N° ${cedula}`, 108, 83, { align: "center" });
 
-      // Valor en Números y Letras
+      // Valor Neto en Números y Letras
       doc.setDrawColor(16, 185, 129);
       doc.setFillColor(236, 253, 245);
       doc.roundedRect(20, 89, 176, 21, 2, 2, "FD");
@@ -849,12 +1283,12 @@
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(6, 95, 70);
-      doc.text(`LA SUMA DE: ${formatCOP(totalDinero)}`, 108, 97, { align: "center" });
+      doc.text(`LA SUMA DE: ${formatCOP(netoAPagar)}`, 108, 97, { align: "center" });
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(15, 23, 42);
-      const letrasSplit = doc.splitTextToSize(`(${numeroALetrasCOP(totalDinero)})`, 166);
+      const letrasSplit = doc.splitTextToSize(`(${numeroALetrasCOP(netoAPagar)})`, 166);
       doc.text(letrasSplit, 108, 104, { align: "center" });
 
       // Concepto con los días laborados y horas de cada día
@@ -876,7 +1310,6 @@
 
       const tableStartY = 126 + (conceptoLines.length * 4.5) + 3;
 
-      // Tabla detallada día por día
       const tableBody = sortedTurnos.map(t => [
         `${formatShortSpanishDay(t.fecha_turno)} (${t.fecha_turno})`,
         t.hora_ingreso || "--:--",
@@ -886,12 +1319,24 @@
         formatCOP(t.valor_total)
       ]);
 
+      // Si existen vales/descuentos en el corte, incluirlos como filas negativas antes del total
+      novs.forEach(n => {
+        tableBody.push([
+          `Descuento (${n.tipo}): ${n.concepto}`,
+          "-",
+          "-",
+          "-",
+          "-",
+          `-${formatCOP(n.monto)}`
+        ]);
+      });
+
       doc.autoTable({
         startY: tableStartY,
         margin: { left: 20, right: 20 },
-        head: [['Día Laborado', 'Ingreso', 'Salida', 'Almuerzo', 'Horas Ef.', 'Valor']],
+        head: [['Detalle / Día Laborado', 'Ingreso', 'Salida', 'Almuerzo', 'Horas Ef.', 'Valor']],
         body: tableBody,
-        foot: [[`TOTAL (${sortedTurnos.length} día(s))`, '', '', '', `${totalHoras.toFixed(2)} h`, formatCOP(totalDinero)]],
+        foot: [[`NETO A RECIBIR (${sortedTurnos.length} día(s))`, '', '', '', `${totalHoras.toFixed(2)} h`, formatCOP(netoAPagar)]],
         theme: 'grid',
         headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8.5, halign: 'center' },
         bodyStyles: { fontSize: 8.5, halign: 'center', textColor: [30, 41, 59] },
@@ -923,7 +1368,6 @@
 
       finalY += 22;
 
-      // Declaración tributaria estándar Colombia
       doc.setFont("helvetica", "italic");
       doc.setFontSize(8.5);
       doc.setTextColor(71, 85, 105);
@@ -933,7 +1377,6 @@
 
       finalY += (notaLines.length * 4.5) + 14;
 
-      // Firma del turnante
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
@@ -951,8 +1394,9 @@
       doc.setFontSize(9.5);
       doc.text(`C.C. ${cedula}`, 20, finalY + 10);
 
+      // Nombre del archivo PDF con nombre del turnante y rango de fechas exacto del corte
       const safeName = String(group.nombre || "Turnante").trim().replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]/g, '_');
-      const fileName = `Cuenta_Cobro_${safeName}_${corteInfo.corte_inicio}.pdf`;
+      const fileName = `Cuenta_Cobro_${safeName}_${corteInfo.shortRange}.pdf`;
       return { doc, fileName };
     }
 
@@ -1004,12 +1448,135 @@
       });
 
       const blob = await zip.generateAsync({ type: 'blob' });
-      const zipName = `Cuentas_Cobro_FAGOSA_${corteInfo.corte_inicio}_al_${corteInfo.corte_fin}.zip`;
+      const zipName = `Cuentas_Cobro_FAGOSA_${corteInfo.shortRange}.zip`;
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
       link.download = zipName;
       link.click();
       showToast(`ZIP descargado con ${groups.length} cuenta(s) de cobro`);
+    }
+
+    /* =======================================================================
+       VALES, PRÉSTAMOS Y DESCUENTOS
+    ======================================================================= */
+    function getPendingNovedadesForEmpCorte(idTurnante, corteInicio) {
+      return (appState.novedades || []).filter(n =>
+        String(n.id_turnante) === String(idTurnante) &&
+        String(n.corte_inicio) === String(corteInicio) &&
+        n.estado !== 'APLICADO'
+      );
+    }
+
+    function openNovedadModal(preselectedEmpId = "") {
+      if (appState.turnantes.length === 0) {
+        alert("Primero registra al menos un turnante.");
+        return;
+      }
+      document.getElementById('n-emp-id').innerHTML = appState.turnantes.map(e => `<option value="${e.id}">${e.nombre} (CC ${e.documento})</option>`).join('');
+      if (preselectedEmpId) document.getElementById('n-emp-id').value = preselectedEmpId;
+      document.getElementById('n-fecha').value = getTodayISO();
+      document.getElementById('n-tipo').value = "Vale / Adelanto";
+      document.getElementById('n-concepto').value = "";
+      document.getElementById('n-monto').value = "";
+      openModal('novedad-modal');
+    }
+
+    function saveNovedad(e) {
+      e.preventDefault();
+      const empId = document.getElementById('n-emp-id').value;
+      const emp = appState.turnantes.find(x => String(x.id) === String(empId));
+      const fecha = document.getElementById('n-fecha').value;
+      const cInfo = getCorteInfo(fecha);
+
+      const rec = {
+        id_novedad: "NOV-" + Date.now() + "-" + Math.floor(Math.random() * 90 + 10),
+        id_turnante: emp.id,
+        nombre_turnante: emp.nombre,
+        fecha: fecha,
+        corte_inicio: cInfo.corte_inicio,
+        tipo: document.getElementById('n-tipo').value,
+        concepto: document.getElementById('n-concepto').value.trim(),
+        monto: Math.round(Number(document.getElementById('n-monto').value) || 0),
+        estado: "PENDIENTE",
+        id_recibo: ""
+      };
+
+      appState.novedades.unshift(rec);
+      enqueueAtomicOp({ type: "UPSERT_NOVEDAD", record: rec });
+      closeModal('novedad-modal');
+      persistLocal();
+      renderAllAdmin();
+      flushOfflineQueue();
+      showToast(`Descuento de ${formatCOP(rec.monto)} aplicado al corte ${cInfo.label}`);
+    }
+
+    function deleteNovedad(idNov) {
+      if (!confirm("¿Eliminar este vale/descuento?")) return;
+      appState.novedades = appState.novedades.filter(n => n.id_novedad !== idNov);
+      enqueueAtomicOp({ type: "DELETE_NOVEDAD", id: idNov });
+      persistLocal();
+      renderAllAdmin();
+      flushOfflineQueue();
+    }
+
+    function renderNovedadesTable() {
+      const tb = document.getElementById('novedades-tbody');
+      if (!tb) return;
+      const list = appState.novedades || [];
+      tb.innerHTML = list.length === 0
+        ? `<tr><td colspan="7" class="py-10 text-center text-slate-400">No hay vales o descuentos registrados.</td></tr>`
+        : list.map(n => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-4 text-xs"><p class="font-bold text-slate-800">${n.fecha}</p><p class="text-slate-500">Corte: ${n.corte_inicio}</p></td>
+            <td class="py-3 px-4 font-bold text-slate-900">${n.nombre_turnante}</td>
+            <td class="py-3 px-4 text-xs"><span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">${n.tipo}</span></td>
+            <td class="py-3 px-4 text-xs text-slate-700">${n.concepto}</td>
+            <td class="py-3 px-4 text-right font-extrabold text-rose-600 tabular-nums">-${formatCOP(n.monto)}</td>
+            <td class="py-3 px-4 text-xs"><span class="px-2 py-0.5 rounded font-bold ${n.estado === 'APLICADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-700'}">${n.estado}</span></td>
+            <td class="py-3 px-4 text-right">
+              ${n.estado !== 'APLICADO' ? `<button onclick="deleteNovedad('${n.id_novedad}')" class="text-xs font-semibold text-rose-500 hover:underline">Eliminar</button>` : '<span class="text-xs text-slate-400">Liquidado</span>'}
+            </td>
+          </tr>
+        `).join('');
+    }
+
+    /* =======================================================================
+       ARCHIVAR CORTE SEMANAL PAGADO
+    ======================================================================= */
+    async function archiveSelectedCorte() {
+      const ci = document.getElementById('filter-corte-semana').value;
+      if (!ci) return;
+      const info = getCorteInfo(ci);
+      const paidInCorte = appState.asistencia.filter(t => t.corte_inicio === ci && t.estado_pago === 'PAGADO');
+      if (paidInCorte.length === 0) {
+        alert("En este corte semanal no hay turnos pagados para archivar.");
+        return;
+      }
+      if (!confirm(`¿Archivar los ${paidInCorte.length} turno(s) ya pagados del corte ${info.label} en la pestaña Historial_Archivo de Excel?\n\nEsto mantiene la base de datos rápida y limpia.`)) return;
+
+      showToast("Archivando corte en Google Sheets...");
+      try {
+        const res = await fetch(cloudConfig.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            token: cloudConfig.token,
+            action: 'ARCHIVE_CORTE',
+            corte_inicio: ci
+          })
+        });
+        const json = await res.json();
+        if (json.status === 'ok') {
+          appState.asistencia = appState.asistencia.filter(t => !(t.corte_inicio === ci && t.estado_pago === 'PAGADO'));
+          persistLocal();
+          renderAllAdmin();
+          showToast(`${json.archived || paidInCorte.length} turno(s) archivados en Excel`);
+        } else {
+          alert("Error al archivar: " + (json.message || "Intenta nuevamente"));
+        }
+      } catch (e) {
+        alert("Se requiere conexión a internet para archivar en Google Sheets.");
+      }
     }
 
     /* =======================================================================
@@ -1022,7 +1589,7 @@
       if (m === 'marcacion' || m === 'kiosco' || path.endsWith('/marcacion') || path.endsWith('/kiosco')) {
         activateKioskMode(false);
       } else if (sessionStorage.getItem(SU_SESSION_KEY) === 'true') {
-        activateAdminMode();
+        activateAdminMode(false);
       } else {
         showSuLogin();
       }
@@ -1037,6 +1604,7 @@
       document.getElementById('su-login-shell').classList.add('hidden');
       document.getElementById('admin-shell').classList.add('hidden');
       document.getElementById('kiosk-shell').classList.remove('hidden');
+      updateKioskAuthorizationUI();
       resetKioskScreen();
       pullFromGoogleDrive(true);
     }
@@ -1051,6 +1619,7 @@
 
     function logoutSuperUser() {
       sessionStorage.removeItem(SU_SESSION_KEY);
+      sessionStorage.removeItem(SNOOZE_KEY);
       showSuLogin();
       showToast("Sesión de Super Usuario cerrada");
     }
@@ -1060,7 +1629,7 @@
       url.searchParams.delete('modo');
       if (url.pathname.toLowerCase().endsWith('/marcacion') || url.pathname.toLowerCase().endsWith('/kiosco')) url.pathname = '/';
       window.history.pushState({}, '', url);
-      sessionStorage.getItem(SU_SESSION_KEY) === 'true' ? activateAdminMode() : showSuLogin();
+      sessionStorage.getItem(SU_SESSION_KEY) === 'true' ? activateAdminMode(true) : showSuLogin();
     }
 
     async function handleSuLogin(e) {
@@ -1085,8 +1654,10 @@
         });
         const json = await res.json();
         if (json.status === 'ok') {
+          if (json.server_epoch_ms) syncColombiaOffset(json.server_epoch_ms);
           sessionStorage.setItem(SU_SESSION_KEY, 'true');
-          activateAdminMode();
+          sessionStorage.removeItem(SNOOZE_KEY); // Al ingresar al portal SU siempre muestra alertas si hay pendientes
+          activateAdminMode(true);
         } else {
           errEl.textContent = json.message || "PIN incorrecto.";
           errEl.classList.remove('hidden');
@@ -1100,13 +1671,17 @@
       }
     }
 
-    function activateAdminMode() {
+    async function activateAdminMode(freshLogin = false) {
       document.getElementById('kiosk-shell').classList.add('hidden');
       document.getElementById('su-login-shell').classList.add('hidden');
       document.getElementById('admin-shell').classList.remove('hidden');
       loadCloudConfigInputs();
+      checkAndAutoCloseOverdueShifts();
       renderAllAdmin();
-      syncAllWithCloud(true);
+      await syncAllWithCloud(true);
+      checkAndAutoCloseOverdueShifts();
+      renderAllAdmin();
+      evaluateAndShowSuAlerts(freshLogin);
     }
 
     function copyKioskLink() {
@@ -1117,7 +1692,7 @@
     }
 
     /* =======================================================================
-       PEGAR DESDE EXCEL (INCLUYE BANCO Y NÚMERO DE CUENTA)
+       PEGAR DESDE EXCEL
     ======================================================================= */
     function openExcelPasteModal() {
       excelParsedRows = [];
@@ -1155,11 +1730,7 @@
         const isDup = cedula && (existingDocs.has(cedula) || batchDocs.has(cedula));
         if (cedula && !isDup) batchDocs.add(cedula);
         excelParsedRows.push({
-          nombre,
-          cedula,
-          banco,
-          numeroCuenta,
-          cargo,
+          nombre, cedula, banco, numeroCuenta, cargo,
           valid: Boolean(nombre && cedula && !isDup),
           isDup
         });
@@ -1202,6 +1773,7 @@
           telefono: "",
           banco: r.banco || "",
           numero_cuenta: r.numeroCuenta || "",
+          arl_vencimiento: "",
           cargo: r.cargo || "Turnante",
           valor_hora_efectiva: VALOR_HORA_EFECTIVA,
           estado: "Activo",
@@ -1218,13 +1790,13 @@
     }
 
     /* =======================================================================
-       KIOSCO DE MARCACIÓN (SOPORTA TURNOS NOCTURNOS Y COLA OFFLINE)
+       KIOSCO DE MARCACIÓN
     ======================================================================= */
     function getOpenShiftForEmp(empId) {
-      const now = new Date();
+      const now = getOfficialNow();
       const openShifts = appState.asistencia.filter(t =>
         String(t.id_turnante).trim() === String(empId).trim() &&
-        t.estado_jornada !== 'FINALIZADO' &&
+        (t.estado_jornada === 'TRABAJANDO' || t.estado_jornada === 'EN_ALMUERZO') &&
         !normalizeTimeStr(t.hora_salida)
       );
       if (openShifts.length === 0) return null;
@@ -1237,12 +1809,12 @@
 
       const latest = openShifts[0];
       const startDt = parseLocalDateTime(latest.fecha_turno, latest.hora_ingreso);
-      if (startDt && (now - startDt) > 36 * 3600 * 1000) return null;
+      if (startDt && (now - startDt) >= 16 * 3600 * 1000) return null;
       return latest;
     }
 
     function updateKioskClockAndTimers() {
-      const now = new Date();
+      const now = getOfficialNow();
       const dEl = document.getElementById('kiosk-date');
       const cEl = document.getElementById('kiosk-clock');
       if (dEl && cEl) {
@@ -1255,10 +1827,15 @@
 
     async function handleKioskLookup(e) {
       e.preventDefault();
+      if (!isCurrentDeviceAuthorized()) {
+        updateKioskAuthorizationUI();
+        return;
+      }
       const doc = document.getElementById('kiosk-cedula-input').value.trim();
       const err = document.getElementById('kiosk-error-msg');
 
       await syncAllWithCloud(true);
+      checkAndAutoCloseOverdueShifts();
 
       const emp = appState.turnantes.find(t => String(t.documento).trim() === doc && t.estado !== 'Inactivo');
       if (!emp) {
@@ -1316,7 +1893,7 @@
         tEl.className = "text-3xl font-extrabold tabular-nums text-slate-500 mt-0.5";
         return;
       }
-      const elapsedSec = getShiftElapsedSeconds(shift, new Date());
+      const elapsedSec = getShiftElapsedSeconds(shift, getOfficialNow());
       if (shift.estado_jornada === 'EN_ALMUERZO') {
         lEl.textContent = "Tiempo en Almuerzo";
         tEl.textContent = formatDurationHMS(elapsedSec);
@@ -1329,8 +1906,8 @@
     }
 
     function executeKioskPunch(act) {
-      if (!activeKioskEmp) return;
-      const today = getTodayISO(), nowT = getCurrentHHMM(), nowIso = new Date().toISOString();
+      if (!activeKioskEmp || !isCurrentDeviceAuthorized()) return;
+      const today = getTodayISO(), nowT = getCurrentHHMM(), nowIso = getOfficialNow().toISOString();
       let shift = getOpenShiftForEmp(activeKioskEmp.id), ft = "", fd = "";
 
       if (act === 'INGRESO') {
@@ -1355,7 +1932,7 @@
           estado_jornada: "TRABAJANDO",
           estado_pago: "PENDIENTE",
           id_recibo: "",
-          observaciones: "Marcación Kiosco",
+          observaciones: `Kiosco (${CURRENT_DEVICE_ID})`,
           updated_at: nowIso
         };
         appState.asistencia.unshift(shift);
@@ -1419,7 +1996,7 @@
       document.getElementById('kiosk-lookup-card').classList.remove('hidden');
       const i = document.getElementById('kiosk-cedula-input');
       i.value = '';
-      i.focus();
+      if (isCurrentDeviceAuthorized()) i.focus();
     }
 
     /* =======================================================================
@@ -1447,6 +2024,8 @@
         offlineQueue = offlineQueue.filter(q => !(q.type === "UPSERT_TURNO" && q.record && q.record.id_turno === op.record.id_turno));
       } else if (op.type === "UPSERT_TURNANTE" && op.record) {
         offlineQueue = offlineQueue.filter(q => !(q.type === "UPSERT_TURNANTE" && q.record && q.record.id === op.record.id));
+      } else if (op.type === "UPSERT_NOVEDAD" && op.record) {
+        offlineQueue = offlineQueue.filter(q => !(q.type === "UPSERT_NOVEDAD" && q.record && q.record.id_novedad === op.record.id_novedad));
       } else if (op.type === "UPSERT_CONFIG" && op.record) {
         offlineQueue = offlineQueue.filter(q => !(q.type === "UPSERT_CONFIG" && q.record && q.record.clave === op.record.clave));
       }
@@ -1490,6 +2069,7 @@
         });
         const json = await res.json();
         if (json.status === 'ok') {
+          if (json.server_epoch_ms) syncColombiaOffset(json.server_epoch_ms);
           const processedTimestamps = new Set(batch.map(b => b.queued_at));
           offlineQueue = offlineQueue.filter(q => !processedTimestamps.has(q.queued_at));
           persistLocal();
@@ -1516,16 +2096,22 @@
         const res = await fetch(`${cloudConfig.url}?token=${encodeURIComponent(cloudConfig.token)}&t=${Date.now()}`, { cache: 'no-store' });
         const json = await res.json();
         if (json.status === 'ok' && json.data) {
+          if (json.server_epoch_ms) syncColombiaOffset(json.server_epoch_ms);
+
           const pendingTurnoUpserts = new Map();
           const pendingTurnoDeletes = new Set();
           const pendingEmpUpserts = new Map();
           const pendingEmpDeletes = new Set();
+          const pendingNovUpserts = new Map();
+          const pendingNovDeletes = new Set();
 
           offlineQueue.forEach(op => {
             if (op.type === "UPSERT_TURNO" && op.record) pendingTurnoUpserts.set(op.record.id_turno, op.record);
             if (op.type === "DELETE_TURNO" && op.id) pendingTurnoDeletes.add(op.id);
             if (op.type === "UPSERT_TURNANTE" && op.record) pendingEmpUpserts.set(op.record.id, op.record);
             if (op.type === "DELETE_TURNANTE" && op.id) pendingEmpDeletes.add(op.id);
+            if (op.type === "UPSERT_NOVEDAD" && op.record) pendingNovUpserts.set(op.record.id_novedad, op.record);
+            if (op.type === "DELETE_NOVEDAD" && op.id) pendingNovDeletes.add(op.id);
           });
 
           if (Array.isArray(json.data.turnantes)) {
@@ -1537,6 +2123,7 @@
                   documento: String(t.documento || '').trim(),
                   banco: String(t.banco || '').trim(),
                   numero_cuenta: String(t.numero_cuenta || '').trim(),
+                  arl_vencimiento: String(t.arl_vencimiento || '').slice(0, 10),
                   valor_hora_efectiva: Number(t.valor_hora_efectiva || t.valor_hora || VALOR_HORA_EFECTIVA)
                 });
               }
@@ -1576,11 +2163,29 @@
             appState.asistencia = Array.from(mergedTurnos.values()).sort((a, b) => String(b.id_turno).localeCompare(String(a.id_turno)));
           }
 
+          if (Array.isArray(json.data.novedades)) {
+            const mergedNovs = new Map();
+            json.data.novedades.filter(n => n.id_novedad).forEach(n => {
+              if (!pendingNovDeletes.has(n.id_novedad)) {
+                mergedNovs.set(n.id_novedad, {
+                  ...n,
+                  fecha: String(n.fecha || '').slice(0, 10),
+                  monto: Number(n.monto || 0),
+                  estado: n.estado || 'PENDIENTE'
+                });
+              }
+            });
+            pendingNovUpserts.forEach((rec, id) => mergedNovs.set(id, rec));
+            appState.novedades = Array.from(mergedNovs.values());
+          }
+
           if (Array.isArray(json.data.pagos)) {
             appState.pagos = json.data.pagos.filter(p => p.id_recibo).map(p => ({
               ...p,
               cantidad_turnos: Number(p.cantidad_turnos || 0),
               total_horas: Number(p.total_horas || 0),
+              total_bruto: Number(p.total_bruto || p.total_pagado || 0),
+              total_descuentos: Number(p.total_descuentos || 0),
               total_pagado: Number(p.total_pagado || 0)
             }));
           }
@@ -1590,16 +2195,29 @@
             const rEmp = json.data.config.find(c => c.clave === 'empNombre');
             const rNit = json.data.config.find(c => c.clave === 'empNit');
             const rCiu = json.data.config.find(c => c.clave === 'empCiudad');
+            const rDevs = json.data.config.find(c => c.clave === 'authorizedDevices');
             if (rEmp && rEmp.valor) cloudConfig.empNombre = String(rEmp.valor).trim();
             if (rNit && rNit.valor) cloudConfig.empNit = String(rNit.valor).trim();
             if (rCiu && rCiu.valor) cloudConfig.empCiudad = String(rCiu.valor).trim();
+            if (rDevs && rDevs.valor) {
+              try { cloudConfig.authorizedDevices = JSON.parse(rDevs.valor); } catch (e) {}
+            }
           }
 
+          checkAndAutoCloseOverdueShifts();
           persistLocal();
-          if (!document.getElementById('admin-shell').classList.contains('hidden')) renderAllAdmin();
-          if (activeKioskEmp && !document.getElementById('kiosk-action-card').classList.contains('hidden')) renderKioskEmployeePanel();
+
+          if (!document.getElementById('kiosk-shell').classList.contains('hidden')) {
+            updateKioskAuthorizationUI();
+            if (activeKioskEmp && !document.getElementById('kiosk-action-card').classList.contains('hidden')) renderKioskEmployeePanel();
+          }
+          if (!document.getElementById('admin-shell').classList.contains('hidden')) {
+            renderAllAdmin();
+            evaluateAndShowSuAlerts(false);
+          }
+
           setSyncStatus('ok', 'En Línea');
-          if (!silent) showToast("Sincronizado con todos los dispositivos");
+          if (!silent) showToast("Sincronizado con hora oficial Colombia");
         } else {
           setSyncStatus('error', 'Error Token');
         }
@@ -1631,11 +2249,13 @@
             action: 'SYNC_ALL',
             turnantes: appState.turnantes,
             asistencia: appState.asistencia,
+            novedades: appState.novedades,
             pagos: appState.pagos,
             config: [
               { clave: "empNombre", valor: cloudConfig.empNombre, ultima_actualizacion: new Date().toISOString() },
               { clave: "empNit", valor: cloudConfig.empNit, ultima_actualizacion: new Date().toISOString() },
-              { clave: "empCiudad", valor: cloudConfig.empCiudad, ultima_actualizacion: new Date().toISOString() }
+              { clave: "empCiudad", valor: cloudConfig.empCiudad, ultima_actualizacion: new Date().toISOString() },
+              { clave: "authorizedDevices", valor: JSON.stringify(cloudConfig.authorizedDevices || []), ultima_actualizacion: new Date().toISOString() }
             ]
           })
         });
@@ -1661,9 +2281,11 @@
       renderLiveMonitor();
       populateCorteSelector();
       renderCortesView();
+      renderNovedadesTable();
       renderAsistenciaTable();
       renderTurnantesGrid();
       renderHistorialTable();
+      renderAuthorizedDevicesList();
       updateQueueBadge();
     }
 
@@ -1677,13 +2299,11 @@
       document.getElementById('kpi-live-sub').textContent = `${wc} trabajando • ${lc} en almuerzo`;
 
       const pend = appState.asistencia.filter(t => t.estado_pago === 'PENDIENTE' && t.estado_jornada === 'FINALIZADO');
-      const nt = pend.filter(t => t.fecha_pago_martes >= today).reduce((s, t) => s + t.valor_total, 0);
-      const ov = pend.filter(t => t.fecha_pago_martes <= today);
+      const brutoPend = pend.filter(t => t.fecha_pago_martes >= today).reduce((s, t) => s + t.valor_total, 0);
+      const descPend = (appState.novedades || []).filter(n => n.estado !== 'APLICADO').reduce((s, n) => s + Number(n.monto || 0), 0);
 
-      document.getElementById('kpi-next-tuesday').textContent = formatCOP(nt);
+      document.getElementById('kpi-next-tuesday').textContent = formatCOP(Math.max(0, brutoPend - descPend));
       document.getElementById('kpi-next-tuesday-date').textContent = `Corte actual paga ${cc.pagoLabel}`;
-      document.getElementById('kpi-overdue').textContent = formatCOP(ov.reduce((s, t) => s + t.valor_total, 0));
-      document.getElementById('kpi-overdue-count').textContent = `${ov.length} turnos vencidos / hoy martes`;
 
       const mp = appState.pagos.filter(p => (p.fecha_liquidacion || '').startsWith(cm));
       document.getElementById('kpi-paid-month').textContent = formatCOP(mp.reduce((s, p) => s + p.total_pagado, 0));
@@ -1699,7 +2319,7 @@
         g.innerHTML = `<div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center"><p class="text-sm font-semibold text-slate-600">No hay turnantes activos en este momento.</p><p class="text-xs text-slate-400 mt-1">Apenas un empleado marque ingreso en el Kiosco aparecerá aquí automáticamente.</p></div>`;
         return;
       }
-      const now = new Date();
+      const now = getOfficialNow();
       g.innerHTML = act.map(s => {
         const isL = s.estado_jornada === 'EN_ALMUERZO';
         const el = getShiftElapsedSeconds(s, now);
@@ -1759,7 +2379,7 @@
       let tc = appState.asistencia.filter(t => t.corte_inicio === ci && t.estado_jornada === 'FINALIZADO');
       if (ef !== 'TODOS') tc = tc.filter(t => t.estado_pago === ef);
       if (tc.length === 0) {
-        ct.innerHTML = `<div class="bg-white rounded-xl border border-slate-200 p-10 text-center text-sm text-slate-400">Sin registros en este corte.</div>`;
+        ct.innerHTML = `<div class="bg-white rounded-xl border border-slate-200 p-10 text-center text-sm text-slate-400">Sin registros finalizados en este corte.</div>`;
         return;
       }
 
@@ -1771,27 +2391,34 @@
 
       ct.innerHTML = Object.values(by).map(g => {
         const th = g.turnos.reduce((s, t) => s + Number(t.horas_efectivas), 0);
-        const tdn = g.turnos.reduce((s, t) => s + Number(t.valor_total), 0);
+        const bruto = g.turnos.reduce((s, t) => s + Number(t.valor_total), 0);
+        const novs = getPendingNovedadesForEmpCorte(g.id_turnante, ci);
+        const desc = novs.reduce((s, n) => s + Number(n.monto || 0), 0);
+        const neto = Math.max(0, bruto - desc);
+
         const pt = g.turnos.filter(t => t.estado_pago === 'PENDIENTE');
         const empObj = appState.turnantes.find(e => String(e.id) === String(g.id_turnante)) || {};
         const bankLabel = (empObj.banco && empObj.numero_cuenta) ? `${empObj.banco} (${empObj.numero_cuenta})` : "Sin cuenta registrada";
 
         return `
           <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div>
                 <h3 class="font-bold text-slate-900 text-base">${g.nombre}</h3>
                 <p class="text-xs text-slate-500">${g.turnos.length} día(s) • <strong>${formatHoursDisplay(th)}</strong> • Pago: <strong>${info.pagoLabel}</strong> • <span class="text-slate-700 font-medium">${bankLabel}</span></p>
               </div>
               <div class="flex flex-wrap items-center gap-2.5">
                 <div class="text-right mr-2">
-                  <p class="text-[11px] uppercase font-bold text-slate-400">Total</p>
-                  <p class="text-lg font-extrabold text-slate-900 tabular-nums">${formatCOP(tdn)}</p>
+                  <p class="text-[11px] uppercase font-bold text-slate-400">${desc > 0 ? `Bruto ${formatCOP(bruto)} - Desc ${formatCOP(desc)}` : 'Neto a Pagar'}</p>
+                  <p class="text-lg font-extrabold text-slate-900 tabular-nums">${formatCOP(neto)}</p>
                 </div>
+                <button onclick="openNovedadModal('${g.id_turnante}')" class="bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold px-3 py-2.5 rounded-lg transition">
+                  - Vale/Desc
+                </button>
                 <button onclick="downloadSingleCuentaCobro('${g.id_turnante}', '${ci}')" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-lg transition">
                   PDF Cuenta de Cobro
                 </button>
-                ${pt.length > 0 ? `<button onclick="liquidarGrupo('${g.id_turnante}','${ci}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg">Liquidar (${formatCOP(pt.reduce((s, t) => s + t.valor_total, 0))})</button>` : `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg">PAGADO</span>`}
+                ${pt.length > 0 ? `<button onclick="liquidarGrupo('${g.id_turnante}','${ci}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg">Liquidar (${formatCOP(neto)})</button>` : `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg">PAGADO</span>`}
               </div>
             </div>
             <div class="divide-y divide-slate-100">
@@ -1808,6 +2435,18 @@
                   </div>
                 </div>
               `).join('')}
+              ${novs.map(n => `
+                <div class="px-4 py-2 bg-amber-50/60 flex items-center justify-between text-xs">
+                  <div>
+                    <span class="font-bold text-amber-800">Descuento (${n.tipo}):</span>
+                    <span class="text-slate-700">${n.concepto} (${n.fecha})</span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="font-extrabold text-rose-600 tabular-nums">-${formatCOP(n.monto)}</span>
+                    <button onclick="deleteNovedad('${n.id_novedad}')" class="text-rose-500 hover:underline">Quitar</button>
+                  </div>
+                </div>
+              `).join('')}
             </div>
           </div>
         `;
@@ -1816,23 +2455,36 @@
 
     function renderAsistenciaTable() {
       const ef = document.getElementById('filter-asist-emp').value;
+      const stFilter = document.getElementById('filter-asist-estado').value;
       const tb = document.getElementById('asistencia-tbody');
       const sel = document.getElementById('filter-asist-emp'), pv = sel.value;
       sel.innerHTML = `<option value="ALL">Todos los turnantes</option>` + appState.turnantes.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
       if (pv) sel.value = pv;
 
-      const l = appState.asistencia.filter(t => ef === 'ALL' || String(t.id_turnante) === String(ef));
-      tb.innerHTML = l.length === 0 ? `<tr><td colspan="7" class="py-10 text-center text-slate-400">Sin marcaciones.</td></tr>` : l.map(t => `
-        <tr class="hover:bg-slate-50/70">
-          <td class="py-3 px-4"><p class="font-bold text-slate-900">${t.nombre_turnante}</p><p class="text-xs text-slate-500">${t.fecha_turno}</p></td>
-          <td class="py-3 px-4 text-xs">${t.hora_ingreso || '--:--'} → ${t.hora_salida || 'En curso'}</td>
-          <td class="py-3 px-4 text-xs text-amber-700">${t.almuerzo_inicio ? `${t.almuerzo_inicio}-${t.almuerzo_fin || '...'} (${t.minutos_almuerzo}m)` : 'Sin almuerzo'}</td>
-          <td class="py-3 px-4 text-right font-bold tabular-nums">${Number(t.horas_efectivas || 0).toFixed(2)} h</td>
-          <td class="py-3 px-4 text-right font-extrabold tabular-nums">${formatCOP(t.valor_total)}</td>
-          <td class="py-3 px-4 text-xs"><span class="px-2 py-0.5 rounded font-bold ${t.estado_pago === 'PAGADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}">${t.estado_pago} (${t.fecha_pago_martes})</span></td>
-          <td class="py-3 px-4 text-right space-x-2"><button onclick="openEditTurnoModal('${t.id_turno}')" class="text-xs font-semibold text-sky-600 hover:underline">Editar</button><button onclick="deleteTurno('${t.id_turno}')" class="text-xs font-semibold text-rose-500 hover:underline">Borrar</button></td>
-        </tr>
-      `).join('');
+      const l = appState.asistencia.filter(t => {
+        const matchEmp = ef === 'ALL' || String(t.id_turnante) === String(ef);
+        const matchEst = stFilter === 'ALL' || t.estado_jornada === stFilter;
+        return matchEmp && matchEst;
+      });
+
+      tb.innerHTML = l.length === 0 ? `<tr><td colspan="7" class="py-10 text-center text-slate-400">Sin marcaciones.</td></tr>` : l.map(t => {
+        const isRev = t.estado_jornada === 'PENDIENTE_REVISION';
+        return `
+          <tr class="${isRev ? 'bg-rose-50/80' : 'hover:bg-slate-50/70'}">
+            <td class="py-3 px-4"><p class="font-bold text-slate-900">${t.nombre_turnante}</p><p class="text-xs text-slate-500">${t.fecha_turno}</p></td>
+            <td class="py-3 px-4 text-xs">${t.hora_ingreso || '--:--'} → ${t.hora_salida || (isRev ? '<span class="text-rose-600 font-bold">Sin salida (+16h)</span>' : 'En curso')}</td>
+            <td class="py-3 px-4 text-xs text-amber-700">${t.almuerzo_inicio ? `${t.almuerzo_inicio}-${t.almuerzo_fin || '...'} (${t.minutos_almuerzo}m)` : 'Sin almuerzo'}</td>
+            <td class="py-3 px-4 text-right font-bold tabular-nums">${Number(t.horas_efectivas || 0).toFixed(2)} h</td>
+            <td class="py-3 px-4 text-right font-extrabold tabular-nums">${formatCOP(t.valor_total)}</td>
+            <td class="py-3 px-4 text-xs">
+              ${isRev
+                ? `<span class="px-2 py-0.5 rounded font-extrabold bg-rose-100 text-rose-800">REVISAR (>16h)</span>`
+                : `<span class="px-2 py-0.5 rounded font-bold ${t.estado_pago === 'PAGADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}">${t.estado_pago} (${t.fecha_pago_martes})</span>`}
+            </td>
+            <td class="py-3 px-4 text-right space-x-2"><button onclick="openEditTurnoModal('${t.id_turno}')" class="text-xs font-semibold text-sky-600 hover:underline">Editar</button><button onclick="deleteTurno('${t.id_turno}')" class="text-xs font-semibold text-rose-500 hover:underline">Borrar</button></td>
+          </tr>
+        `;
+      }).join('');
     }
 
     function renderTurnantesGrid() {
@@ -1841,19 +2493,38 @@
         g.innerHTML = `<div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-400">Aún no hay turnantes registrados. Haz clic en "+ Nuevo Turnante" o "Pegar desde Excel".</div>`;
         return;
       }
+      const todayISO = getTodayISO();
+      const [ty, tm, td] = todayISO.split('-').map(Number);
+      const todayDate = new Date(ty, tm - 1, td);
+
       g.innerHTML = appState.turnantes.map(e => {
         const hasBank = e.banco && e.numero_cuenta;
+        let arlBadge = `<span class="text-[11px] text-slate-400">ARL: Sin fecha</span>`;
+        if (e.arl_vencimiento) {
+          const [ay, am, ad] = String(e.arl_vencimiento).slice(0, 10).split('-').map(Number);
+          const arlDate = new Date(ay, am - 1, ad);
+          const diffDays = Math.ceil((arlDate - todayDate) / (1000 * 3600 * 24));
+          if (diffDays < 0) {
+            arlBadge = `<span class="text-[11px] font-extrabold bg-rose-100 text-rose-800 px-2 py-0.5 rounded">ARL VENCIDA (${e.arl_vencimiento})</span>`;
+          } else if (diffDays <= 5) {
+            arlBadge = `<span class="text-[11px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">ARL vence en ${diffDays}d (${e.arl_vencimiento})</span>`;
+          } else {
+            arlBadge = `<span class="text-[11px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">ARL vigente hasta ${e.arl_vencimiento}</span>`;
+          }
+        }
+
         return `
           <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between gap-3">
-            <div class="flex items-start justify-between">
+            <div class="flex items-start justify-between gap-2">
               <div>
                 <h3 class="font-bold text-slate-900 text-base">${e.nombre}</h3>
                 <p class="text-xs text-slate-500">${e.cargo || 'Turnante'}${e.telefono ? ' • Tel: ' + e.telefono : ''}</p>
                 <p class="text-xs mt-1.5 font-medium ${hasBank ? 'text-emerald-700' : 'text-amber-600'}">
                   ${hasBank ? `${e.banco}: <strong class="font-mono">${e.numero_cuenta}</strong>` : 'Sin cuenta bancaria asignada'}
                 </p>
+                <div class="mt-2">${arlBadge}</div>
               </div>
-              <span class="text-xs font-mono font-bold bg-slate-900 text-emerald-400 px-2.5 py-1 rounded-lg">CC ${e.documento}</span>
+              <span class="text-xs font-mono font-bold bg-slate-900 text-emerald-400 px-2.5 py-1 rounded-lg shrink-0">CC ${e.documento}</span>
             </div>
             <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
               <span class="text-slate-500">Tarifa: <strong>${formatCOP(e.valor_hora_efectiva || VALOR_HORA_EFECTIVA)}/h</strong></span>
@@ -1869,13 +2540,14 @@
 
     function renderHistorialTable() {
       const tb = document.getElementById('historial-tbody');
-      tb.innerHTML = appState.pagos.length === 0 ? `<tr><td colspan="7" class="py-10 text-center text-slate-400">Sin liquidaciones.</td></tr>` : appState.pagos.map(p => `
+      tb.innerHTML = appState.pagos.length === 0 ? `<tr><td colspan="8" class="py-10 text-center text-slate-400">Sin liquidaciones.</td></tr>` : appState.pagos.map(p => `
         <tr class="hover:bg-slate-50">
           <td class="py-3 px-4 font-mono text-xs font-bold">${p.id_recibo}</td>
           <td class="py-3 px-4 text-xs">${p.fecha_liquidacion}</td>
           <td class="py-3 px-4 text-xs">${p.corte_semana}</td>
           <td class="py-3 px-4 font-bold">${p.nombre_turnante}</td>
           <td class="py-3 px-4 text-right text-xs">${Number(p.total_horas).toFixed(2)} h</td>
+          <td class="py-3 px-4 text-right text-xs text-rose-600 font-semibold">${p.total_descuentos > 0 ? '-' + formatCOP(p.total_descuentos) : '$0'}</td>
           <td class="py-3 px-4 text-right font-extrabold text-emerald-600">${formatCOP(p.total_pagado)}</td>
           <td class="py-3 px-4 text-right"><button onclick="viewReceipt('${p.id_recibo}')" class="text-xs font-semibold underline">Ver</button></td>
         </tr>
@@ -1899,7 +2571,7 @@
     function openEditTurnoModal(id) {
       const t = appState.asistencia.find(x => x.id_turno === id);
       if (!t) return;
-      document.getElementById('turno-modal-title').textContent = "Corregir Marcaje";
+      document.getElementById('turno-modal-title').textContent = t.estado_jornada === 'PENDIENTE_REVISION' ? "Resolver Turno Cerrado (>16h)" : "Corregir Marcaje";
       document.getElementById('edit-turno-id').value = t.id_turno;
       document.getElementById('t-emp-id').innerHTML = appState.turnantes.map(e => `<option value="${e.id}">${e.nombre} (CC ${e.documento})</option>`).join('');
       document.getElementById('t-emp-id').value = t.id_turnante;
@@ -1908,7 +2580,7 @@
       document.getElementById('t-alm-ini').value = normalizeTimeStr(t.almuerzo_inicio);
       document.getElementById('t-alm-fin').value = normalizeTimeStr(t.almuerzo_fin);
       document.getElementById('t-salida').value = normalizeTimeStr(t.hora_salida);
-      document.getElementById('t-obs').value = t.observaciones || "";
+      document.getElementById('t-obs').value = t.estado_jornada === 'PENDIENTE_REVISION' ? "Revisado y cerrado por SU" : (t.observaciones || "");
       recalcModalPreview();
       openModal('turno-modal');
     }
@@ -1944,7 +2616,7 @@
       const m = calculateJornadaMetrics(i, ai, af, s, emp.valor_hora_efectiva);
       const c = getCorteInfo(f);
       const ej = s ? "FINALIZADO" : (ai && !af ? "EN_ALMUERZO" : "TRABAJANDO");
-      const nowIso = new Date().toISOString();
+      const nowIso = getOfficialNow().toISOString();
 
       let targetRecord = null;
       if (eid) {
@@ -2004,6 +2676,7 @@
         enqueueAtomicOp({ type: "UPSERT_TURNO", record: targetRecord });
         persistLocal();
         renderAllAdmin();
+        evaluateAndShowSuAlerts(false);
         flushOfflineQueue();
       }
       closeModal('turno-modal');
@@ -2015,13 +2688,14 @@
       enqueueAtomicOp({ type: "DELETE_TURNO", id });
       persistLocal();
       renderAllAdmin();
+      evaluateAndShowSuAlerts(false);
       flushOfflineQueue();
     }
 
     function openEmpModal() {
       document.getElementById('emp-modal-title').textContent = "Registrar Turnante";
       document.getElementById('edit-emp-id').value = "";
-      ['e-nombre', 'e-doc', 'e-tel', 'e-banco', 'e-cuenta', 'e-cargo'].forEach(id => document.getElementById(id).value = "");
+      ['e-nombre', 'e-doc', 'e-tel', 'e-banco', 'e-cuenta', 'e-arl', 'e-cargo'].forEach(id => document.getElementById(id).value = "");
       document.getElementById('e-valor-hora').value = VALOR_HORA_EFECTIVA.toFixed(2);
       openModal('emp-modal');
     }
@@ -2029,13 +2703,14 @@
     function openEditEmpModal(id) {
       const emp = appState.turnantes.find(x => String(x.id) === String(id));
       if (!emp) return;
-      document.getElementById('emp-modal-title').textContent = "Editar Turnante y Datos Bancarios";
+      document.getElementById('emp-modal-title').textContent = "Editar Turnante, Cuenta y Vigencia ARL";
       document.getElementById('edit-emp-id').value = emp.id;
       document.getElementById('e-nombre').value = emp.nombre || "";
       document.getElementById('e-doc').value = emp.documento || "";
       document.getElementById('e-tel').value = emp.telefono || "";
       document.getElementById('e-banco').value = emp.banco || "";
       document.getElementById('e-cuenta').value = emp.numero_cuenta || "";
+      document.getElementById('e-arl').value = emp.arl_vencimiento || "";
       document.getElementById('e-cargo').value = emp.cargo || "Turnante";
       document.getElementById('e-valor-hora').value = Number(emp.valor_hora_efectiva || VALOR_HORA_EFECTIVA).toFixed(2);
       openModal('emp-modal');
@@ -2063,6 +2738,7 @@
             telefono: document.getElementById('e-tel').value.trim(),
             banco: document.getElementById('e-banco').value.trim(),
             numero_cuenta: document.getElementById('e-cuenta').value.trim(),
+            arl_vencimiento: document.getElementById('e-arl').value.trim(),
             cargo: document.getElementById('e-cargo').value.trim() || "Turnante",
             valor_hora_efectiva: Number(document.getElementById('e-valor-hora').value) || VALOR_HORA_EFECTIVA
           };
@@ -2077,6 +2753,7 @@
           telefono: document.getElementById('e-tel').value.trim(),
           banco: document.getElementById('e-banco').value.trim(),
           numero_cuenta: document.getElementById('e-cuenta').value.trim(),
+          arl_vencimiento: document.getElementById('e-arl').value.trim(),
           cargo: document.getElementById('e-cargo').value.trim() || "Turnante",
           valor_hora_efectiva: Number(document.getElementById('e-valor-hora').value) || VALOR_HORA_EFECTIVA,
           estado: "Activo",
@@ -2092,6 +2769,7 @@
       closeModal('emp-modal');
       persistLocal();
       renderAllAdmin();
+      evaluateAndShowSuAlerts(false);
       flushOfflineQueue();
     }
 
@@ -2110,19 +2788,29 @@
       const empObj = appState.turnantes.find(e => String(e.id) === String(idT)) || {};
       const defaultMetodo = (empObj.banco && empObj.numero_cuenta) ? `${empObj.banco} - ${empObj.numero_cuenta}` : "Transferencia / Nequi";
 
-      const tot = tg.reduce((s, t) => s + Number(t.valor_total), 0);
+      const bruto = tg.reduce((s, t) => s + Number(t.valor_total), 0);
       const th = tg.reduce((s, t) => s + Number(t.horas_efectivas), 0);
+      const novs = getPendingNovedadesForEmpCorte(idT, ci);
+      const desc = novs.reduce((s, n) => s + Number(n.monto || 0), 0);
+      const neto = Math.max(0, bruto - desc);
+
       const cInfo = getCorteInfo(ci);
-      const met = prompt(`Liquidar ${formatCOP(tot)} (${th.toFixed(2)}h) a ${tg[0].nombre_turnante}.\nMétodo:`, defaultMetodo);
+      const met = prompt(`Liquidar NETO ${formatCOP(neto)} (Bruto ${formatCOP(bruto)} - Desc ${formatCOP(desc)} | ${th.toFixed(2)}h) a ${tg[0].nombre_turnante}.\nMétodo:`, defaultMetodo);
       if (met === null) return;
 
       const idR = "REC-" + Date.now().toString().slice(-6);
-      const nowIso = new Date().toISOString();
+      const nowIso = getOfficialNow().toISOString();
       tg.forEach(t => {
         t.estado_pago = "PAGADO";
         t.id_recibo = idR;
         t.updated_at = nowIso;
         enqueueAtomicOp({ type: "UPSERT_TURNO", record: t });
+      });
+
+      novs.forEach(n => {
+        n.estado = "APLICADO";
+        n.id_recibo = idR;
+        enqueueAtomicOp({ type: "UPSERT_NOVEDAD", record: n });
       });
 
       const pagoRec = {
@@ -2133,7 +2821,9 @@
         nombre_turnante: tg[0].nombre_turnante,
         cantidad_turnos: tg.length,
         total_horas: Number(th.toFixed(2)),
-        total_pagado: tot,
+        total_bruto: bruto,
+        total_descuentos: desc,
+        total_pagado: neto,
         metodo_pago: met || defaultMetodo,
         notas: `Pago ${cInfo.pagoLabel}`
       };
@@ -2151,6 +2841,8 @@
       if (!p) return;
       const emp = appState.turnantes.find(e => String(e.id) === String(p.id_turnante));
       const tr = appState.asistencia.filter(t => t.id_recibo === idR);
+      const novs = (appState.novedades || []).filter(n => n.id_recibo === idR);
+
       document.getElementById('rec-id').textContent = `Recibo #${p.id_recibo}`;
       document.getElementById('rec-emp').textContent = p.nombre_turnante;
       document.getElementById('rec-doc').textContent = emp ? emp.documento : "N/A";
@@ -2159,8 +2851,12 @@
       document.getElementById('rec-total-horas').textContent = `${p.total_horas}h ef.`;
       document.getElementById('rec-metodo').textContent = `Método: ${p.metodo_pago}`;
       document.getElementById('rec-total').textContent = formatCOP(p.total_pagado);
-      document.getElementById('rec-items').innerHTML = tr.map(t => `<div class="flex justify-between py-1 border-b border-slate-100"><span>${t.fecha_turno} (${t.hora_ingreso}-${t.hora_salida} | ${Number(t.horas_efectivas).toFixed(2)}h)</span><span class="font-bold">${formatCOP(t.valor_total)}</span></div>`).join('');
-      currentReceiptText = `*COMPROBANTE PAGO TURNANTES*\nRecibo: ${p.id_recibo}\nTurnante: ${p.nombre_turnante}\nCorte: ${p.corte_semana}\nHoras efectivas: ${p.total_horas}h\n*Total Pagado: ${formatCOP(p.total_pagado)}*`;
+
+      const turnoRows = tr.map(t => `<div class="flex justify-between py-1 border-b border-slate-100"><span>${t.fecha_turno} (${t.hora_ingreso}-${t.hora_salida} | ${Number(t.horas_efectivas).toFixed(2)}h)</span><span class="font-bold">${formatCOP(t.valor_total)}</span></div>`).join('');
+      const novRows = novs.map(n => `<div class="flex justify-between py-1 border-b border-slate-100 text-rose-600"><span>Descuento (${n.tipo}): ${n.concepto}</span><span class="font-bold">-${formatCOP(n.monto)}</span></div>`).join('');
+      document.getElementById('rec-items').innerHTML = turnoRows + novRows;
+
+      currentReceiptText = `*COMPROBANTE PAGO TURNANTES - FAGOSA SAS*\nRecibo: ${p.id_recibo}\nTurnante: ${p.nombre_turnante}\nCorte: ${p.corte_semana}\nHoras efectivas: ${p.total_horas}h\n${p.total_descuentos > 0 ? `Descuentos: -${formatCOP(p.total_descuentos)}\n` : ''}*Neto Pagado: ${formatCOP(p.total_pagado)}*`;
       openModal('receipt-modal');
     }
 
@@ -2176,6 +2872,7 @@
       document.getElementById('cfg-emp-ciudad').value = cloudConfig.empCiudad || DEFAULT_COMPANY.ciudad;
       document.getElementById('cfg-api-url').value = cloudConfig.url || DEFAULT_API_URL;
       document.getElementById('cfg-api-token').value = cloudConfig.token || DEFAULT_API_TOKEN;
+      renderAuthorizedDevicesList();
       updateQueueBadge();
     }
 
@@ -2213,7 +2910,7 @@
     }
 
     function switchTab(tab) {
-      ['live', 'cortes', 'asistencia', 'turnantes', 'historial', 'config'].forEach(t => {
+      ['live', 'cortes', 'novedades', 'asistencia', 'turnantes', 'historial', 'config'].forEach(t => {
         document.getElementById(`view-${t}`).classList.add('hidden');
         const b = document.getElementById(`tab-btn-${t}`);
         b.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
@@ -2229,12 +2926,12 @@
     function closeModal(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); }
 
     function exportToCSV() {
-      const h = ["ID", "Turnante", "Cedula", "Fecha", "Ingreso", "Alm_Ini", "Alm_Fin", "Salida", "Min_Alm", "Horas_Ef", "Valor_COP", "Corte", "Pago_Martes", "Estado"];
-      const r = appState.asistencia.map(t => [t.id_turno, `"${t.nombre_turnante}"`, t.documento, t.fecha_turno, t.hora_ingreso, t.almuerzo_inicio, t.almuerzo_fin, t.hora_salida, t.minutos_almuerzo, t.horas_efectivas, t.valor_total, t.corte_inicio, t.fecha_pago_martes, t.estado_pago]);
+      const h = ["ID", "Turnante", "Cedula", "Fecha", "Ingreso", "Alm_Ini", "Alm_Fin", "Salida", "Min_Alm", "Horas_Ef", "Valor_COP", "Corte", "Pago_Martes", "Estado_Jornada", "Estado_Pago"];
+      const r = appState.asistencia.map(t => [t.id_turno, `"${t.nombre_turnante}"`, t.documento, t.fecha_turno, t.hora_ingreso, t.almuerzo_inicio, t.almuerzo_fin, t.hora_salida, t.minutos_almuerzo, t.horas_efectivas, t.valor_total, t.corte_inicio, t.fecha_pago_martes, t.estado_jornada, t.estado_pago]);
       const csv = "\uFEFF" + [h.join(","), ...r.map(x => x.join(","))].join("\n");
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
-      a.download = `Turnantes_${getTodayISO()}.csv`;
+      a.download = `Turnantes_FAGOSA_${getTodayISO()}.csv`;
       a.click();
     }
 
