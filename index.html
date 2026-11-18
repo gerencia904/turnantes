@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TurnoPay | Control de Marcación y Cortes Semanales</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; }
+      #print-area { display: block !important; box-shadow: none !important; border: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+
+  <!-- ===================================================================== -->
+  <!-- MODO 1: KIOSCO DE MARCACIÓN POR CÉDULA (?modo=marcacion)              -->
+  <!-- ===================================================================== -->
+  <div id="kiosk-shell" class="hidden min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-8">
+    <!-- Topbar Kiosco -->
+    <header class="max-w-3xl w-full mx-auto flex items-center justify-between border-b border-slate-800 pb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-extrabold text-xl">T</div>
+        <div>
+          <h1 class="font-bold text-lg tracking-tight leading-none">TurnoPay <span class="text-emerald-400">Kiosco</span></h1>
+          <p class="text-xs text-slate-400 mt-1">Registro Oficial de Asistencia y Almuerzo</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <span id="kiosk-sync-badge" class="text-xs bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Conectado
+        </span>
+        <button onclick="switchToAdminPrompt()" title="Acceso Super Usuario" class="text-xs text-slate-500 hover:text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 transition">
+          SU
+        </button>
+      </div>
+    </header>
+
+    <!-- Cuerpo Central Kiosco -->
+    <main class="max-w-2xl w-full mx-auto my-auto py-8">
+      <!-- Reloj Digital en Vivo -->
+      <div class="text-center mb-8">
+        <p id="kiosk-date" class="text-sm sm:text-base font-medium text-emerald-400 uppercase tracking-widest mb-1"></p>
+        <div id="kiosk-clock" class="text-5xl sm:text-7xl font-extrabold tracking-tight tabular-nums text-white">00:00:00</div>
+      </div>
+
+      <!-- Paso 1: Ingreso de Cédula -->
+      <div id="kiosk-lookup-card" class="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl">
+        <label for="kiosk-cedula-input" class="block text-sm font-semibold text-slate-300 mb-2 text-center">
+          Digita tu número de cédula para registrar marcación
+        </label>
+        <form onsubmit="handleKioskLookup(event)" class="space-y-4">
+          <input type="text" id="kiosk-cedula-input" inputmode="numeric" autocomplete="off" required placeholder="Ej: 1094912345"
+            class="w-full text-center text-2xl sm:text-3xl font-bold tracking-wider bg-slate-900 border-2 border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-4 text-white outline-none transition tabular-nums" />
+          <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-4 rounded-2xl shadow-lg shadow-emerald-500/20 transition">
+            Continuar
+          </button>
+        </form>
+        <p id="kiosk-error-msg" class="hidden mt-4 text-center text-sm font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl py-2.5 px-4"></p>
+      </div>
+
+      <!-- Paso 2: Panel de Acción del Turnante Identificado -->
+      <div id="kiosk-action-card" class="hidden bg-slate-800/90 border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+        <div class="flex items-start justify-between border-b border-slate-700 pb-4">
+          <div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Turnante Identificado</span>
+            <h2 id="kiosk-emp-name" class="text-2xl sm:text-3xl font-extrabold text-white mt-0.5"></h2>
+            <p id="kiosk-emp-meta" class="text-sm text-slate-400 mt-0.5"></p>
+          </div>
+          <button onclick="resetKioskScreen()" class="text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl transition">
+            Cambiar Cédula
+          </button>
+        </div>
+
+        <!-- Estado actual de la jornada y Cronómetro -->
+        <div id="kiosk-status-panel" class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span id="kiosk-state-badge" class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full"></span>
+            <p id="kiosk-timeline-summary" class="text-xs text-slate-400 mt-2 space-y-0.5"></p>
+          </div>
+          <div class="text-left sm:text-right">
+            <p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold" id="kiosk-timer-label">Tiempo Efectivo Hoy</p>
+            <p id="kiosk-live-timer" class="text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5">00:00:00</p>
+          </div>
+        </div>
+
+        <!-- Botonera Dinámica según Estado -->
+        <div id="kiosk-buttons-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+      </div>
+
+      <!-- Confirmación tras marcar -->
+      <div id="kiosk-feedback-card" class="hidden mt-4 bg-emerald-500/15 border border-emerald-500/40 rounded-2xl p-5 text-center space-y-2">
+        <p id="kiosk-feedback-title" class="text-lg font-extrabold text-emerald-300"></p>
+        <p id="kiosk-feedback-detail" class="text-sm text-slate-200"></p>
+        <p class="text-xs text-slate-400 pt-1">Esta pantalla volverá al inicio automáticamente en <span id="kiosk-countdown" class="font-bold text-white">6</span>s...</p>
+      </div>
+    </main>
+
+    <footer class="max-w-3xl w-full mx-auto text-center text-xs text-slate-500 border-t border-slate-800 pt-4">
+      Corte semanal: Martes a Lunes • Pagos: Días Martes • El tiempo de almuerzo no es remunerado.
+    </footer>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODO 2: LOGIN SUPER USUARIO (SU)                                      -->
+  <!-- ===================================================================== -->
+  <div id="su-login-shell" class="hidden min-h-screen bg-slate-900 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6">
+      <div class="text-center">
+        <div class="w-12 h-12 rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center font-extrabold text-2xl mx-auto mb-3">SU</div>
+        <h1 class="text-xl font-extrabold text-slate-900">Acceso Super Usuario</h1>
+        <p class="text-sm text-slate-500 mt-1">Administración de turnantes, marcajes y cortes</p>
+      </div>
+      <form onsubmit="handleSuLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">PIN de Administrador</label>
+          <input type="password" id="su-pin-input" inputmode="numeric" required placeholder="••••"
+            class="w-full text-center text-2xl font-bold tracking-[0.5em] border-2 border-slate-200 focus:border-slate-900 rounded-2xl px-4 py-3.5 outline-none" />
+        </div>
+        <p id="su-login-error" class="hidden text-xs font-semibold text-rose-600 text-center">PIN incorrecto. Intenta nuevamente.</p>
+        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-2xl transition">
+          Ingresar al Panel SU
+        </button>
+      </form>
+      <div class="pt-3 border-t border-slate-100 text-center">
+        <button onclick="activateKioskMode()" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700">
+          Ir al Kiosco de Marcación (Empleados) →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODO 3: PANEL ADMINISTRATIVO SUPER USUARIO (SU)                       -->
+  <!-- =====================================================================
