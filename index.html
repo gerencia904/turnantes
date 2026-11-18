@@ -19,10 +19,9 @@
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
 
   <!-- ===================================================================== -->
-  <!-- MODO 1: KIOSCO DE MARCACIÓN POR CÉDULA (?modo=marcacion)              -->
+  <!-- MODO 1: KIOSCO DE MARCACIÓN POR CÉDULA (/marcacion o ?modo=marcacion) -->
   <!-- ===================================================================== -->
   <div id="kiosk-shell" class="hidden min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-8">
-    <!-- Topbar Kiosco -->
     <header class="max-w-3xl w-full mx-auto flex items-center justify-between border-b border-slate-800 pb-4">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-extrabold text-xl">T</div>
@@ -31,19 +30,18 @@
           <p class="text-xs text-slate-400 mt-1">Registro Oficial de Asistencia y Almuerzo</p>
         </div>
       </div>
-      <div class="flex items-center gap-3">
-        <span id="kiosk-sync-badge" class="text-xs bg-slate-800 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-full flex items-center gap-1.5">
-          <span class="w-2 h-2 rounded-full bg-emerald-400"></span> Conectado
-        </span>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button onclick="syncFromGoogleDrive(false)" title="Actualizar base de datos" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition">
+          <span id="kiosk-sync-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span id="kiosk-sync-text">Drive Activo</span>
+        </button>
         <button onclick="switchToAdminPrompt()" title="Acceso Super Usuario" class="text-xs text-slate-500 hover:text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 transition">
           SU
         </button>
       </div>
     </header>
 
-    <!-- Cuerpo Central Kiosco -->
     <main class="max-w-2xl w-full mx-auto my-auto py-8">
-      <!-- Reloj Digital en Vivo -->
       <div class="text-center mb-8">
         <p id="kiosk-date" class="text-sm sm:text-base font-medium text-emerald-400 uppercase tracking-widest mb-1"></p>
         <div id="kiosk-clock" class="text-5xl sm:text-7xl font-extrabold tracking-tight tabular-nums text-white">00:00:00</div>
@@ -77,7 +75,6 @@
           </button>
         </div>
 
-        <!-- Estado actual de la jornada y Cronómetro -->
         <div id="kiosk-status-panel" class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <span id="kiosk-state-badge" class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full"></span>
@@ -89,7 +86,6 @@
           </div>
         </div>
 
-        <!-- Botonera Dinámica según Estado -->
         <div id="kiosk-buttons-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
       </div>
 
@@ -114,7 +110,7 @@
       <div class="text-center">
         <div class="w-12 h-12 rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center font-extrabold text-2xl mx-auto mb-3">SU</div>
         <h1 class="text-xl font-extrabold text-slate-900">Acceso Super Usuario</h1>
-        <p class="text-sm text-slate-500 mt-1">Administración de turnantes, marcajes y cortes</p>
+        <p class="text-sm text-slate-500 mt-1">Administración global sincronizada en la nube</p>
       </div>
       <form onsubmit="handleSuLogin(event)" class="space-y-4">
         <div>
@@ -127,9 +123,10 @@
           Ingresar al Panel SU
         </button>
       </form>
-      <div class="pt-3 border-t border-slate-100 text-center">
-        <button onclick="activateKioskMode()" class="text-xs font-semibold text-emerald-600 hover:text-emerald-700">
-          Ir al Kiosco de Marcación (Empleados) →
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+        <span id="login-cloud-status" class="text-slate-400">Verificando nube...</span>
+        <button onclick="activateKioskMode()" class="font-semibold text-emerald-600 hover:text-emerald-700">
+          Ir al Kiosco (Empleados) →
         </button>
       </div>
     </div>
@@ -139,7 +136,6 @@
   <!-- MODO 3: PANEL ADMINISTRATIVO SUPER USUARIO (SU)                       -->
   <!-- ===================================================================== -->
   <div id="admin-shell" class="hidden">
-    <!-- Barra Superior -->
     <header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md no-print">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
         <div class="flex items-center gap-3">
@@ -154,11 +150,11 @@
         </div>
 
         <div class="flex items-center gap-2">
-          <button onclick="copyKioskLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
-            <span>Copiar Link Kiosco</span>
+          <button onclick="copyKioskLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+            Copiar Link Kiosco
           </button>
 
-          <button onclick="syncFromGoogleDrive()" id="sync-status-btn" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition">
+          <button onclick="syncFromGoogleDrive(false)" id="sync-status-btn" title="Clic para sincronizar ahora" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition">
             <span id="sync-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
             <span id="sync-label" class="hidden md:inline">Sincronizando...</span>
           </button>
@@ -172,7 +168,7 @@
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 no-print">
 
-      <!-- KPIs Ejecutivos -->
+      <!-- KPIs -->
       <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
           <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">En Turno Ahora (En Vivo)</p>
@@ -252,7 +248,6 @@
           </div>
           <div id="corte-banner-info" class="text-xs font-medium px-3 py-2 rounded-lg bg-slate-100 text-slate-700"></div>
         </div>
-
         <div id="cortes-cards-container" class="space-y-4"></div>
       </section>
 
@@ -261,7 +256,7 @@
         <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 class="font-bold text-slate-800 text-base">Bitácora Completa de Marcaciones</h2>
-            <p class="text-xs text-slate-500">Puedes editar horas de ingreso, salida a almuerzo, regreso o salida final si algún empleado olvidó marcar.</p>
+            <p class="text-xs text-slate-500">Edita horas de ingreso, salida a almuerzo, regreso o salida final si algún empleado olvidó marcar.</p>
           </div>
           <select id="filter-asist-emp" onchange="renderAsistenciaTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none">
             <option value="ALL">Todos los turnantes</option>
@@ -290,7 +285,7 @@
         <div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
           <div>
             <h2 class="font-bold text-slate-800 text-base">Base de Datos de Turnantes</h2>
-            <p class="text-xs text-slate-500">La cédula registrada aquí es la que habilita al empleado en el Kiosco de Marcación.</p>
+            <p class="text-xs text-slate-500">La cédula registrada aquí habilita al empleado al instante en todos los dispositivos.</p>
           </div>
           <button onclick="openEmpModal()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg text-sm transition">
             + Registrar Turnante
@@ -322,21 +317,25 @@
         </div>
       </section>
 
-      <!-- TAB 6: CONFIGURACIÓN SUPER USUARIO Y DRIVE -->
+      <!-- TAB 6: CONFIGURACIÓN GLOBAL SUPER USUARIO -->
       <section id="view-config" class="hidden max-w-3xl space-y-5">
         <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-5">
           <div>
-            <h2 class="font-bold text-slate-800 text-lg">Seguridad Super Usuario y Parámetros</h2>
-            <p class="text-xs text-slate-500 mt-1">Configura el PIN de acceso administrativo y verifica la fórmula salarial.</p>
+            <div class="flex items-center gap-2">
+              <h2 class="font-bold text-slate-800 text-lg">Seguridad Super Usuario y Parámetros Globales</h2>
+              <span class="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">Sincronizado en Nube</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">Todo cambio que guardes aquí se replica automáticamente en todos tus celulares y computadores.</p>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
             <div>
-              <label class="block text-xs font-bold text-slate-700 mb-1">PIN de Super Usuario (SU)</label>
+              <label class="block text-xs font-bold text-slate-700 mb-1">PIN Global de Super Usuario (SU)</label>
               <div class="flex gap-2">
                 <input type="text" id="cfg-su-pin" maxlength="8" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold" />
-                <button onclick="updateSuPin()" class="bg-slate-900 text-white text-xs font-bold px-4 py-2 rounded-lg">Guardar PIN</button>
+                <button onclick="updateGlobalSuPin()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-lg transition">Guardar PIN</button>
               </div>
+              <p class="text-[11px] text-slate-400 mt-1">Se guarda en la hoja Configuracion de Google Drive.</p>
             </div>
             <div class="text-xs text-slate-600 flex flex-col justify-center">
               <p class="font-bold text-slate-800">Tarifa Oficial Vigente:</p>
@@ -357,10 +356,10 @@
             </div>
             <div class="flex flex-wrap gap-2 pt-2">
               <button onclick="saveCloudConfig()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-xs">
-                Guardar y Probar Conexión
+                Guardar y Sincronizar Nube
               </button>
-              <button onclick="pushAllToGoogleDrive()" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-lg text-xs">
-                Forzar Respaldo Completo a Drive
+              <button onclick="pushAllToGoogleDrive(false)" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-lg text-xs">
+                Subir Todo a Drive Ahora
               </button>
             </div>
           </div>
@@ -369,9 +368,7 @@
     </main>
   </div>
 
-  <!-- ===================================================================== -->
-  <!-- MODAL 1: CREAR / EDITAR MARCAJE (SUPER USUARIO)                       -->
-  <!-- ===================================================================== -->
+  <!-- MODAL 1: CREAR / EDITAR MARCAJE -->
   <div id="turno-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-xl overflow-hidden">
       <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
@@ -442,9 +439,7 @@
     </div>
   </div>
 
-  <!-- ===================================================================== -->
-  <!-- MODAL 2: REGISTRAR NUEVO TURNANTE (SUPER USUARIO)                     -->
-  <!-- ===================================================================== -->
+  <!-- MODAL 2: REGISTRAR NUEVO TURNANTE -->
   <div id="emp-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print">
     <div class="bg-white rounded-2xl max-w-md w-full shadow-xl overflow-hidden">
       <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
@@ -484,9 +479,7 @@
     </div>
   </div>
 
-  <!-- ===================================================================== -->
-  <!-- MODAL 3: COMPROBANTE DE PAGO (MARTES)                                 -->
-  <!-- ===================================================================== -->
+  <!-- MODAL 3: COMPROBANTE DE PAGO -->
   <div id="receipt-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
     <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
       <div id="print-area" class="p-6 space-y-4">
@@ -527,16 +520,12 @@
     </div>
   </div>
 
-  <!-- Toast -->
   <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 no-print"></div>
 
   <script>
-    /* ========================================================================
-       1. CONSTANTES Y CONFIGURACIÓN
-    ======================================================================== */
     const BASE_VALOR_JORNADA = 80000;
     const BASE_HORAS_EFECTIVAS = 7;
-    const VALOR_HORA_EFECTIVA = BASE_VALOR_JORNADA / BASE_HORAS_EFECTIVAS; // 11428.57142857143
+    const VALOR_HORA_EFECTIVA = BASE_VALOR_JORNADA / BASE_HORAS_EFECTIVAS;
 
     const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxqwAjxiT00G0ioBGPTNVwBtKl-fJP88lX40MsLZTwcYoXDbqn99uCtdjqolcu-6u10/exec";
     const DEFAULT_API_TOKEN = "TURNOPAY_2026_SECRETO";
@@ -557,22 +546,19 @@
         { id: "EMP-01", nombre: "Ender", documento: "1094912345", cargo: "Operario Turnante", telefono: "3104558899", valor_hora_efectiva: VALOR_HORA_EFECTIVA, estado: "Activo" }
       ],
       asistencia: [],
-      pagos: []
+      pagos: [],
+      config: [{ clave: "suPin", valor: cloudConfig.suPin || DEFAULT_SU_PIN, ultima_actualizacion: new Date().toISOString() }]
     };
 
     let currentReceiptText = "";
     let activeKioskEmp = null;
-    let kioskResetTimeout = null;
 
     /* ========================================================================
-       2. MOTOR DE TIEMPO, ALMUERZO Y CORTES (MARTES A LUNES -> PAGO MARTES)
+       CÁLCULOS DE TIEMPO Y CORTES
     ======================================================================== */
     function getTodayISO() {
       const now = new Date();
-      const y = now.getFullYear();
-      const m = String(now.getMonth() + 1).padStart(2, '0');
-      const d = String(now.getDate()).padStart(2, '0');
-      return `${y}-${m}-${d}`;
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
     }
 
     function getCurrentHHMM() {
@@ -602,7 +588,7 @@
       }
 
       let totalMinBrutos = mOut - mIn;
-      if (totalMinBrutos < 0) totalMinBrutos += 24 * 60; // Por si cruza medianoche
+      if (totalMinBrutos < 0) totalMinBrutos += 24 * 60;
 
       const minEfectivos = Math.max(0, totalMinBrutos - minutosAlmuerzo);
       const horasEfectivas = Number((minEfectivos / 60).toFixed(4));
@@ -614,7 +600,7 @@
     function getCorteInfo(dateStr) {
       const [y, m, d] = dateStr.split('-').map(Number);
       const date = new Date(y, m - 1, d);
-      const dayOfWeek = date.getDay(); // 0=Dom, 1=Lun, 2=Mar, ...
+      const dayOfWeek = date.getDay();
       const diffToTuesday = (dayOfWeek - 2 + 7) % 7;
 
       const corteInicio = new Date(date);
@@ -651,20 +637,18 @@
 
     function formatDurationHMS(totalSeconds) {
       const s = Math.max(0, Math.floor(totalSeconds));
-      const hh = String(Math.floor(s / 3600)).padStart(2, '0');
-      const mm = String(Math.floor((s % 3600) / 60)).padStart(2, '0');
-      const ss = String(s % 60).padStart(2, '0');
-      return `${hh}:${mm}:${ss}`;
+      return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
     }
 
     /* ========================================================================
-       3. RUTEO DE MODOS (KIOSCO vs SUPER USUARIO)
+       RUTEO DE MODOS (SOPORTA ?modo=marcacion Y /marcacion EN VERCEL)
     ======================================================================== */
     function detectInitialMode() {
       const params = new URLSearchParams(window.location.search);
       const modo = params.get('modo');
+      const path = window.location.pathname.toLowerCase();
 
-      if (modo === 'marcacion' || modo === 'kiosco') {
+      if (modo === 'marcacion' || modo === 'kiosco' || path.endsWith('/marcacion') || path.endsWith('/kiosco')) {
         activateKioskMode(false);
       } else if (sessionStorage.getItem(SU_SESSION_KEY) === 'true') {
         activateAdminMode();
@@ -696,6 +680,9 @@
     function switchToAdminPrompt() {
       const url = new URL(window.location);
       url.searchParams.delete('modo');
+      if (url.pathname.toLowerCase().endsWith('/marcacion') || url.pathname.toLowerCase().endsWith('/kiosco')) {
+        url.pathname = '/';
+      }
       window.history.pushState({}, '', url);
       if (sessionStorage.getItem(SU_SESSION_KEY) === 'true') {
         activateAdminMode();
@@ -707,7 +694,8 @@
     function handleSuLogin(e) {
       e.preventDefault();
       const entered = document.getElementById('su-pin-input').value.trim();
-      if (entered === String(cloudConfig.suPin || DEFAULT_SU_PIN)) {
+      const activePin = String(cloudConfig.suPin || DEFAULT_SU_PIN);
+      if (entered === activePin) {
         sessionStorage.setItem(SU_SESSION_KEY, 'true');
         document.getElementById('su-login-error').classList.add('hidden');
         activateAdminMode();
@@ -725,14 +713,14 @@
     }
 
     function copyKioskLink() {
-      const url = new URL(window.location.href);
+      const url = new URL(window.location.origin);
       url.searchParams.set('modo', 'marcacion');
       navigator.clipboard.writeText(url.toString());
-      showToast("Enlace del Kiosco copiado. Ábrelo en el PC de marcación.");
+      showToast("Enlace del Kiosco copiado para el PC de marcación.");
     }
 
     /* ========================================================================
-       4. LÓGICA DEL KIOSCO DE MARCACIÓN (EMPLEADOS POR CÉDULA)
+       KIOSCO DE MARCACIÓN
     ======================================================================== */
     function updateKioskClockAndTimers() {
       const now = new Date();
@@ -743,7 +731,6 @@
         clockEl.textContent = now.toLocaleTimeString('es-CO', { hour12: false });
       }
 
-      // Actualizar cronómetro si hay empleado activo en pantalla
       if (activeKioskEmp) {
         const today = getTodayISO();
         const openShift = appState.asistencia.find(t =>
@@ -754,7 +741,6 @@
         updateKioskTimerDisplay(openShift);
       }
 
-      // Actualizar monitor en vivo si el Super Usuario está viéndolo
       if (!document.getElementById('admin-shell').classList.contains('hidden')) {
         renderLiveMonitor();
       }
@@ -762,7 +748,6 @@
 
     function handleKioskLookup(e) {
       e.preventDefault();
-      clearTimeout(kioskResetTimeout);
       const doc = document.getElementById('kiosk-cedula-input').value.trim();
       const errEl = document.getElementById('kiosk-error-msg');
 
@@ -937,7 +922,6 @@
         feedbackDetail = `Almuerzo descontado: ${shift.minutos_almuerzo} min. Continúa tu jornada laboral.`;
 
       } else if (actionType === 'SALIDA' && shift) {
-        // Si estaba en almuerzo y dio salida directa, cerramos almuerzo automáticamente
         if (shift.almuerzo_inicio && !shift.almuerzo_fin) {
           shift.almuerzo_fin = nowTime;
         }
@@ -960,7 +944,6 @@
 
       persistAndSync();
 
-      // Mostrar pantalla de confirmación y reiniciar kiosco en 6 segundos
       document.getElementById('kiosk-action-card').classList.add('hidden');
       const fbCard = document.getElementById('kiosk-feedback-card');
       document.getElementById('kiosk-feedback-title').textContent = feedbackTitle;
@@ -993,10 +976,11 @@
     }
 
     /* ========================================================================
-       5. SINCRONIZACIÓN CON GOOGLE DRIVE (APPS SCRIPT)
+       SINCRONIZACIÓN GLOBAL MULTI-DISPOSITIVO (DATOS + CONFIGURACIÓN SU)
     ======================================================================== */
     function persistLocal() {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudConfig));
     }
 
     function persistAndSync() {
@@ -1010,16 +994,21 @@
     function setSyncStatus(state, text) {
       const dot = document.getElementById('sync-dot');
       const label = document.getElementById('sync-label');
-      const kioskBadge = document.getElementById('kiosk-sync-badge');
+      const kioskDot = document.getElementById('kiosk-sync-dot');
+      const kioskText = document.getElementById('kiosk-sync-text');
+      const loginStatus = document.getElementById('login-cloud-status');
 
       if (dot && label) {
         const colors = { ok: 'bg-emerald-400', syncing: 'bg-amber-400 animate-pulse', error: 'bg-rose-500' };
         dot.className = `w-2 h-2 rounded-full ${colors[state] || 'bg-slate-400'}`;
         label.textContent = text;
       }
-      if (kioskBadge) {
-        const dotColor = state === 'error' ? 'bg-rose-400' : (state === 'syncing' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400');
-        kioskBadge.innerHTML = `<span class="w-2 h-2 rounded-full ${dotColor}"></span> ${state === 'error' ? 'Modo Local' : 'Drive Activo'}`;
+      if (kioskDot && kioskText) {
+        kioskDot.className = `w-2 h-2 rounded-full ${state === 'error' ? 'bg-rose-400' : (state === 'syncing' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400')}`;
+        kioskText.textContent = state === 'error' ? 'Modo Local' : (state === 'syncing' ? 'Sincronizando...' : 'Drive Activo');
+      }
+      if (loginStatus) {
+        loginStatus.textContent = state === 'ok' ? '● Nube sincronizada' : (state === 'syncing' ? '● Conectando...' : '● Sin conexión nube');
       }
     }
 
@@ -1027,7 +1016,7 @@
       if (!cloudConfig.url) return;
       setSyncStatus('syncing', 'Sincronizando...');
       try {
-        const url = `${cloudConfig.url}?token=${encodeURIComponent(cloudConfig.token)}`;
+        const url = `${cloudConfig.url}?token=${encodeURIComponent(cloudConfig.token)}&t=${Date.now()}`;
         const res = await fetch(url);
         const json = await res.json();
 
@@ -1044,7 +1033,7 @@
               minutos_almuerzo: Number(a.minutos_almuerzo || 0),
               horas_efectivas: Number(a.horas_efectivas || a.horas || 0),
               valor_total: Number(a.valor_total || 0),
-              estado_jornada: a.estado_jornada || (a.hora_salida ? 'FINALIZADO' : 'FINALIZADO')
+              estado_jornada: a.estado_jornada || 'FINALIZADO'
             }));
           }
           if (Array.isArray(json.data.pagos)) {
@@ -1055,12 +1044,22 @@
               total_pagado: Number(p.total_pagado || 0)
             }));
           }
+          // Sincronizar configuración global (incluye PIN de Super Usuario)
+          if (Array.isArray(json.data.config) && json.data.config.length > 0) {
+            appState.config = json.data.config;
+            const remotePinRow = json.data.config.find(c => c.clave === 'suPin');
+            if (remotePinRow && remotePinRow.valor) {
+              cloudConfig.suPin = String(remotePinRow.valor).trim();
+            }
+          }
+
           persistLocal();
           if (!document.getElementById('admin-shell').classList.contains('hidden')) {
+            loadCloudConfigInputs();
             renderAllAdmin();
           }
           setSyncStatus('ok', 'Drive Sincronizado');
-          if (!silent) showToast("Datos actualizados desde Google Drive");
+          if (!silent) showToast("Datos y configuración actualizados desde la nube");
         } else {
           setSyncStatus('error', 'Error Token Drive');
         }
@@ -1074,6 +1073,11 @@
       if (!cloudConfig.url) return;
       setSyncStatus('syncing', 'Guardando en Drive...');
       try {
+        // Asegurar que el PIN actual viaje en appState.config
+        appState.config = [
+          { clave: "suPin", valor: String(cloudConfig.suPin || DEFAULT_SU_PIN), ultima_actualizacion: new Date().toISOString() }
+        ];
+
         await fetch(cloudConfig.url, {
           method: 'POST',
           mode: 'no-cors',
@@ -1083,18 +1087,19 @@
             action: 'SYNC_ALL',
             turnantes: appState.turnantes,
             asistencia: appState.asistencia,
-            pagos: appState.pagos
+            pagos: appState.pagos,
+            config: appState.config
           })
         });
         setSyncStatus('ok', 'Guardado en Drive');
-        if (!silent) showToast("Respaldo enviado a Google Drive");
+        if (!silent) showToast("Respaldo global enviado a Google Drive");
       } catch (err) {
         setSyncStatus('error', 'Fallo envío Drive');
       }
     }
 
     /* ========================================================================
-       6. VISTAS DEL SUPER USUARIO (MONITOR, CORTES, AUDITORÍA, TURNANTES)
+       VISTAS SUPER USUARIO
     ======================================================================== */
     function renderAllAdmin() {
       renderKPIs();
@@ -1157,16 +1162,11 @@
       grid.innerHTML = activeShifts.map(s => {
         const isLunch = s.estado_jornada === 'EN_ALMUERZO';
         const inSec = timeToMinutes(s.hora_ingreso) * 60;
-        let elapsedSec = 0;
+        let elapsedSec = isLunch
+          ? Math.max(0, nowSec - timeToMinutes(s.almuerzo_inicio) * 60)
+          : Math.max(0, nowSec - inSec - (Number(s.minutos_almuerzo) || 0) * 60);
 
-        if (isLunch) {
-          elapsedSec = Math.max(0, nowSec - timeToMinutes(s.almuerzo_inicio) * 60);
-        } else {
-          elapsedSec = Math.max(0, nowSec - inSec - (Number(s.minutos_almuerzo) || 0) * 60);
-        }
-
-        const estHours = elapsedSec / 3600;
-        const estPay = Math.round(estHours * VALOR_HORA_EFECTIVA);
+        const estPay = Math.round((elapsedSec / 3600) * VALOR_HORA_EFECTIVA);
 
         return `
           <div class="bg-white rounded-xl border ${isLunch ? 'border-amber-300' : 'border-emerald-300'} p-5 shadow-sm space-y-3">
@@ -1208,9 +1208,7 @@
       cortesMap.set(todayCorte.corte_inicio, todayCorte);
 
       appState.asistencia.forEach(t => {
-        if (t.corte_inicio) {
-          cortesMap.set(t.corte_inicio, getCorteInfo(t.fecha_turno));
-        }
+        if (t.corte_inicio) cortesMap.set(t.corte_inicio, getCorteInfo(t.fecha_turno));
       });
 
       const sorted = Array.from(cortesMap.values()).sort((a, b) => b.corte_inicio.localeCompare(a.corte_inicio));
@@ -1240,9 +1238,7 @@
       }
 
       let turnosCorte = appState.asistencia.filter(t => t.corte_inicio === corteInicio && t.estado_jornada === 'FINALIZADO');
-      if (estadoFilter !== 'TODOS') {
-        turnosCorte = turnosCorte.filter(t => t.estado_pago === estadoFilter);
-      }
+      if (estadoFilter !== 'TODOS') turnosCorte = turnosCorte.filter(t => t.estado_pago === estadoFilter);
 
       if (turnosCorte.length === 0) {
         container.innerHTML = `<div class="bg-white rounded-xl border border-slate-200 p-10 text-center text-sm text-slate-400">No hay jornadas finalizadas en este corte con el filtro seleccionado.</div>`;
@@ -1251,9 +1247,7 @@
 
       const byEmp = {};
       turnosCorte.forEach(t => {
-        if (!byEmp[t.id_turnante]) {
-          byEmp[t.id_turnante] = { id_turnante: t.id_turnante, nombre: t.nombre_turnante, turnos: [] };
-        }
+        if (!byEmp[t.id_turnante]) byEmp[t.id_turnante] = { id_turnante: t.id_turnante, nombre: t.nombre_turnante, turnos: [] };
         byEmp[t.id_turnante].turnos.push(t);
       });
 
@@ -1304,12 +1298,9 @@
     function renderAsistenciaTable() {
       const empFilter = document.getElementById('filter-asist-emp').value;
       const tbody = document.getElementById('asistencia-tbody');
-
-      // Poblar selector
       const sel = document.getElementById('filter-asist-emp');
       const prev = sel.value;
-      sel.innerHTML = `<option value="ALL">Todos los turnantes</option>` +
-        appState.turnantes.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+      sel.innerHTML = `<option value="ALL">Todos los turnantes</option>` + appState.turnantes.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
       if (prev) sel.value = prev;
 
       const list = appState.asistencia.filter(t => empFilter === 'ALL' || String(t.id_turnante) === String(empFilter));
@@ -1387,7 +1378,7 @@
     }
 
     /* ========================================================================
-       7. ACCIONES SU (CREAR/EDITAR MARCAJES, TURNANTES Y LIQUIDAR MARTES)
+       ACCIONES SU Y CONFIGURACIÓN GLOBAL
     ======================================================================== */
     function openTurnoModal() {
       document.getElementById('turno-modal-title').textContent = "Registrar Marcaje Manual (SU)";
@@ -1479,7 +1470,7 @@
             observaciones: obs || "Corregido por SU"
           };
         }
-        showToast("Marcaje actualizado y recalculado");
+        showToast("Marcaje actualizado y sincronizado");
       } else {
         appState.asistencia.unshift({
           id_turno: "TRN-" + Date.now(),
@@ -1502,7 +1493,7 @@
           id_recibo: "",
           observaciones: obs || "Registro manual SU"
         });
-        showToast("Turno registrado correctamente");
+        showToast("Turno registrado y sincronizado");
       }
 
       closeModal('turno-modal');
@@ -1544,7 +1535,7 @@
       });
       closeModal('emp-modal');
       persistAndSync();
-      showToast("Turnante habilitado para marcar en el Kiosco");
+      showToast("Turnante habilitado en todos los dispositivos");
     }
 
     function deleteTurnante(id) {
@@ -1622,31 +1613,28 @@
       showToast("Comprobante copiado para WhatsApp");
     }
 
-    /* ========================================================================
-       8. CONFIGURACIÓN SU, TABS, CSV Y UTILIDADES
-    ======================================================================== */
     function loadCloudConfigInputs() {
       document.getElementById('cfg-su-pin').value = cloudConfig.suPin || DEFAULT_SU_PIN;
       document.getElementById('cfg-api-url').value = cloudConfig.url || DEFAULT_API_URL;
       document.getElementById('cfg-api-token').value = cloudConfig.token || DEFAULT_API_TOKEN;
     }
 
-    function updateSuPin() {
+    function updateGlobalSuPin() {
       const newPin = document.getElementById('cfg-su-pin').value.trim();
       if (newPin.length < 4) {
         alert("El PIN debe tener al menos 4 dígitos.");
         return;
       }
       cloudConfig.suPin = newPin;
-      localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudConfig));
-      showToast("PIN de Super Usuario actualizado");
+      persistAndSync();
+      showToast("PIN global actualizado en todos tus dispositivos");
     }
 
     function saveCloudConfig() {
       cloudConfig.url = document.getElementById('cfg-api-url').value.trim();
       cloudConfig.token = document.getElementById('cfg-api-token').value.trim();
-      localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudConfig));
-      syncFromGoogleDrive();
+      persistLocal();
+      syncFromGoogleDrive(false);
     }
 
     function switchTab(tab) {
@@ -1697,12 +1685,12 @@
       setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3200);
     }
 
-    // Arranque inicial
+    // Arranque
     detectInitialMode();
     updateKioskClockAndTimers();
     setInterval(updateKioskClockAndTimers, 1000);
     syncFromGoogleDrive(true);
-    setInterval(() => syncFromGoogleDrive(true), 45000); // Sincronización automática cada 45s
+    setInterval(() => syncFromGoogleDrive(true), 30000); // Sincronización cada 30s entre dispositivos
   </script>
 </body>
 </html>
