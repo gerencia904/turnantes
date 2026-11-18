@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>TurnoPay | Control de Marcación y Cortes</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>body{font-family:'Inter',sans-serif}.tabular-nums{font-variant-numeric:tabular-nums}@media print{.no-print{display:none!important}body{background:#fff!important}#print-area{display:block!important;box-shadow:none!important;border:none!important}}</style></head><body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>TurnoPay | Control de Marcación y Cortes</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>body{font-family:'Inter',sans-serif}.tabular-nums{font-variant-numeric:tabular-nums}@media print{.no-print{display:none!important}body{background:#fff!important}#print-area{display:block!important;box-shadow:none!important;border:none!important}}</style></head><body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
 
 <!-- KIOSCO MARCACIÓN -->
 <div id="kiosk-shell" class="hidden min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-8">
@@ -25,7 +25,7 @@
 
 <section id="view-asistencia" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h2 class="font-bold text-slate-800 text-base">Bitácora de Marcaciones</h2><p class="text-xs text-slate-500">Edita horas de ingreso, almuerzo o salida si algún empleado olvidó marcar.</p></div><select id="filter-asist-emp" onchange="renderAsistenciaTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none"><option value="ALL">Todos los turnantes</option></select></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th class="py-3 px-4">Fecha / Turnante</th><th class="py-3 px-4">Ingreso / Salida</th><th class="py-3 px-4">Almuerzo</th><th class="py-3 px-4 text-right">Horas Ef.</th><th class="py-3 px-4 text-right">Valor</th><th class="py-3 px-4">Pago Martes</th><th class="py-3 px-4 text-right">Acciones</th></tr></thead><tbody id="asistencia-tbody" class="divide-y divide-slate-100 text-sm"></tbody></table></div></section>
 
-<section id="view-turnantes" class="hidden space-y-4"><div class="flex items-center justify-between bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><div><h2 class="font-bold text-slate-800 text-base">Base de Datos de Turnantes</h2><p class="text-xs text-slate-500">La cédula registrada habilita al empleado al instante en todos los dispositivos.</p></div><button onclick="openEmpModal()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg text-sm transition">+ Registrar Turnante</button></div><div id="turnantes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
+<section id="view-turnantes" class="hidden space-y-4"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><div><h2 class="font-bold text-slate-800 text-base">Base de Datos de Turnantes</h2><p class="text-xs text-slate-500">Sube varios PDFs o fotos de cédulas a la vez para registrar múltiples empleados en segundos.</p></div><div class="flex flex-wrap gap-2"><button onclick="openBulkPdfModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow-xs">Subir Cédulas PDF (Masivo)</button><button onclick="openEmpModal()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg text-xs sm:text-sm transition">+ Registro Manual</button></div></div><div id="turnantes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
 
 <section id="view-historial" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 border-b border-slate-100"><h2 class="font-bold text-slate-800 text-base">Comprobantes Emitidos</h2></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th class="py-3 px-4">Recibo</th><th class="py-3 px-4">Fecha</th><th class="py-3 px-4">Corte</th><th class="py-3 px-4">Turnante</th><th class="py-3 px-4 text-right">Horas Ef.</th><th class="py-3 px-4 text-right">Pagado</th><th class="py-3 px-4 text-right">Acción</th></tr></thead><tbody id="historial-tbody" class="divide-y divide-slate-100 text-sm"></tbody></table></div></section>
 
@@ -33,20 +33,26 @@
 </main>
 </div>
 
-<!-- MODALES -->
+<!-- MODAL 1: CREAR / EDITAR MARCAJE -->
 <div id="turno-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print"><div class="bg-white rounded-2xl max-w-lg w-full shadow-xl overflow-hidden"><div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between"><h3 id="turno-modal-title" class="font-bold text-base">Registrar / Corregir Marcaje</h3><button onclick="closeModal('turno-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><form onsubmit="saveManualOrEditedTurno(event)" class="p-6 space-y-4"><input type="hidden" id="edit-turno-id"/><div class="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Turnante</label><select id="t-emp-id" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"></select></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Fecha</label><input type="date" id="t-fecha" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div></div><div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200"><div><label class="block text-[11px] font-bold text-slate-600 mb-1">Ingreso</label><input type="time" id="t-ingreso" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div><div><label class="block text-[11px] font-bold text-amber-700 mb-1">Sale Alm.</label><input type="time" id="t-alm-ini" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div><div><label class="block text-[11px] font-bold text-amber-700 mb-1">Regresa Alm.</label><input type="time" id="t-alm-fin" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div><div><label class="block text-[11px] font-bold text-slate-600 mb-1">Salida</label><input type="time" id="t-salida" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div></div><div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs space-y-1"><div class="flex justify-between"><span class="text-slate-600">Almuerzo descontado:</span><strong id="prev-alm-min" class="text-amber-700">0 min</strong></div><div class="flex justify-between"><span class="text-slate-600">Horas efectivas:</span><strong id="prev-horas-ef" class="text-slate-900">0.00 h</strong></div><div class="flex justify-between text-sm pt-1 border-t border-emerald-200/70"><span class="font-bold text-emerald-900">Total ($11.428,57/h):</span><strong id="prev-valor-total" class="text-emerald-700 font-extrabold">$0</strong></div><div class="flex justify-between text-[11px] text-slate-500 pt-0.5"><span>Corte: <strong id="prev-corte">-</strong></span><span>Pago: <strong id="prev-martes">-</strong></span></div></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Observación</label><input type="text" id="t-obs" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal('turno-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button><button type="submit" class="px-5 py-2 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg">Guardar</button></div></form></div></div>
 
-<div id="emp-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print"><div class="bg-white rounded-2xl max-w-md w-full shadow-xl overflow-hidden"><div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between"><h3 class="font-bold text-base">Registrar Turnante</h3><button onclick="closeModal('emp-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><form onsubmit="saveTurnante(event)" class="p-6 space-y-4"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo *</label><input type="text" id="e-nombre" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Cédula * (Kiosco)</label><input type="text" id="e-doc" inputmode="numeric" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold"/></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Celular</label><input type="tel" id="e-tel" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Cargo</label><input type="text" id="e-cargo" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Valor Hora Ef. (COP)</label><input type="number" id="e-valor-hora" step="0.01" value="11428.57" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold"/></div></div><div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal('emp-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button><button type="submit" class="px-5 py-2 text-sm font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg">Guardar</button></div></form></div></div>
+<!-- MODAL 2: REGISTRO MANUAL DE TURNANTE -->
+<div id="emp-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print"><div class="bg-white rounded-2xl max-w-md w-full shadow-xl overflow-hidden"><div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between"><h3 class="font-bold text-base">Registrar Turnante Manual</h3><button onclick="closeModal('emp-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><form onsubmit="saveTurnante(event)" class="p-6 space-y-4"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo *</label><input type="text" id="e-nombre" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Cédula * (Kiosco)</label><input type="text" id="e-doc" inputmode="numeric" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold"/></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Celular</label><input type="tel" id="e-tel" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Cargo</label><input type="text" id="e-cargo" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Valor Hora Ef. (COP)</label><input type="number" id="e-valor-hora" step="0.01" value="11428.57" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold"/></div></div><div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal('emp-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button><button type="submit" class="px-5 py-2 text-sm font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg">Guardar</button></div></form></div></div>
 
+<!-- MODAL 3: CARGA MASIVA DE CÉDULAS PDF / IMAGEN -->
+<div id="bulk-pdf-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4 no-print"><div class="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"><div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between"><div><h3 class="font-bold text-base">Carga Masiva de Cédulas (PDF o Imagen)</h3><p class="text-[11px] text-slate-400">Lectura automática del código PDF417 / texto directamente en tu navegador</p></div><button onclick="closeModal('bulk-pdf-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><div class="p-6 space-y-4 overflow-y-auto"><label for="bulk-files-input" class="border-2 border-dashed border-emerald-400 bg-emerald-50/50 hover:bg-emerald-50 rounded-2xl p-6 text-center cursor-pointer block transition"><p class="text-sm font-extrabold text-emerald-900">Haz clic aquí para seleccionar varios archivos PDF o fotos de cédulas</p><p class="text-xs text-slate-500 mt-1">Puedes elegir 2, 5, 10 o más archivos a la vez (.pdf, .jpg, .png)</p><input type="file" id="bulk-files-input" accept=".pdf,image/*" multiple onchange="handleBulkCedulaFiles(event)" class="hidden"/></label><div id="bulk-progress-box" class="hidden bg-slate-100 rounded-xl p-3 text-xs font-semibold text-slate-700 flex items-center justify-between"><span id="bulk-progress-text">Analizando archivos...</span><span id="bulk-progress-count" class="font-mono font-bold text-emerald-700">0/0</span></div><div id="bulk-preview-wrapper" class="hidden space-y-3"><div class="flex items-center justify-between"><h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Turnantes Detectados (Puedes corregir cualquier dato antes de guardar)</h4><button onclick="addEmptyBulkRow()" class="text-xs font-semibold text-emerald-700 hover:underline">+ Añadir fila</button></div><div class="overflow-x-auto border border-slate-200 rounded-xl"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-50 border-b border-slate-200 font-bold text-slate-600"><th class="py-2 px-3">Archivo</th><th class="py-2 px-3">Nombre Completo *</th><th class="py-2 px-3">Cédula *</th><th class="py-2 px-3">Cargo</th><th class="py-2 px-3">Estado</th><th class="py-2 px-2"></th></tr></thead><tbody id="bulk-preview-tbody" class="divide-y divide-slate-100"></tbody></table></div></div></div><div class="px-6 py-4 bg-slate-100 flex items-center justify-between gap-2 border-t border-slate-200"><span id="bulk-summary-label" class="text-xs text-slate-500">Selecciona los PDFs para comenzar</span><div class="flex gap-2"><button type="button" onclick="closeModal('bulk-pdf-modal')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg">Cancelar</button><button type="button" id="bulk-save-btn" onclick="saveBulkTurnantes()" disabled class="px-5 py-2 text-xs font-bold bg-emerald-600 disabled:bg-slate-300 hover:bg-emerald-700 text-white rounded-lg transition">Registrar Todos en Drive</button></div></div></div></div>
+
+<!-- MODAL 4: COMPROBANTE DE PAGO -->
 <div id="receipt-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4"><div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden"><div id="print-area" class="p-6 space-y-4"><div class="text-center border-b border-dashed border-slate-300 pb-4"><span class="inline-block bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase">Comprobante Pago Martes</span><h3 class="text-lg font-extrabold text-slate-900 mt-1">LIQUIDACIÓN SEMANAL</h3><p id="rec-id" class="text-xs font-mono text-slate-500 mt-0.5"></p></div><div class="text-sm space-y-1.5"><div class="flex justify-between"><span class="text-slate-500">Turnante:</span><span id="rec-emp" class="font-bold text-slate-900"></span></div><div class="flex justify-between"><span class="text-slate-500">Cédula:</span><span id="rec-doc" class="font-medium"></span></div><div class="flex justify-between"><span class="text-slate-500">Corte:</span><span id="rec-corte" class="font-semibold text-slate-800"></span></div><div class="flex justify-between"><span class="text-slate-500">Fecha:</span><span id="rec-fecha" class="font-medium"></span></div></div><div class="border-t border-b border-slate-200 py-3"><p class="text-[11px] font-bold uppercase text-slate-400 mb-2">Jornadas Efectivas</p><div id="rec-items" class="space-y-1.5 text-xs max-h-48 overflow-y-auto"></div></div><div class="bg-slate-50 p-3.5 rounded-xl flex items-center justify-between"><div><p class="text-xs text-slate-500">Total (<span id="rec-total-horas"></span>)</p><p id="rec-metodo" class="text-[11px] font-semibold text-slate-600"></p></div><p id="rec-total" class="text-xl font-extrabold text-emerald-600 tabular-nums"></p></div></div><div class="px-6 py-3 bg-slate-100 flex items-center justify-between gap-2 no-print"><button onclick="copyWhatsAppReceipt()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg">Copiar WhatsApp</button><button onclick="window.print()" class="bg-white border border-slate-300 text-slate-700 text-xs font-bold py-2.5 px-3 rounded-lg">Imprimir</button><button onclick="closeModal('receipt-modal')" class="text-slate-500 text-xs font-semibold px-2 py-2">Cerrar</button></div></div></div>
 
 <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 no-print"></div>
 
 <script>
+if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 const BASE_VALOR_JORNADA=80000,BASE_HORAS_EFECTIVAS=7,VALOR_HORA_EFECTIVA=BASE_VALOR_JORNADA/BASE_HORAS_EFECTIVAS,DEFAULT_API_URL="https://script.google.com/macros/s/AKfycbxqwAjxiT00G0ioBGPTNVwBtKl-fJP88lX40MsLZTwcYoXDbqn99uCtdjqolcu-6u10/exec",DEFAULT_API_TOKEN="TURNOPAY_2026_SECRETO",DEFAULT_SU_PIN="2026",STORAGE_KEY="turnopay_v3_data",CLOUD_KEY="turnopay_v3_cloud",SU_SESSION_KEY="turnopay_su_unlocked";
 let cloudConfig=JSON.parse(localStorage.getItem(CLOUD_KEY))||{url:DEFAULT_API_URL,token:DEFAULT_API_TOKEN,suPin:DEFAULT_SU_PIN};
 let appState=JSON.parse(localStorage.getItem(STORAGE_KEY))||{turnantes:[{id:"EMP-01",nombre:"Ender",documento:"1094912345",cargo:"Operario Turnante",telefono:"3104558899",valor_hora_efectiva:VALOR_HORA_EFECTIVA,estado:"Activo"}],asistencia:[],pagos:[],config:[{clave:"suPin",valor:cloudConfig.suPin||DEFAULT_SU_PIN,ultima_actualizacion:new Date().toISOString()}]};
-let currentReceiptText="",activeKioskEmp=null;
+let currentReceiptText="",activeKioskEmp=null,bulkDetectedRows=[];
 
 function getTodayISO(){const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`}
 function getCurrentHHMM(){const n=new Date();return`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`}
@@ -66,6 +72,244 @@ function handleSuLogin(e){e.preventDefault();if(document.getElementById('su-pin-
 function activateAdminMode(){document.getElementById('kiosk-shell').classList.add('hidden');document.getElementById('su-login-shell').classList.add('hidden');document.getElementById('admin-shell').classList.remove('hidden');loadCloudConfigInputs();renderAllAdmin()}
 function copyKioskLink(){const url=new URL(window.location.origin);url.searchParams.set('modo','marcacion');navigator.clipboard.writeText(url.toString());showToast("Link del Kiosco copiado")}
 
+/* ========================================================================
+   PARSER DE CÉDULA COLOMBIANA (PDF417 + TEXTO PDF DIGITAL)
+======================================================================== */
+function parseColombianCedulaRaw(raw){
+  if(!raw)return null;
+  const clean=raw.replace(/\u0000/g,' ').replace(/[^\x20-\x7EÁÉÍÓÚÑáéíóúñ]/g,' ');
+  const tokens=clean.split(/\s+/).filter(Boolean);
+  let cedula="",nameTokens=[];
+  // Buscar bloque PubDSK / Afis típico del PDF417 de cédula amarilla
+  const pubIdx=tokens.findIndex(t=>/PubDSK|AFIS|ICEL/i.test(t));
+  const searchPool=pubIdx!==-1?tokens.slice(pubIdx):tokens;
+  for(let i=0;i<searchPool.length;i++){
+    const tk=searchPool[i];
+    // Patrón alfanumérico pegado: 001094912345APELLIDO1
+    const glued=tk.match(/^0*(\d{6,10})([A-ZÁÉÍÓÚÑ]{2,})$/);
+    if(glued){
+      cedula=glued[1];
+      nameTokens.push(glued[2]);
+      for(let j=i+1;j<Math.min(i+6,searchPool.length);j++){
+        if(/^[A-ZÁÉÍÓÚÑ]{2,}$/.test(searchPool[j])&&!/^(0M|0F|M|F|COL|PUBDSK)$/i.test(searchPool[j]))nameTokens.push(searchPool[j]);
+        else if(nameTokens.length>=2)break;
+      }
+      break;
+    }
+    // Patrón separado: 001094912345 seguido de APELLIDO1 APELLIDO2 NOMBRE1 NOMBRE2
+    const pureNum=tk.match(/^0*(\d{6,10})$/);
+    if(pureNum&&i+2<searchPool.length&&/^[A-ZÁÉÍÓÚÑ]{2,}$/.test(searchPool[i+1])){
+      cedula=pureNum[1];
+      for(let j=i+1;j<Math.min(i+6,searchPool.length);j++){
+        if(/^[A-ZÁÉÍÓÚÑ]{2,}$/.test(searchPool[j])&&!/^(0M|0F|M|F|COL)$/i.test(searchPool[j]))nameTokens.push(searchPool[j]);
+        else break;
+      }
+      break;
+    }
+  }
+  // Fallback para PDF de Cédula Digital o texto OCR
+  if(!cedula){
+    const numMatch=clean.match(/(?:NUIP|NÚMERO|NUMERO|C\.C\.?)\s*[:.]?\s*([\d.]{6,13})/i)||clean.match(/\b(\d{7,10})\b/);
+    if(numMatch)cedula=numMatch[1].replace(/\./g,'');
+  }
+  if(nameTokens.length===0){
+    const apMatch=clean.match(/APELLIDOS?\s*[:.]?\s*([A-ZÁÉÍÓÚÑ\s]{3,40})/i);
+    const nomMatch=clean.match(/NOMBRES?\s*[:.]?\s*([A-ZÁÉÍÓÚÑ\s]{3,40})/i);
+    if(apMatch&&nomMatch)nameTokens=[...nomMatch[1].trim().split(/\s+/),...apMatch[1].trim().split(/\s+/)];
+  }
+  // En PDF417 colombiano el orden es APELLIDO1 APELLIDO2 NOMBRE1 NOMBRE2 -> reordenar a Nombres Apellidos si hay >=3 tokens
+  let nombre="";
+  if(nameTokens.length>=3){
+    const apellidos=nameTokens.slice(0,2).join(' ');
+    const nombres=nameTokens.slice(2).join(' ');
+    nombre=`${nombres} ${apellidos}`;
+  }else if(nameTokens.length>0){
+    nombre=nameTokens.join(' ');
+  }
+  nombre=nombre.toLowerCase().replace(/\b\w/g,l=>l.toUpperCase()).trim();
+  return(cedula||nombre)?{cedula,nombre}:null;
+}
+
+async function decodeBarcodeFromCanvas(canvas){
+  if(!window.ZXing)return null;
+  const hints=new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.PDF_417,ZXing.BarcodeFormat.QR_CODE]);
+  hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
+  const reader=new ZXing.MultiFormatReader();
+  reader.setHints(hints);
+  const rotations=[0,90,180,270];
+  for(const deg of rotations){
+    const c=document.createElement('canvas');
+    const ctx=c.getContext('2d');
+    if(deg===90||deg===270){c.width=canvas.height;c.height=canvas.width}else{c.width=canvas.width;c.height=canvas.height}
+    ctx.translate(c.width/2,c.height/2);
+    ctx.rotate(deg*Math.PI/180);
+    ctx.drawImage(canvas,-canvas.width/2,-canvas.height/2);
+    try{
+      const lum=new ZXing.HTMLCanvasElementLuminanceSource(c);
+      const bin=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+      const res=reader.decode(bin);
+      if(res&&res.getText())return res.getText();
+    }catch(e){}
+  }
+  return null;
+}
+
+async function extractCedulaFromFile(file){
+  if(file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf')){
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    let extractedText="";
+    for(let p=1;p<=pdf.numPages;p++){
+      const page=await pdf.getPage(p);
+      const tc=await page.getTextContent();
+      extractedText+=" "+tc.items.map(it=>it.str).join(' ');
+      // Renderizar a escala alta (2.5x) para leer el PDF417 del respaldo
+      const vp=page.getViewport({scale:2.5});
+      const canvas=document.createElement('canvas');
+      canvas.width=vp.width;canvas.height=vp.height;
+      await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
+      const barcodeRaw=await decodeBarcodeFromCanvas(canvas);
+      if(barcodeRaw){
+        const parsed=parseColombianCedulaRaw(barcodeRaw);
+        if(parsed&&(parsed.cedula||parsed.nombre))return{...parsed,source:'PDF417'};
+      }
+    }
+    const textParsed=parseColombianCedulaRaw(extractedText);
+    if(textParsed&&(textParsed.cedula||textParsed.nombre))return{...textParsed,source:'Texto PDF'};
+    return{cedula:'',nombre:file.name.replace(/\.pdf$/i,'').replace(/[_-]/g,' '),source:'Manual'};
+  }else{
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(file)});
+    const canvas=document.createElement('canvas');
+    canvas.width=img.width;canvas.height=img.height;
+    canvas.getContext('2d').drawImage(img,0,0);
+    const barcodeRaw=await decodeBarcodeFromCanvas(canvas);
+    if(barcodeRaw){
+      const parsed=parseColombianCedulaRaw(barcodeRaw);
+      if(parsed&&(parsed.cedula||parsed.nombre))return{...parsed,source:'Imagen PDF417'};
+    }
+    return{cedula:'',nombre:file.name.replace(/\.[^.]+$/,'').replace(/[_-]/g,' '),source:'Manual'};
+  }
+}
+
+function openBulkPdfModal(){
+  bulkDetectedRows=[];
+  document.getElementById('bulk-files-input').value='';
+  document.getElementById('bulk-progress-box').classList.add('hidden');
+  document.getElementById('bulk-preview-wrapper').classList.add('hidden');
+  document.getElementById('bulk-save-btn').disabled=true;
+  document.getElementById('bulk-summary-label').textContent='Selecciona uno o varios PDFs para comenzar';
+  openModal('bulk-pdf-modal');
+}
+
+async function handleBulkCedulaFiles(e){
+  const files=Array.from(e.target.files||[]);
+  if(files.length===0)return;
+  const pBox=document.getElementById('bulk-progress-box');
+  const pText=document.getElementById('bulk-progress-text');
+  const pCount=document.getElementById('bulk-progress-count');
+  pBox.classList.remove('hidden');
+  bulkDetectedRows=[];
+
+  for(let i=0;i<files.length;i++){
+    pText.textContent=`Leyendo: ${files[i].name}...`;
+    pCount.textContent=`${i+1}/${files.length}`;
+    try{
+      const info=await extractCedulaFromFile(files[i]);
+      const exists=info.cedula&&appState.turnantes.some(t=>String(t.documento).trim()===String(info.cedula).trim());
+      bulkDetectedRows.push({
+        fileName:files[i].name,
+        nombre:info.nombre||'',
+        cedula:info.cedula||'',
+        cargo:'Turnante',
+        status:exists?'DUPLICADA':(info.cedula&&info.nombre?'OK':'REVISAR')
+      });
+    }catch(err){
+      bulkDetectedRows.push({fileName:files[i].name,nombre:'',cedula:'',cargo:'Turnante',status:'REVISAR'});
+    }
+  }
+  pText.textContent='Análisis completado';
+  renderBulkPreviewTable();
+}
+
+function addEmptyBulkRow(){
+  bulkDetectedRows.push({fileName:'Manual',nombre:'',cedula:'',cargo:'Turnante',status:'REVISAR'});
+  renderBulkPreviewTable();
+}
+
+function removeBulkRow(idx){
+  bulkDetectedRows.splice(idx,1);
+  renderBulkPreviewTable();
+}
+
+function renderBulkPreviewTable(){
+  const wrap=document.getElementById('bulk-preview-wrapper');
+  const tbody=document.getElementById('bulk-preview-tbody');
+  const saveBtn=document.getElementById('bulk-save-btn');
+  const sumLabel=document.getElementById('bulk-summary-label');
+  wrap.classList.remove('hidden');
+
+  if(bulkDetectedRows.length===0){
+    tbody.innerHTML=`<tr><td colspan="6" class="py-6 text-center text-slate-400">Sin filas cargadas.</td></tr>`;
+    saveBtn.disabled=true;
+    return;
+  }
+
+  tbody.innerHTML=bulkDetectedRows.map((r,idx)=>{
+    const isDup=r.cedula&&appState.turnantes.some(t=>String(t.documento).trim()===String(r.cedula).trim());
+    const badge=isDup
+      ?`<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">Ya existe</span>`
+      :(r.nombre&&r.cedula
+        ?`<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Listo</span>`
+        :`<span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">Completar</span>`);
+    return`<tr class="hover:bg-slate-50">
+      <td class="py-2 px-3 text-slate-500 max-w-[130px] truncate" title="${r.fileName}">${r.fileName}</td>
+      <td class="py-2 px-3"><input type="text" value="${r.nombre}" oninput="bulkDetectedRows[${idx}].nombre=this.value;updateBulkSummary()" placeholder="Nombre Completo" class="w-full border border-slate-300 rounded px-2 py-1 font-semibold text-slate-900"/></td>
+      <td class="py-2 px-3"><input type="text" value="${r.cedula}" oninput="bulkDetectedRows[${idx}].cedula=this.value.trim();renderBulkPreviewTable()" placeholder="Cédula" class="w-32 border border-slate-300 rounded px-2 py-1 font-mono font-bold"/></td>
+      <td class="py-2 px-3"><input type="text" value="${r.cargo}" oninput="bulkDetectedRows[${idx}].cargo=this.value" class="w-28 border border-slate-300 rounded px-2 py-1"/></td>
+      <td class="py-2 px-3">${badge}</td>
+      <td class="py-2 px-2 text-right"><button onclick="removeBulkRow(${idx})" class="text-rose-500 hover:underline font-bold">✕</button></td>
+    </tr>`;
+  }).join('');
+  updateBulkSummary();
+}
+
+function updateBulkSummary(){
+  const valid=bulkDetectedRows.filter(r=>r.nombre.trim()&&r.cedula.trim()&&!appState.turnantes.some(t=>String(t.documento).trim()===String(r.cedula).trim()));
+  document.getElementById('bulk-save-btn').disabled=valid.length===0;
+  document.getElementById('bulk-summary-label').textContent=`${valid.length} turnante(s) nuevos listos para registrar`;
+}
+
+function saveBulkTurnantes(){
+  const seenDocs=new Set(appState.turnantes.map(t=>String(t.documento).trim()));
+  let added=0;
+  bulkDetectedRows.forEach((r,idx)=>{
+    const nom=r.nombre.trim(),doc=r.cedula.trim();
+    if(nom&&doc&&!seenDocs.has(doc)){
+      seenDocs.add(doc);
+      appState.turnantes.push({
+        id:"EMP-"+(Date.now()+idx).toString().slice(-5),
+        nombre:nom,
+        documento:doc,
+        telefono:"",
+        cargo:r.cargo.trim()||"Turnante",
+        valor_hora_efectiva:VALOR_HORA_EFECTIVA,
+        estado:"Activo",
+        fecha_registro:getTodayISO()
+      });
+      added++;
+    }
+  });
+  if(added>0){
+    closeModal('bulk-pdf-modal');
+    persistAndSync();
+    showToast(`${added} turnante(s) registrados y sincronizados con Drive`);
+  }
+}
+
+/* ========================================================================
+   KIOSCO, SINCRONIZACIÓN Y VISTAS SUPER USUARIO
+======================================================================== */
 function updateKioskClockAndTimers(){const now=new Date(),dEl=document.getElementById('kiosk-date'),cEl=document.getElementById('kiosk-clock');if(dEl&&cEl){dEl.textContent=now.toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'});cEl.textContent=now.toLocaleTimeString('es-CO',{hour12:false})}if(activeKioskEmp){const today=getTodayISO(),openShift=appState.asistencia.find(t=>String(t.id_turnante)===String(activeKioskEmp.id)&&t.fecha_turno===today&&t.estado_jornada!=='FINALIZADO');updateKioskTimerDisplay(openShift)}if(!document.getElementById('admin-shell').classList.contains('hidden'))renderLiveMonitor()}
 function handleKioskLookup(e){e.preventDefault();const doc=document.getElementById('kiosk-cedula-input').value.trim(),err=document.getElementById('kiosk-error-msg'),emp=appState.turnantes.find(t=>String(t.documento).trim()===doc&&t.estado!=='Inactivo');if(!emp){err.textContent=`No se encontró turnante activo con cédula "${doc}".`;err.classList.remove('hidden');return}err.classList.add('hidden');activeKioskEmp=emp;renderKioskEmployeePanel()}
 function renderKioskEmployeePanel(){if(!activeKioskEmp)return;document.getElementById('kiosk-lookup-card').classList.add('hidden');document.getElementById('kiosk-feedback-card').classList.add('hidden');document.getElementById('kiosk-action-card').classList.remove('hidden');document.getElementById('kiosk-emp-name').textContent=activeKioskEmp.nombre;document.getElementById('kiosk-emp-meta').textContent=`CC ${activeKioskEmp.documento} • ${activeKioskEmp.cargo||'Turnante'}`;const today=getTodayISO(),shift=appState.asistencia.find(t=>String(t.id_turnante)===String(activeKioskEmp.id)&&t.fecha_turno===today&&t.estado_jornada!=='FINALIZADO'),badge=document.getElementById('kiosk-state-badge'),tl=document.getElementById('kiosk-timeline-summary'),btns=document.getElementById('kiosk-buttons-grid');if(!shift){badge.className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-slate-700 text-slate-200";badge.innerHTML=`<span class="w-2 h-2 rounded-full bg-slate-400"></span> Sin turno hoy`;tl.innerHTML=`Listo para registrar entrada.`;btns.innerHTML=`<button onclick="executeKioskPunch('INGRESO')" class="sm:col-span-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-5 rounded-2xl shadow-lg transition">Registrar Ingreso (${getCurrentHHMM()})</button>`}else if(shift.estado_jornada==='TRABAJANDO'){badge.className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";badge.innerHTML=`<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> En Turno`;let l=[`Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong>`];if(shift.almuerzo_inicio&&shift.almuerzo_fin)l.push(`Almuerzo: <strong class="text-amber-300">${shift.almuerzo_inicio}-${shift.almuerzo_fin}</strong> (${shift.minutos_almuerzo}m)`);tl.innerHTML=l.join(' • ');btns.innerHTML=`${!shift.almuerzo_inicio?`<button onclick="executeKioskPunch('ALMUERZO_INICIO')" class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-base py-4 px-4 rounded-2xl shadow-lg transition">Salir a Almuerzo<span class="block text-xs font-semibold opacity-80">Pausa pago</span></button>`:`<div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-4 flex items-center justify-center text-xs text-slate-400">Almuerzo registrado</div>`}<button onclick="executeKioskPunch('SALIDA')" class="bg-rose-500 hover:bg-rose-400 text-white font-extrabold text-base py-4 px-4 rounded-2xl shadow-lg transition">Finalizar Turno<span class="block text-xs font-semibold opacity-90">Marcar Salida</span></button>`}else if(shift.estado_jornada==='EN_ALMUERZO'){badge.className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30";badge.innerHTML=`<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> En Almuerzo`;tl.innerHTML=`Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong> • Almuerzo: <strong class="text-amber-300">${shift.almuerzo_inicio}</strong>`;btns.innerHTML=`<button onclick="executeKioskPunch('ALMUERZO_FIN')" class="sm:col-span-2 bg-sky-400 hover:bg-sky-300 text-slate-950 font-extrabold text-lg py-5 rounded-2xl shadow-lg transition">Regresar de Almuerzo (${getCurrentHHMM()})</button>`}updateKioskTimerDisplay(shift)}
