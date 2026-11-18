@@ -1,204 +1,1893 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>TurnoPay | Control de Marcación y Cortes</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>body{font-family:'Inter',sans-serif}.tabular-nums{font-variant-numeric:tabular-nums}@media print{.no-print{display:none!important}body{background:#fff!important}#print-area{display:block!important;box-shadow:none!important;border:none!important}}</style></head><body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TurnoPay | Control de Marcación, Cortes y Cuentas de Cobro</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .tabular-nums { font-variant-numeric: tabular-nums; }
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #fff !important; }
+      #print-area { display: block !important; box-shadow: none !important; border: none !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
 
-<!-- KIOSCO MARCACIÓN -->
-<div id="kiosk-shell" class="hidden min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-8">
-<header class="max-w-3xl w-full mx-auto flex items-center justify-between border-b border-slate-800 pb-4"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-extrabold text-xl">T</div><div><h1 class="font-bold text-lg tracking-tight leading-none">TurnoPay <span class="text-emerald-400">Kiosco</span></h1><p class="text-xs text-slate-400 mt-1">Registro Oficial de Asistencia y Almuerzo</p></div></div><div class="flex items-center gap-2 sm:gap-3"><button onclick="syncFromGoogleDrive(false)" title="Sincronizar ahora" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition"><span id="kiosk-sync-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span><span id="kiosk-sync-text">Drive Activo</span></button><button onclick="switchToAdminPrompt()" title="Acceso Super Usuario" class="text-xs text-slate-500 hover:text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 transition">SU</button></div></header>
-<main class="max-w-2xl w-full mx-auto my-auto py-8"><div class="text-center mb-8"><p id="kiosk-date" class="text-sm sm:text-base font-medium text-emerald-400 uppercase tracking-widest mb-1"></p><div id="kiosk-clock" class="text-5xl sm:text-7xl font-extrabold tracking-tight tabular-nums text-white">00:00:00</div></div><div id="kiosk-lookup-card" class="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl"><label for="kiosk-cedula-input" class="block text-sm font-semibold text-slate-300 mb-2 text-center">Digita tu número de cédula para registrar marcación</label><form onsubmit="handleKioskLookup(event)" class="space-y-4"><input type="text" id="kiosk-cedula-input" inputmode="numeric" autocomplete="off" required placeholder="Ej: 1094912345" class="w-full text-center text-2xl sm:text-3xl font-bold tracking-wider bg-slate-900 border-2 border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-4 text-white outline-none transition tabular-nums"/><button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-4 rounded-2xl shadow-lg shadow-emerald-500/20 transition">Continuar</button></form><p id="kiosk-error-msg" class="hidden mt-4 text-center text-sm font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl py-2.5 px-4"></p></div><div id="kiosk-action-card" class="hidden bg-slate-800/90 border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"><div class="flex items-start justify-between border-b border-slate-700 pb-4"><div><span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Turnante Identificado</span><h2 id="kiosk-emp-name" class="text-2xl sm:text-3xl font-extrabold text-white mt-0.5"></h2><p id="kiosk-emp-meta" class="text-sm text-slate-400 mt-0.5"></p></div><button onclick="resetKioskScreen()" class="text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl transition">Cambiar Cédula</button></div><div id="kiosk-status-panel" class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div><span id="kiosk-state-badge" class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full"></span><p id="kiosk-timeline-summary" class="text-xs text-slate-400 mt-2 space-y-0.5"></p></div><div class="text-left sm:text-right"><p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold" id="kiosk-timer-label">Tiempo Efectivo Hoy</p><p id="kiosk-live-timer" class="text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5">00:00:00</p></div></div><div id="kiosk-buttons-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div></div><div id="kiosk-feedback-card" class="hidden mt-4 bg-emerald-500/15 border border-emerald-500/40 rounded-2xl p-5 text-center space-y-2"><p id="kiosk-feedback-title" class="text-lg font-extrabold text-emerald-300"></p><p id="kiosk-feedback-detail" class="text-sm text-slate-200"></p><p class="text-xs text-slate-400 pt-1">Volverá al inicio en <span id="kiosk-countdown" class="font-bold text-white">5</span>s...</p></div></main>
-<footer class="max-w-3xl w-full mx-auto text-center text-xs text-slate-500 border-t border-slate-800 pt-4">Corte semanal: Martes a Lunes • Pagos: Días Martes • Almuerzo no remunerado.</footer>
-</div>
+  <!-- =======================================================================
+       KIOSCO DE MARCACIÓN (SOLO EMPLEADOS)
+  ======================================================================= -->
+  <div id="kiosk-shell" class="hidden min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-8">
+    <header class="max-w-3xl w-full mx-auto flex items-center justify-between border-b border-slate-800 pb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-extrabold text-xl">T</div>
+        <div>
+          <h1 class="font-bold text-lg tracking-tight leading-none">TurnoPay <span class="text-emerald-400">Kiosco</span></h1>
+          <p class="text-xs text-slate-400 mt-1">Registro Oficial de Asistencia y Almuerzo</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 sm:gap-3">
+        <button onclick="syncFromGoogleDrive(false)" title="Sincronizar ahora" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition">
+          <span id="kiosk-sync-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          <span id="kiosk-sync-text">Drive Activo</span>
+        </button>
+        <button onclick="switchToAdminPrompt()" title="Acceso Super Usuario" class="text-xs text-slate-500 hover:text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 transition">SU</button>
+      </div>
+    </header>
 
-<!-- LOGIN SU -->
-<div id="su-login-shell" class="hidden min-h-screen bg-slate-900 flex items-center justify-center p-4"><div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6"><div class="text-center"><div class="w-12 h-12 rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center font-extrabold text-2xl mx-auto mb-3">SU</div><h1 class="text-xl font-extrabold text-slate-900">Acceso Super Usuario</h1><p class="text-sm text-slate-500 mt-1">Administración global sincronizada en tiempo real</p></div><form onsubmit="handleSuLogin(event)" class="space-y-4"><div><label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">PIN de Administrador</label><input type="password" id="su-pin-input" inputmode="numeric" required placeholder="••••" class="w-full text-center text-2xl font-bold tracking-[0.5em] border-2 border-slate-200 focus:border-slate-900 rounded-2xl px-4 py-3.5 outline-none"/></div><p id="su-login-error" class="hidden text-xs font-semibold text-rose-600 text-center">PIN incorrecto. Intenta nuevamente.</p><button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-2xl transition">Ingresar al Panel SU</button></form><div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs"><span id="login-cloud-status" class="text-slate-400">Verificando nube...</span><button onclick="activateKioskMode()" class="font-semibold text-emerald-600 hover:text-emerald-700">Ir al Kiosco (Empleados) →</button></div></div></div>
+    <main class="max-w-2xl w-full mx-auto my-auto py-8">
+      <div class="text-center mb-8">
+        <p id="kiosk-date" class="text-sm sm:text-base font-medium text-emerald-400 uppercase tracking-widest mb-1"></p>
+        <div id="kiosk-clock" class="text-5xl sm:text-7xl font-extrabold tracking-tight tabular-nums text-white">00:00:00</div>
+      </div>
 
-<!-- PANEL ADMIN SU -->
-<div id="admin-shell" class="hidden">
-<header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md no-print"><div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center font-extrabold text-lg">T</div><div><div class="flex items-center gap-2"><h1 class="font-bold text-base sm:text-lg tracking-tight leading-none">TurnoPay</h1><span class="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">Super Usuario</span></div><p class="text-[11px] text-slate-400 hidden sm:block">7h efectivas = $80.000 ($11.428,57/h) • Corte Mar-Lun</p></div></div><div class="flex items-center gap-2"><button onclick="copyKioskLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition hidden sm:inline">Copiar Link Kiosco</button><button onclick="syncFromGoogleDrive(false)" id="sync-status-btn" title="Clic para forzar sincronización" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition"><span id="sync-dot" class="w-2 h-2 rounded-full bg-amber-400"></span><span id="sync-label" class="hidden md:inline">Sincronizando...</span></button><button onclick="openTurnoModal()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs sm:text-sm transition shadow-sm">+ Marcaje</button><button onclick="logoutSuperUser()" title="Cerrar Sesión SU" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-2 rounded-lg text-xs transition shadow-sm">Salir SU</button></div></div></header>
+      <div id="kiosk-lookup-card" class="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl">
+        <label for="kiosk-cedula-input" class="block text-sm font-semibold text-slate-300 mb-2 text-center">Digita tu número de cédula para registrar marcación</label>
+        <form onsubmit="handleKioskLookup(event)" class="space-y-4">
+          <input type="text" id="kiosk-cedula-input" inputmode="numeric" autocomplete="off" required placeholder="Ej: 1094912345" class="w-full text-center text-2xl sm:text-3xl font-bold tracking-wider bg-slate-900 border-2 border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-4 text-white outline-none transition tabular-nums" />
+          <button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-4 rounded-2xl shadow-lg shadow-emerald-500/20 transition">Continuar</button>
+        </form>
+        <p id="kiosk-error-msg" class="hidden mt-4 text-center text-sm font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl py-2.5 px-4"></p>
+      </div>
 
-<main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 no-print">
-<section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"><div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">En Turno Ahora</p><p id="kpi-live-count" class="text-2xl font-extrabold text-emerald-600 mt-1 tabular-nums">0</p><p id="kpi-live-sub" class="text-xs text-slate-400 mt-0.5">0 trabajando • 0 en almuerzo</p></div><div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Por Pagar (Próx. Martes)</p><p id="kpi-next-tuesday" class="text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">$0</p><p id="kpi-next-tuesday-date" class="text-xs text-slate-500 mt-0.5">Calculando corte...</p></div><div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vencido / Hoy Martes</p><p id="kpi-overdue" class="text-2xl font-extrabold text-rose-600 mt-1 tabular-nums">$0</p><p id="kpi-overdue-count" class="text-xs text-rose-600/80 mt-0.5">0 pendientes</p></div><div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pagado Este Mes</p><p id="kpi-paid-month" class="text-2xl font-extrabold text-slate-800 mt-1 tabular-nums">$0</p><p id="kpi-paid-count" class="text-xs text-slate-400 mt-0.5">0 recibos</p></div></section>
+      <div id="kiosk-action-card" class="hidden bg-slate-800/90 border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6">
+        <div class="flex items-start justify-between border-b border-slate-700 pb-4">
+          <div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Turnante Identificado</span>
+            <h2 id="kiosk-emp-name" class="text-2xl sm:text-3xl font-extrabold text-white mt-0.5"></h2>
+            <p id="kiosk-emp-meta" class="text-sm text-slate-400 mt-0.5"></p>
+          </div>
+          <button onclick="resetKioskScreen()" class="text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl transition">Cambiar Cédula</button>
+        </div>
 
-<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3"><div class="flex flex-wrap gap-1.5 bg-slate-200/70 p-1 rounded-xl w-fit"><button onclick="switchTab('live')" id="tab-btn-live" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold bg-white text-slate-900 shadow-sm transition">Monitor en Vivo</button><button onclick="switchTab('cortes')" id="tab-btn-cortes" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Cortes (Mar-Lun)</button><button onclick="switchTab('asistencia')" id="tab-btn-asistencia" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Auditoría</button><button onclick="switchTab('turnantes')" id="tab-btn-turnantes" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Turnantes (<span id="count-turnantes">0</span>)</button><button onclick="switchTab('historial')" id="tab-btn-historial" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Recibos</button><button onclick="switchTab('config')" id="tab-btn-config" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Configuración SU</button></div><button onclick="exportToCSV()" class="text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-2 rounded-lg shadow-sm transition self-start sm:self-auto">Exportar CSV</button></div>
+        <div id="kiosk-status-panel" class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span id="kiosk-state-badge" class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full"></span>
+            <p id="kiosk-timeline-summary" class="text-xs text-slate-400 mt-2 space-y-0.5"></p>
+          </div>
+          <div class="text-left sm:text-right">
+            <p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold" id="kiosk-timer-label">Tiempo Efectivo Hoy</p>
+            <p id="kiosk-live-timer" class="text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5">00:00:00</p>
+          </div>
+        </div>
 
-<section id="view-live" class="space-y-4"><div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div><div class="flex items-center gap-2"><h2 class="font-bold text-slate-800 text-base">Jornadas Activas del Día</h2><span class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> EN VIVO (5s)</span></div><p class="text-xs text-slate-500 mt-0.5">Actualización automática cada 5 segundos desde todos los equipos conectados.</p></div><div class="flex gap-2"><button onclick="syncFromGoogleDrive(false)" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl transition">Actualizar Ya</button><button onclick="activateKioskMode()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition">Cambiar a Pantalla Kiosco</button></div></div><div id="live-workers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
+        <div id="kiosk-buttons-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+      </div>
 
-<section id="view-cortes" class="hidden space-y-5"><div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3"><div class="flex flex-wrap items-center gap-3"><label class="text-xs font-bold uppercase text-slate-500">Semana:</label><select id="filter-corte-semana" onchange="renderCortesView()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 outline-none"></select><select id="filter-corte-estado" onchange="renderCortesView()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 outline-none"><option value="PENDIENTE">Pendientes</option><option value="TODOS">Todos</option><option value="PAGADO">Pagados</option></select></div><div id="corte-banner-info" class="text-xs font-medium px-3 py-2 rounded-lg bg-slate-100 text-slate-700"></div></div><div id="cortes-cards-container" class="space-y-4"></div></section>
+      <div id="kiosk-feedback-card" class="hidden mt-4 bg-emerald-500/15 border border-emerald-500/40 rounded-2xl p-5 text-center space-y-2">
+        <p id="kiosk-feedback-title" class="text-lg font-extrabold text-emerald-300"></p>
+        <p id="kiosk-feedback-detail" class="text-sm text-slate-200"></p>
+        <p class="text-xs text-slate-400 pt-1">Volverá al inicio en <span id="kiosk-countdown" class="font-bold text-white">5</span>s...</p>
+      </div>
+    </main>
 
-<section id="view-asistencia" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h2 class="font-bold text-slate-800 text-base">Bitácora de Marcaciones</h2><p class="text-xs text-slate-500">Edita horas de ingreso, almuerzo o salida si algún empleado olvidó marcar.</p></div><select id="filter-asist-emp" onchange="renderAsistenciaTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none"><option value="ALL">Todos los turnantes</option></select></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th class="py-3 px-4">Fecha / Turnante</th><th class="py-3 px-4">Ingreso / Salida</th><th class="py-3 px-4">Almuerzo</th><th class="py-3 px-4 text-right">Horas Ef.</th><th class="py-3 px-4 text-right">Valor</th><th class="py-3 px-4">Pago Martes</th><th class="py-3 px-4 text-right">Acciones</th></tr></thead><tbody id="asistencia-tbody" class="divide-y divide-slate-100 text-sm"></tbody></table></div></section>
+    <footer class="max-w-3xl w-full mx-auto text-center text-xs text-slate-500 border-t border-slate-800 pt-4">
+      Corte semanal: Martes a Lunes • Pagos: Días Martes • Almuerzo no remunerado.
+    </footer>
+  </div>
 
-<section id="view-turnantes" class="hidden space-y-4"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><div><h2 class="font-bold text-slate-800 text-base">Base de Datos de Turnantes</h2><p class="text-xs text-slate-500">Registra individualmente o pega una lista desde Excel; quedan activos al instante en todos los equipos.</p></div><div class="flex flex-wrap gap-2"><button onclick="openExcelPasteModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow-xs">Pegar desde Excel</button><button onclick="openEmpModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow-xs">+ Nuevo Turnante</button></div></div><div id="turnantes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
+  <!-- =======================================================================
+       LOGIN SUPER USUARIO (SU)
+  ======================================================================= -->
+  <div id="su-login-shell" class="hidden min-h-screen bg-slate-900 flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6">
+      <div class="text-center">
+        <div class="w-12 h-12 rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center font-extrabold text-2xl mx-auto mb-3">SU</div>
+        <h1 class="text-xl font-extrabold text-slate-900">Acceso Super Usuario</h1>
+        <p class="text-sm text-slate-500 mt-1">Administración global sincronizada en tiempo real</p>
+      </div>
+      <form onsubmit="handleSuLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">PIN de Administrador</label>
+          <input type="password" id="su-pin-input" inputmode="numeric" required placeholder="••••" class="w-full text-center text-2xl font-bold tracking-[0.5em] border-2 border-slate-200 focus:border-slate-900 rounded-2xl px-4 py-3.5 outline-none" />
+        </div>
+        <p id="su-login-error" class="hidden text-xs font-semibold text-rose-600 text-center">PIN incorrecto. Intenta nuevamente.</p>
+        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-2xl transition">Ingresar al Panel SU</button>
+      </form>
+      <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+        <span id="login-cloud-status" class="text-slate-400">Verificando nube...</span>
+        <button onclick="activateKioskMode()" class="font-semibold text-emerald-600 hover:text-emerald-700">Ir al Kiosco (Empleados) →</button>
+      </div>
+    </div>
+  </div>
 
-<section id="view-historial" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 border-b border-slate-100"><h2 class="font-bold text-slate-800 text-base">Comprobantes Emitidos</h2></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th class="py-3 px-4">Recibo</th><th class="py-3 px-4">Fecha</th><th class="py-3 px-4">Corte</th><th class="py-3 px-4">Turnante</th><th class="py-3 px-4 text-right">Horas Ef.</th><th class="py-3 px-4 text-right">Pagado</th><th class="py-3 px-4 text-right">Acción</th></tr></thead><tbody id="historial-tbody" class="divide-y divide-slate-100 text-sm"></tbody></table></div></section>
+  <!-- =======================================================================
+       PANEL ADMINISTRATIVO SUPER USUARIO (SU)
+  ======================================================================= -->
+  <div id="admin-shell" class="hidden">
+    <header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md no-print">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center font-extrabold text-lg">T</div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="font-bold text-base sm:text-lg tracking-tight leading-none">TurnoPay</h1>
+              <span class="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">Super Usuario</span>
+            </div>
+            <p class="text-[11px] text-slate-400 hidden sm:block">7h efectivas = $80.000 ($11.428,57/h) • Corte Mar-Lun</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="copyKioskLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition hidden sm:inline">Copiar Link Kiosco</button>
+          <button onclick="syncFromGoogleDrive(false)" id="sync-status-btn" title="Clic para forzar sincronización" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition">
+            <span id="sync-dot" class="w-2 h-2 rounded-full bg-amber-400"></span>
+            <span id="sync-label" class="hidden md:inline">Sincronizando...</span>
+          </button>
+          <button onclick="openTurnoModal()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs sm:text-sm transition shadow-sm">+ Marcaje</button>
+          <button onclick="logoutSuperUser()" title="Cerrar Sesión SU" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-2 rounded-lg text-xs transition shadow-sm">Salir SU</button>
+        </div>
+      </div>
+    </header>
 
-<section id="view-config" class="hidden max-w-3xl space-y-5"><div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-5"><div><div class="flex items-center gap-2"><h2 class="font-bold text-slate-800 text-lg">Seguridad Super Usuario y Parámetros</h2><span class="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">Sincronizado</span></div><p class="text-xs text-slate-500 mt-1">Todo cambio se replica automáticamente en todos tus dispositivos.</p></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200"><div><label class="block text-xs font-bold text-slate-700 mb-1">PIN Global Super Usuario</label><div class="flex gap-2"><input type="text" id="cfg-su-pin" maxlength="8" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold"/><button onclick="updateGlobalSuPin()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-lg">Guardar PIN</button></div></div><div class="text-xs text-slate-600 flex flex-col justify-center"><p class="font-bold text-slate-800">Tarifa Vigente:</p><p><strong>7.0h efectivas</strong> = <strong>$80.000 COP</strong> ($11.428,57/h)</p></div></div><div class="space-y-3 pt-2 border-t border-slate-100"><h3 class="font-bold text-slate-800 text-sm">Conexión Google Drive</h3><div><label class="block text-xs font-semibold text-slate-600 mb-1">URL Apps Script (/exec)</label><input type="url" id="cfg-api-url" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono"/></div><div><label class="block text-xs font-semibold text-slate-600 mb-1">Token Secreto</label><input type="text" id="cfg-api-token" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono"/></div><div class="flex flex-wrap gap-2 pt-2"><button onclick="saveCloudConfig()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-xs">Guardar y Sincronizar</button><button onclick="pushAllToGoogleDrive(false)" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-lg text-xs">Subir Todo a Drive</button></div></div></div></section>
-</main>
-</div>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 no-print">
+      <!-- KPIs -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">En Turno Ahora</p>
+          <p id="kpi-live-count" class="text-2xl font-extrabold text-emerald-600 mt-1 tabular-nums">0</p>
+          <p id="kpi-live-sub" class="text-xs text-slate-400 mt-0.5">0 trabajando • 0 en almuerzo</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Por Pagar (Próx. Martes)</p>
+          <p id="kpi-next-tuesday" class="text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">$0</p>
+          <p id="kpi-next-tuesday-date" class="text-xs text-slate-500 mt-0.5">Calculando corte...</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vencido / Hoy Martes</p>
+          <p id="kpi-overdue" class="text-2xl font-extrabold text-rose-600 mt-1 tabular-nums">$0</p>
+          <p id="kpi-overdue-count" class="text-xs text-rose-600/80 mt-0.5">0 pendientes</p>
+        </div>
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pagado Este Mes</p>
+          <p id="kpi-paid-month" class="text-2xl font-extrabold text-slate-800 mt-1 tabular-nums">$0</p>
+          <p id="kpi-paid-count" class="text-xs text-slate-400 mt-0.5">0 recibos</p>
+        </div>
+      </section>
 
-<!-- MODAL 1: CREAR / EDITAR MARCAJE -->
-<div id="turno-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print"><div class="bg-white rounded-2xl max-w-lg w-full shadow-xl overflow-hidden"><div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between"><h3 id="turno-modal-title" class="font-bold text-base">Registrar / Corregir Marcaje</h3><button onclick="closeModal('turno-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><form onsubmit="saveManualOrEditedTurno(event)" class="p-6 space-y-4"><input type="hidden" id="edit-turno-id"/><div class="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Turnante</label><select id="t-emp-id" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"></select></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Fecha</label><input type="date" id="t-fecha" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div></div><div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200"><div><label class="block text-[11px] font-bold text-slate-600 mb-1">Ingreso</label><input type="time" id="t-ingreso" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div><div><label class="block text-[11px] font-bold text-amber-700 mb-1">Sale Alm.</label><input type="time" id="t-alm-ini" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div><div><label class="block text-[11px] font-bold text-amber-700 mb-1">Regresa Alm.</label><input type="time" id="t-alm-fin" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div><div><label class="block text-[11px] font-bold text-slate-600 mb-1">Salida</label><input type="time" id="t-salida" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div></div><div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs space-y-1"><div class="flex justify-between"><span class="text-slate-600">Almuerzo descontado:</span><strong id="prev-alm-min" class="text-amber-700">0 min</strong></div><div class="flex justify-between"><span class="text-slate-600">Horas efectivas:</span><strong id="prev-horas-ef" class="text-slate-900">0.00 h</strong></div><div class="flex justify-between text-sm pt-1 border-t border-emerald-200/70"><span class="font-bold text-emerald-900">Total ($11.428,57/h):</span><strong id="prev-valor-total" class="text-emerald-700 font-extrabold">$0</strong></div><div class="flex justify-between text-[11px] text-slate-500 pt-0.5"><span>Corte: <strong id="prev-corte">-</strong></span><span>Pago: <strong id="prev-martes">-</strong></span></div></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Observación</label><input type="text" id="t-obs" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal('turno-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button><button type="submit" class="px-5 py-2 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg">Guardar</button></div></form></div></div>
+      <!-- Tabs Navigation -->
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3">
+        <div class="flex flex-wrap gap-1.5 bg-slate-200/70 p-1 rounded-xl w-fit">
+          <button onclick="switchTab('live')" id="tab-btn-live" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold bg-white text-slate-900 shadow-sm transition">Monitor en Vivo</button>
+          <button onclick="switchTab('cortes')" id="tab-btn-cortes" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Cortes (Mar-Lun)</button>
+          <button onclick="switchTab('asistencia')" id="tab-btn-asistencia" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Auditoría</button>
+          <button onclick="switchTab('turnantes')" id="tab-btn-turnantes" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Turnantes (<span id="count-turnantes">0</span>)</button>
+          <button onclick="switchTab('historial')" id="tab-btn-historial" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Recibos</button>
+          <button onclick="switchTab('config')" id="tab-btn-config" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Configuración SU</button>
+        </div>
+        <button onclick="exportToCSV()" class="text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-2 rounded-lg shadow-sm transition self-start sm:self-auto">Exportar CSV</button>
+      </div>
 
-<!-- MODAL 2: REGISTRO MANUAL INDIVIDUAL -->
-<div id="emp-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print"><div class="bg-white rounded-2xl max-w-md w-full shadow-xl overflow-hidden"><div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between"><h3 class="font-bold text-base">Registrar Turnante Manual</h3><button onclick="closeModal('emp-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><form onsubmit="saveTurnante(event)" class="p-6 space-y-4"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo *</label><input type="text" id="e-nombre" required placeholder="Ej: Carlos Pérez" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Cédula * (Clave Kiosco)</label><input type="text" id="e-doc" inputmode="numeric" required placeholder="Ej: 1094912345" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold"/></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Celular</label><input type="tel" id="e-tel" placeholder="300 000 0000" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Cargo</label><input type="text" id="e-cargo" placeholder="Operario" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Valor Hora Ef. (COP)</label><input type="number" id="e-valor-hora" step="0.01" value="11428.57" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold"/></div></div><div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal('emp-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button><button type="submit" class="px-5 py-2 text-sm font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg">Guardar Turnante</button></div></form></div></div>
+      <!-- VIEW 1: MONITOR EN VIVO -->
+      <section id="view-live" class="space-y-4">
+        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="font-bold text-slate-800 text-base">Jornadas Activas del Día</h2>
+              <span class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> EN VIVO (5s)</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-0.5">Actualización automática cada 5 segundos desde todos los equipos conectados.</p>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="syncFromGoogleDrive(false)" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl transition">Actualizar Ya</button>
+            <button onclick="activateKioskMode()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition">Cambiar a Pantalla Kiosco</button>
+          </div>
+        </div>
+        <div id="live-workers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
 
-<!-- MODAL 3: PEGAR LISTA DESDE EXCEL -->
-<div id="excel-paste-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4 no-print"><div class="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"><div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between"><div><h3 class="font-bold text-base">Pegar Lista de Turnantes desde Excel</h3><p class="text-[11px] text-slate-400">Copia las celdas en Excel (Nombre y Cédula, en cualquier orden) y pégalas aquí abajo</p></div><button onclick="closeModal('excel-paste-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><div class="p-6 space-y-4 overflow-y-auto"><div><label class="block text-xs font-bold text-slate-700 mb-1">Pega aquí las filas de Excel (Ctrl + V):</label><textarea id="excel-paste-area" rows="5" oninput="parseExcelPasteText()" placeholder="Ejemplo (copiado directo de Excel):&#10;Ender Gómez	1094912345	Operario&#10;María Fernanda Ruiz	1094987654	Empaque&#10;1094955443	Juan Carlos Toro" class="w-full border-2 border-slate-300 focus:border-emerald-500 rounded-xl p-3 text-xs font-mono outline-none"></textarea></div><div id="excel-preview-box" class="hidden space-y-2"><div class="flex items-center justify-between"><h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Vista Previa Detectada</h4><span id="excel-valid-badge" class="text-xs font-bold text-emerald-700">0 listos</span></div><div class="overflow-x-auto border border-slate-200 rounded-xl max-h-56 overflow-y-auto"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-50 border-b border-slate-200 font-bold text-slate-600 sticky top-0"><th class="py-2 px-3">Nombre Completo</th><th class="py-2 px-3">Cédula</th><th class="py-2 px-3">Cargo</th><th class="py-2 px-3">Estado</th></tr></thead><tbody id="excel-preview-tbody" class="divide-y divide-slate-100"></tbody></table></div></div></div><div class="px-6 py-4 bg-slate-100 flex items-center justify-between gap-2 border-t border-slate-200"><span id="excel-footer-hint" class="text-xs text-slate-500">Soporta columnas separadas por tabulación, coma o punto y coma</span><div class="flex gap-2"><button type="button" onclick="closeModal('excel-paste-modal')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg">Cancelar</button><button type="button" id="excel-save-btn" onclick="saveExcelPastedTurnantes()" disabled class="px-5 py-2 text-xs font-bold bg-emerald-600 disabled:bg-slate-300 hover:bg-emerald-700 text-white rounded-lg transition">Guardar Todos en Drive</button></div></div></div></div>
+      <!-- VIEW 2: CORTES SEMANALES + GENERACIÓN PDF CUENTAS DE COBRO -->
+      <section id="view-cortes" class="hidden space-y-5">
+        <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-3">
+            <label class="text-xs font-bold uppercase text-slate-500">Semana:</label>
+            <select id="filter-corte-semana" onchange="renderCortesView()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 outline-none"></select>
+            <select id="filter-corte-estado" onchange="renderCortesView()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 outline-none">
+              <option value="PENDIENTE">Pendientes</option>
+              <option value="TODOS">Todos</option>
+              <option value="PAGADO">Pagados</option>
+            </select>
+            <div id="corte-banner-info" class="text-xs font-medium px-3 py-2 rounded-lg bg-slate-100 text-slate-700"></div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="downloadAllCuentasCobroCorte()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-xs transition flex items-center gap-1.5">
+              <span>Descargar Todas las Cuentas (PDFs)</span>
+            </button>
+          </div>
+        </div>
+        <div id="cortes-cards-container" class="space-y-4"></div>
+      </section>
 
-<!-- MODAL 4: COMPROBANTE DE PAGO -->
-<div id="receipt-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4"><div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden"><div id="print-area" class="p-6 space-y-4"><div class="text-center border-b border-dashed border-slate-300 pb-4"><span class="inline-block bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase">Comprobante Pago Martes</span><h3 class="text-lg font-extrabold text-slate-900 mt-1">LIQUIDACIÓN SEMANAL</h3><p id="rec-id" class="text-xs font-mono text-slate-500 mt-0.5"></p></div><div class="text-sm space-y-1.5"><div class="flex justify-between"><span class="text-slate-500">Turnante:</span><span id="rec-emp" class="font-bold text-slate-900"></span></div><div class="flex justify-between"><span class="text-slate-500">Cédula:</span><span id="rec-doc" class="font-medium"></span></div><div class="flex justify-between"><span class="text-slate-500">Corte:</span><span id="rec-corte" class="font-semibold text-slate-800"></span></div><div class="flex justify-between"><span class="text-slate-500">Fecha:</span><span id="rec-fecha" class="font-medium"></span></div></div><div class="border-t border-b border-slate-200 py-3"><p class="text-[11px] font-bold uppercase text-slate-400 mb-2">Jornadas Efectivas</p><div id="rec-items" class="space-y-1.5 text-xs max-h-48 overflow-y-auto"></div></div><div class="bg-slate-50 p-3.5 rounded-xl flex items-center justify-between"><div><p class="text-xs text-slate-500">Total (<span id="rec-total-horas"></span>)</p><p id="rec-metodo" class="text-[11px] font-semibold text-slate-600"></p></div><p id="rec-total" class="text-xl font-extrabold text-emerald-600 tabular-nums"></p></div></div><div class="px-6 py-3 bg-slate-100 flex items-center justify-between gap-2 no-print"><button onclick="copyWhatsAppReceipt()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg">Copiar WhatsApp</button><button onclick="window.print()" class="bg-white border border-slate-300 text-slate-700 text-xs font-bold py-2.5 px-3 rounded-lg">Imprimir</button><button onclick="closeModal('receipt-modal')" class="text-slate-500 text-xs font-semibold px-2 py-2">Cerrar</button></div></div></div>
+      <!-- VIEW 3: AUDITORÍA -->
+      <section id="view-asistencia" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 class="font-bold text-slate-800 text-base">Bitácora de Marcaciones</h2>
+            <p class="text-xs text-slate-500">Edita horas de ingreso, almuerzo o salida si algún empleado olvidó marcar.</p>
+          </div>
+          <select id="filter-asist-emp" onchange="renderAsistenciaTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none">
+            <option value="ALL">Todos los turnantes</option>
+          </select>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <th class="py-3 px-4">Fecha / Turnante</th>
+                <th class="py-3 px-4">Ingreso / Salida</th>
+                <th class="py-3 px-4">Almuerzo</th>
+                <th class="py-3 px-4 text-right">Horas Ef.</th>
+                <th class="py-3 px-4 text-right">Valor</th>
+                <th class="py-3 px-4">Pago Martes</th>
+                <th class="py-3 px-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="asistencia-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+          </table>
+        </div>
+      </section>
 
-<div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 no-print"></div>
+      <!-- VIEW 4: TURNANTES -->
+      <section id="view-turnantes" class="hidden space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+          <div>
+            <h2 class="font-bold text-slate-800 text-base">Base de Datos de Turnantes</h2>
+            <p class="text-xs text-slate-500">Registra individualmente o pega una lista desde Excel; quedan activos al instante en todos los equipos.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="openExcelPasteModal()" class="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow-xs">Pegar desde Excel</button>
+            <button onclick="openEmpModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow-xs">+ Nuevo Turnante</button>
+          </div>
+        </div>
+        <div id="turnantes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </section>
 
-<script>
-const BASE_VALOR_JORNADA=80000,BASE_HORAS_EFECTIVAS=7,VALOR_HORA_EFECTIVA=BASE_VALOR_JORNADA/BASE_HORAS_EFECTIVAS,DEFAULT_API_URL="https://script.google.com/macros/s/AKfycbxqwAjxiT00G0ioBGPTNVwBtKl-fJP88lX40MsLZTwcYoXDbqn99uCtdjqolcu-6u10/exec",DEFAULT_API_TOKEN="TURNOPAY_2026_SECRETO",DEFAULT_SU_PIN="2026",STORAGE_KEY="turnopay_v4_data",CLOUD_KEY="turnopay_v4_cloud",SU_SESSION_KEY="turnopay_su_unlocked";
-let cloudConfig=JSON.parse(localStorage.getItem(CLOUD_KEY))||{url:DEFAULT_API_URL,token:DEFAULT_API_TOKEN,suPin:DEFAULT_SU_PIN};
-let appState=JSON.parse(localStorage.getItem(STORAGE_KEY))||{turnantes:[],asistencia:[],pagos:[],config:[{clave:"suPin",valor:cloudConfig.suPin||DEFAULT_SU_PIN,ultima_actualizacion:new Date().toISOString()}]};
-let currentReceiptText="",activeKioskEmp=null,isPushingToCloud=false,lastPushTimestamp=0,excelParsedRows=[];
+      <!-- VIEW 5: HISTORIAL DE RECIBOS -->
+      <section id="view-historial" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100">
+          <h2 class="font-bold text-slate-800 text-base">Comprobantes Emitidos</h2>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                <th class="py-3 px-4">Recibo</th>
+                <th class="py-3 px-4">Fecha</th>
+                <th class="py-3 px-4">Corte</th>
+                <th class="py-3 px-4">Turnante</th>
+                <th class="py-3 px-4 text-right">Horas Ef.</th>
+                <th class="py-3 px-4 text-right">Pagado</th>
+                <th class="py-3 px-4 text-right">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="historial-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
+          </table>
+        </div>
+      </section>
 
-function getTodayISO(){const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`}
-function getCurrentHHMM(){const n=new Date();return`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`}
-function normalizeTimeStr(v){if(!v)return"";const s=String(v).trim();if(/^\d{1,2}:\d{2}/.test(s)){const[h,m]=s.split(':');return`${h.padStart(2,'0')}:${m.slice(0,2)}`}return""}
-function timeToMinutes(t){const clean=normalizeTimeStr(t);if(!clean)return null;const[h,m]=clean.split(':').map(Number);return h*60+m}
-function calculateJornadaMetrics(i,ai,af,s,vh=VALOR_HORA_EFECTIVA){const mI=timeToMinutes(i),mO=timeToMinutes(s),mAi=timeToMinutes(ai),mAo=timeToMinutes(af);let ma=0;if(mAi!==null&&mAo!==null&&mAo>=mAi)ma=mAo-mAi;if(mI===null||mO===null)return{minutosAlmuerzo:ma,horasEfectivas:0,valorTotal:0};let tb=mO-mI;if(tb<0)tb+=1440;const me=Math.max(0,tb-ma),he=Number((me/60).toFixed(4));return{minutosAlmuerzo:ma,horasEfectivas:he,valorTotal:Math.round(he*Number(vh||VALOR_HORA_EFECTIVA))}}
-function getCorteInfo(ds){const[y,m,d]=ds.split('-').map(Number),dt=new Date(y,m-1,d),diff=(dt.getDay()-2+7)%7,ci=new Date(dt);ci.setDate(dt.getDate()-diff);const cf=new Date(ci);cf.setDate(ci.getDate()+6);const fp=new Date(ci);fp.setDate(ci.getDate()+7);const fmt=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`,mo=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],sf=x=>`${x.getDate()} ${mo[x.getMonth()]}`;return{corte_inicio:fmt(ci),corte_fin:fmt(cf),fecha_pago_martes:fmt(fp),label:`Mar ${sf(ci)} - Lun ${sf(cf)}`,pagoLabel:`Martes ${sf(fp)}`}}
-function formatCOP(v){return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(v||0)}
-function formatHoursDisplay(h){const hrs=Math.floor(h),mins=Math.round((h-hrs)*60);return`${h.toFixed(2)}h (${hrs}h ${mins}m)`}
-function formatDurationHMS(ts){const s=Math.max(0,Math.floor(ts));return`${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
+      <!-- VIEW 6: CONFIGURACIÓN SU -->
+      <section id="view-config" class="hidden max-w-3xl space-y-5">
+        <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-6">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="font-bold text-slate-800 text-lg">Seguridad Super Usuario y Datos Corporativos</h2>
+              <span class="text-[11px] font-bold bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">Sincronizado</span>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">Todo cambio se replica automáticamente en todos tus dispositivos.</p>
+          </div>
 
-function detectInitialMode(){const p=new URLSearchParams(window.location.search),m=p.get('modo'),path=window.location.pathname.toLowerCase();if(m==='marcacion'||m==='kiosco'||path.endsWith('/marcacion')||path.endsWith('/kiosco'))activateKioskMode(false);else if(sessionStorage.getItem(SU_SESSION_KEY)==='true')activateAdminMode();else showSuLogin()}
-function activateKioskMode(u=true){if(u){const url=new URL(window.location);url.searchParams.set('modo','marcacion');window.history.pushState({},'',url)}document.getElementById('su-login-shell').classList.add('hidden');document.getElementById('admin-shell').classList.add('hidden');document.getElementById('kiosk-shell').classList.remove('hidden');resetKioskScreen();syncFromGoogleDrive(true)}
-function showSuLogin(){document.getElementById('kiosk-shell').classList.add('hidden');document.getElementById('admin-shell').classList.add('hidden');document.getElementById('su-login-shell').classList.remove('hidden');document.getElementById('su-pin-input').value='';document.getElementById('su-pin-input').focus()}
-function logoutSuperUser(){sessionStorage.removeItem(SU_SESSION_KEY);showSuLogin();showToast("Sesión de Super Usuario cerrada")}
-function switchToAdminPrompt(){const url=new URL(window.location);url.searchParams.delete('modo');if(url.pathname.toLowerCase().endsWith('/marcacion')||url.pathname.toLowerCase().endsWith('/kiosco'))url.pathname='/';window.history.pushState({},'',url);sessionStorage.getItem(SU_SESSION_KEY)==='true'?activateAdminMode():showSuLogin()}
-function handleSuLogin(e){e.preventDefault();if(document.getElementById('su-pin-input').value.trim()===String(cloudConfig.suPin||DEFAULT_SU_PIN)){sessionStorage.setItem(SU_SESSION_KEY,'true');document.getElementById('su-login-error').classList.add('hidden');activateAdminMode()}else document.getElementById('su-login-error').classList.remove('hidden')}
-function activateAdminMode(){document.getElementById('kiosk-shell').classList.add('hidden');document.getElementById('su-login-shell').classList.add('hidden');document.getElementById('admin-shell').classList.remove('hidden');loadCloudConfigInputs();renderAllAdmin();syncFromGoogleDrive(true)}
-function copyKioskLink(){const url=new URL(window.location.origin);url.searchParams.set('modo','marcacion');navigator.clipboard.writeText(url.toString());showToast("Link del Kiosco copiado")}
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">PIN Global Super Usuario</label>
+              <div class="flex gap-2">
+                <input type="text" id="cfg-su-pin" maxlength="8" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold" />
+                <button onclick="updateGlobalSuPin()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-lg">Guardar PIN</button>
+              </div>
+            </div>
+            <div class="text-xs text-slate-600 flex flex-col justify-center">
+              <p class="font-bold text-slate-800">Tarifa Vigente:</p>
+              <p><strong>7.0h efectivas</strong> = <strong>$80.000 COP</strong> ($11.428,57/h)</p>
+            </div>
+          </div>
 
-/* PEGAR DESDE EXCEL */
-function openExcelPasteModal(){excelParsedRows=[];document.getElementById('excel-paste-area').value='';document.getElementById('excel-preview-box').classList.add('hidden');document.getElementById('excel-save-btn').disabled=true;openModal('excel-paste-modal');setTimeout(()=>document.getElementById('excel-paste-area').focus(),100)}
-function parseExcelPasteText(){const raw=document.getElementById('excel-paste-area').value,lines=raw.split(/\r?\n/).map(l=>l.trim()).filter(Boolean),existingDocs=new Set(appState.turnantes.map(t=>String(t.documento).trim())),batchDocs=new Set();excelParsedRows=[];lines.forEach(line=>{let cols=line.includes('\t')?line.split('\t'):(line.includes(';')?line.split(';'):(line.includes(',')?line.split(','):line.split(/\s{2,}/)));cols=cols.map(c=>c.trim()).filter(Boolean);if(cols.length===0)return;let cedula="",nombre="",cargo="Turnante";const docIdx=cols.findIndex(c=>/^\d{6,12}$/.test(c.replace(/\./g,'')));if(docIdx!==-1){cedula=cols[docIdx].replace(/\./g,'');const rest=cols.filter((_,idx)=>idx!==docIdx);if(rest.length>0)nombre=rest[0];if(rest.length>1)cargo=rest[1]}else{nombre=cols[0]}const isDup=cedula&&(existingDocs.has(cedula)||batchDocs.has(cedula));if(cedula&&!isDup)batchDocs.add(cedula);excelParsedRows.push({nombre,cedula,cargo,valid:Boolean(nombre&&cedula&&!isDup),isDup})});const box=document.getElementById('excel-preview-box'),tbody=document.getElementById('excel-preview-tbody'),btn=document.getElementById('excel-save-btn'),badge=document.getElementById('excel-valid-badge');if(excelParsedRows.length===0){box.classList.add('hidden');btn.disabled=true;return}box.classList.remove('hidden');const validCount=excelParsedRows.filter(r=>r.valid).length;badge.textContent=`${validCount} listos para guardar`;btn.disabled=validCount===0;tbody.innerHTML=excelParsedRows.map(r=>`<tr><td class="py-1.5 px-3 font-semibold text-slate-900">${r.nombre||'<span class="text-rose-500">Sin nombre</span>'}</td><td class="py-1.5 px-3 font-mono font-bold">${r.cedula||'<span class="text-rose-500">Sin cédula</span>'}</td><td class="py-1.5 px-3 text-slate-500">${r.cargo}</td><td class="py-1.5 px-3">${r.isDup?'<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">Duplicada</span>':(r.valid?'<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Listo</span>':'<span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">Incompleto</span>')}</td></tr>`).join('')}
-function saveExcelPastedTurnantes(){const valid=excelParsedRows.filter(r=>r.valid);if(valid.length===0)return;valid.forEach((r,i)=>{appState.turnantes.push({id:"EMP-"+(Date.now()+i).toString().slice(-5),nombre:r.nombre,documento:r.cedula,telefono:"",cargo:r.cargo||"Turnante",valor_hora_efectiva:VALOR_HORA_EFECTIVA,estado:"Activo",fecha_registro:getTodayISO()})});closeModal('excel-paste-modal');persistAndSync();showToast(`${valid.length} turnante(s) creados y sincronizados`)}
+          <!-- Datos Empresa para Cuentas de Cobro -->
+          <div class="space-y-3 pt-2 border-t border-slate-100">
+            <h3 class="font-bold text-slate-800 text-sm">Datos de la Empresa (Encabezado PDF Cuentas de Cobro)</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Razón Social</label>
+                <input type="text" id="cfg-emp-nombre" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">NIT</label>
+                <input type="text" id="cfg-emp-nit" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Ciudad</label>
+                <input type="text" id="cfg-emp-ciudad" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold" />
+              </div>
+            </div>
+            <button onclick="saveCompanyConfig()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg text-xs">Guardar Datos Empresa</button>
+          </div>
 
-/* KIOSCO */
-function getOpenShiftForEmp(empId){const today=getTodayISO();return appState.asistencia.find(t=>String(t.id_turnante).trim()===String(empId).trim()&&String(t.fecha_turno).trim()===today&&t.estado_jornada!=='FINALIZADO'&&!normalizeTimeStr(t.hora_salida))}
-function updateKioskClockAndTimers(){const now=new Date(),dEl=document.getElementById('kiosk-date'),cEl=document.getElementById('kiosk-clock');if(dEl&&cEl){dEl.textContent=now.toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'});cEl.textContent=now.toLocaleTimeString('es-CO',{hour12:false})}if(activeKioskEmp){updateKioskTimerDisplay(getOpenShiftForEmp(activeKioskEmp.id))}if(!document.getElementById('admin-shell').classList.contains('hidden'))renderLiveMonitor()}
-async function handleKioskLookup(e){e.preventDefault();const doc=document.getElementById('kiosk-cedula-input').value.trim(),err=document.getElementById('kiosk-error-msg');await syncFromGoogleDrive(true);const emp=appState.turnantes.find(t=>String(t.documento).trim()===doc&&t.estado!=='Inactivo');if(!emp){err.textContent=`No se encontró turnante activo con cédula "${doc}".`;err.classList.remove('hidden');return}err.classList.add('hidden');activeKioskEmp=emp;renderKioskEmployeePanel()}
-function renderKioskEmployeePanel(){if(!activeKioskEmp)return;document.getElementById('kiosk-lookup-card').classList.add('hidden');document.getElementById('kiosk-feedback-card').classList.add('hidden');document.getElementById('kiosk-action-card').classList.remove('hidden');document.getElementById('kiosk-emp-name').textContent=activeKioskEmp.nombre;document.getElementById('kiosk-emp-meta').textContent=`CC ${activeKioskEmp.documento} • ${activeKioskEmp.cargo||'Turnante'}`;const shift=getOpenShiftForEmp(activeKioskEmp.id),badge=document.getElementById('kiosk-state-badge'),tl=document.getElementById('kiosk-timeline-summary'),btns=document.getElementById('kiosk-buttons-grid');if(!shift){badge.className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-slate-700 text-slate-200";badge.innerHTML=`<span class="w-2 h-2 rounded-full bg-slate-400"></span> Sin turno abierto hoy`;tl.innerHTML=`Listo para registrar entrada.`;btns.innerHTML=`<button onclick="executeKioskPunch('INGRESO')" class="sm:col-span-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-5 rounded-2xl shadow-lg transition">Registrar Ingreso (${getCurrentHHMM()})</button>`}else if(shift.estado_jornada==='TRABAJANDO'){badge.className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";badge.innerHTML=`<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> En Turno`;let l=[`Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong>`];if(shift.almuerzo_inicio&&shift.almuerzo_fin)l.push(`Almuerzo: <strong class="text-amber-300">${shift.almuerzo_inicio}-${shift.almuerzo_fin}</strong> (${shift.minutos_almuerzo}m)`);tl.innerHTML=l.join(' • ');btns.innerHTML=`${!shift.almuerzo_inicio?`<button onclick="executeKioskPunch('ALMUERZO_INICIO')" class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-base py-4 px-4 rounded-2xl shadow-lg transition">Salir a Almuerzo<span class="block text-xs font-semibold opacity-80">Pausa pago</span></button>`:`<div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-4 flex items-center justify-center text-xs text-slate-400">Almuerzo registrado</div>`}<button onclick="executeKioskPunch('SALIDA')" class="bg-rose-500 hover:bg-rose-400 text-white font-extrabold text-base py-4 px-4 rounded-2xl shadow-lg transition">Finalizar Turno<span class="block text-xs font-semibold opacity-90">Marcar Salida</span></button>`}else if(shift.estado_jornada==='EN_ALMUERZO'){badge.className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30";badge.innerHTML=`<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> En Almuerzo`;tl.innerHTML=`Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong> • Almuerzo: <strong class="text-amber-300">${shift.almuerzo_inicio}</strong>`;btns.innerHTML=`<button onclick="executeKioskPunch('ALMUERZO_FIN')" class="sm:col-span-2 bg-sky-400 hover:bg-sky-300 text-slate-950 font-extrabold text-lg py-5 rounded-2xl shadow-lg transition">Regresar de Almuerzo (${getCurrentHHMM()})</button>`}updateKioskTimerDisplay(shift)}
-function updateKioskTimerDisplay(shift){const tEl=document.getElementById('kiosk-live-timer'),lEl=document.getElementById('kiosk-timer-label');if(!tEl)return;if(!shift){lEl.textContent="Tiempo Efectivo Hoy";tEl.textContent="00:00:00";tEl.className="text-3xl font-extrabold tabular-nums text-slate-500 mt-0.5";return}const now=new Date(),nowS=now.getHours()*3600+now.getMinutes()*60+now.getSeconds(),inM=timeToMinutes(shift.hora_ingreso);if(inM===null){tEl.textContent="00:00:00";return}if(shift.estado_jornada==='EN_ALMUERZO'){const almM=timeToMinutes(shift.almuerzo_inicio);lEl.textContent="Tiempo en Almuerzo";tEl.textContent=formatDurationHMS(almM!==null?Math.max(0,nowS-almM*60):0);tEl.className="text-3xl font-extrabold tabular-nums text-amber-400 mt-0.5"}else{lEl.textContent="Tiempo Efectivo";tEl.textContent=formatDurationHMS(Math.max(0,nowS-inM*60-(Number(shift.minutos_almuerzo)||0)*60));tEl.className="text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5"}}
-function executeKioskPunch(act){if(!activeKioskEmp)return;const today=getTodayISO(),nowT=getCurrentHHMM();let shift=getOpenShiftForEmp(activeKioskEmp.id),ft="",fd="";if(act==='INGRESO'){const c=getCorteInfo(today);shift={id_turno:"TRN-"+Date.now(),id_turnante:activeKioskEmp.id,documento:activeKioskEmp.documento,nombre_turnante:activeKioskEmp.nombre,fecha_turno:today,hora_ingreso:nowT,almuerzo_inicio:"",almuerzo_fin:"",hora_salida:"",minutos_almuerzo:0,horas_efectivas:0,valor_total:0,corte_inicio:c.corte_inicio,corte_fin:c.corte_fin,fecha_pago_martes:c.fecha_pago_martes,estado_jornada:"TRABAJANDO",estado_pago:"PENDIENTE",id_recibo:"",observaciones:"Marcación Kiosco"};appState.asistencia.unshift(shift);ft=`Ingreso: ${nowT}`;fd=`Buen turno, ${activeKioskEmp.nombre}.`}else if(act==='ALMUERZO_INICIO'&&shift){shift.almuerzo_inicio=nowT;shift.estado_jornada="EN_ALMUERZO";ft=`Salida a Almuerzo: ${nowT}`;fd=`Tiempo remunerado pausado.`}else if(act==='ALMUERZO_FIN'&&shift){shift.almuerzo_fin=nowT;shift.minutos_almuerzo=Math.max(0,(timeToMinutes(nowT)||0)-(timeToMinutes(shift.almuerzo_inicio)||0));shift.estado_jornada="TRABAJANDO";ft=`Regreso Almuerzo: ${nowT}`;fd=`Almuerzo descontado: ${shift.minutos_almuerzo} min.`}else if(act==='SALIDA'&&shift){if(shift.almuerzo_inicio&&!shift.almuerzo_fin)shift.almuerzo_fin=nowT;shift.hora_salida=nowT;const m=calculateJornadaMetrics(shift.hora_ingreso,shift.almuerzo_inicio,shift.almuerzo_fin,shift.hora_salida,activeKioskEmp.valor_hora_efectiva||VALOR_HORA_EFECTIVA);shift.minutos_almuerzo=m.minutosAlmuerzo;shift.horas_efectivas=m.horasEfectivas;shift.valor_total=m.valorTotal;shift.estado_jornada="FINALIZADO";ft=`Turno Finalizado: ${nowT}`;fd=`Efectivo: ${formatHoursDisplay(shift.horas_efectivas)} • Pago: ${getCorteInfo(today).pagoLabel}.`}persistAndSync();document.getElementById('kiosk-action-card').classList.add('hidden');const fb=document.getElementById('kiosk-feedback-card');document.getElementById('kiosk-feedback-title').textContent=ft;document.getElementById('kiosk-feedback-detail').textContent=fd;fb.classList.remove('hidden');let s=5;document.getElementById('kiosk-countdown').textContent=s;clearInterval(window._kioskCD);window._kioskCD=setInterval(()=>{s--;document.getElementById('kiosk-countdown').textContent=Math.max(0,s);if(s<=0){clearInterval(window._kioskCD);resetKioskScreen()}},1000)}
-function resetKioskScreen(){activeKioskEmp=null;clearInterval(window._kioskCD);['kiosk-action-card','kiosk-feedback-card','kiosk-error-msg'].forEach(id=>document.getElementById(id).classList.add('hidden'));document.getElementById('kiosk-lookup-card').classList.remove('hidden');const i=document.getElementById('kiosk-cedula-input');i.value='';i.focus()}
+          <!-- Conexión Google Drive -->
+          <div class="space-y-3 pt-2 border-t border-slate-100">
+            <h3 class="font-bold text-slate-800 text-sm">Conexión Google Drive</h3>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">URL Apps Script (/exec)</label>
+              <input type="url" id="cfg-api-url" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Token Secreto</label>
+              <input type="text" id="cfg-api-token" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono" />
+            </div>
+            <div class="flex flex-wrap gap-2 pt-2">
+              <button onclick="saveCloudConfig()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-xs">Guardar y Sincronizar</button>
+              <button onclick="pushAllToGoogleDrive(false)" class="bg-slate-800 hover:bg-slate-700 text-white font-semibold px-4 py-2 rounded-lg text-xs">Subir Todo a Drive</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
 
-/* SINCRONIZACIÓN ROBUSTA CON GOOGLE DRIVE */
-function persistLocal(){localStorage.setItem(STORAGE_KEY,JSON.stringify(appState));localStorage.setItem(CLOUD_KEY,JSON.stringify(cloudConfig))}
-function persistAndSync(){persistLocal();if(!document.getElementById('admin-shell').classList.contains('hidden'))renderAllAdmin();pushAllToGoogleDrive(true)}
-function setSyncStatus(st,tx){const d=document.getElementById('sync-dot'),l=document.getElementById('sync-label'),kd=document.getElementById('kiosk-sync-dot'),kt=document.getElementById('kiosk-sync-text'),ls=document.getElementById('login-cloud-status');if(d&&l){const c={ok:'bg-emerald-400',syncing:'bg-amber-400 animate-pulse',error:'bg-rose-500'};d.className=`w-2 h-2 rounded-full ${c[st]||'bg-slate-400'}`;l.textContent=tx}if(kd&&kt){kd.className=`w-2 h-2 rounded-full ${st==='error'?'bg-rose-400':(st==='syncing'?'bg-amber-400 animate-pulse':'bg-emerald-400')}`;kt.textContent=st==='error'?'Sin red':(st==='syncing'?'Sincronizando...':'En Línea (5s)')}if(ls)ls.textContent=st==='ok'?'● Nube conectada':(st==='syncing'?'● Conectando...':'● Sin conexión')}
+  <!-- MODAL 1: CREAR / EDITAR MARCAJE -->
+  <div id="turno-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-xl overflow-hidden">
+      <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <h3 id="turno-modal-title" class="font-bold text-base">Registrar / Corregir Marcaje</h3>
+        <button onclick="closeModal('turno-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+      <form onsubmit="saveManualOrEditedTurno(event)" class="p-6 space-y-4">
+        <input type="hidden" id="edit-turno-id" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Turnante</label>
+            <select id="t-emp-id" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"></select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Fecha</label>
+            <input type="date" id="t-fecha" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Ingreso</label>
+            <input type="time" id="t-ingreso" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-amber-700 mb-1">Sale Alm.</label>
+            <input type="time" id="t-alm-ini" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-amber-700 mb-1">Regresa Alm.</label>
+            <input type="time" id="t-alm-fin" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white" />
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-slate-600 mb-1">Salida</label>
+            <input type="time" id="t-salida" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white" />
+          </div>
+        </div>
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs space-y-1">
+          <div class="flex justify-between"><span class="text-slate-600">Almuerzo descontado:</span><strong id="prev-alm-min" class="text-amber-700">0 min</strong></div>
+          <div class="flex justify-between"><span class="text-slate-600">Horas efectivas:</span><strong id="prev-horas-ef" class="text-slate-900">0.00 h</strong></div>
+          <div class="flex justify-between text-sm pt-1 border-t border-emerald-200/70"><span class="font-bold text-emerald-900">Total ($11.428,57/h):</span><strong id="prev-valor-total" class="text-emerald-700 font-extrabold">$0</strong></div>
+          <div class="flex justify-between text-[11px] text-slate-500 pt-0.5"><span>Corte: <strong id="prev-corte">-</strong></span><span>Pago: <strong id="prev-martes">-</strong></span></div>
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Observación</label>
+          <input type="text" id="t-obs" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('turno-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+          <button type="submit" class="px-5 py-2 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
-async function syncFromGoogleDrive(silent=false){
-  if(!cloudConfig.url)return;
-  if(isPushingToCloud||(Date.now()-lastPushTimestamp<5000))return;
-  if(!silent)setSyncStatus('syncing','Sincronizando...');
-  try{
-    const res=await fetch(`${cloudConfig.url}?token=${encodeURIComponent(cloudConfig.token)}&t=${Date.now()}`,{cache:'no-store'});
-    const json=await res.json();
-    if(json.status==='ok'&&json.data){
-      if(Array.isArray(json.data.turnantes)){
-        appState.turnantes=json.data.turnantes.filter(t=>t.id||t.documento).map(t=>({...t,documento:String(t.documento||'').trim(),valor_hora_efectiva:Number(t.valor_hora_efectiva||t.valor_hora||VALOR_HORA_EFECTIVA)}));
+  <!-- MODAL 2: REGISTRO MANUAL INDIVIDUAL -->
+  <div id="emp-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-xl overflow-hidden">
+      <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <h3 class="font-bold text-base">Registrar Turnante Manual</h3>
+        <button onclick="closeModal('emp-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+      <form onsubmit="saveTurnante(event)" class="p-6 space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo *</label>
+          <input type="text" id="e-nombre" required placeholder="Ej: Carlos Pérez" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Cédula * (Clave Kiosco)</label>
+            <input type="text" id="e-doc" inputmode="numeric" required placeholder="Ej: 1094912345" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Celular / Cuenta Pago</label>
+            <input type="text" id="e-tel" placeholder="300 000 0000" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Cargo</label>
+            <input type="text" id="e-cargo" placeholder="Operario" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Valor Hora Ef. (COP)</label>
+            <input type="number" id="e-valor-hora" step="0.01" value="11428.57" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold" />
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('emp-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+          <button type="submit" class="px-5 py-2 text-sm font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg">Guardar Turnante</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL 3: PEGAR LISTA DESDE EXCEL -->
+  <div id="excel-paste-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4 no-print">
+    <div class="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <h3 class="font-bold text-base">Pegar Lista de Turnantes desde Excel</h3>
+          <p class="text-[11px] text-slate-400">Copia las celdas en Excel (Nombre y Cédula, en cualquier orden) y pégalas aquí abajo</p>
+        </div>
+        <button onclick="closeModal('excel-paste-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button>
+      </div>
+      <div class="p-6 space-y-4 overflow-y-auto">
+        <div>
+          <label class="block text-xs font-bold text-slate-700 mb-1">Pega aquí las filas de Excel (Ctrl + V):</label>
+          <textarea id="excel-paste-area" rows="5" oninput="parseExcelPasteText()" placeholder="Ejemplo (copiado directo de Excel):&#10;Ender Gómez	1094912345	Operario&#10;María Fernanda Ruiz	1094987654	Empaque&#10;1094955443	Juan Carlos Toro" class="w-full border-2 border-slate-300 focus:border-emerald-500 rounded-xl p-3 text-xs font-mono outline-none"></textarea>
+        </div>
+        <div id="excel-preview-box" class="hidden space-y-2">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Vista Previa Detectada</h4>
+            <span id="excel-valid-badge" class="text-xs font-bold text-emerald-700">0 listos</span>
+          </div>
+          <div class="overflow-x-auto border border-slate-200 rounded-xl max-h-56 overflow-y-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-50 border-b border-slate-200 font-bold text-slate-600 sticky top-0">
+                  <th class="py-2 px-3">Nombre Completo</th>
+                  <th class="py-2 px-3">Cédula</th>
+                  <th class="py-2 px-3">Cargo</th>
+                  <th class="py-2 px-3">Estado</th>
+                </tr>
+              </thead>
+              <tbody id="excel-preview-tbody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="px-6 py-4 bg-slate-100 flex items-center justify-between gap-2 border-t border-slate-200">
+        <span id="excel-footer-hint" class="text-xs text-slate-500">Soporta columnas separadas por tabulación, coma o punto y coma</span>
+        <div class="flex gap-2">
+          <button type="button" onclick="closeModal('excel-paste-modal')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg">Cancelar</button>
+          <button type="button" id="excel-save-btn" onclick="saveExcelPastedTurnantes()" disabled class="px-5 py-2 text-xs font-bold bg-emerald-600 disabled:bg-slate-300 hover:bg-emerald-700 text-white rounded-lg transition">Guardar Todos en Drive</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: COMPROBANTE DE PAGO -->
+  <div id="receipt-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden">
+      <div id="print-area" class="p-6 space-y-4">
+        <div class="text-center border-b border-dashed border-slate-300 pb-4">
+          <span class="inline-block bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase">Comprobante Pago Martes</span>
+          <h3 class="text-lg font-extrabold text-slate-900 mt-1">LIQUIDACIÓN SEMANAL</h3>
+          <p id="rec-id" class="text-xs font-mono text-slate-500 mt-0.5"></p>
+        </div>
+        <div class="text-sm space-y-1.5">
+          <div class="flex justify-between"><span class="text-slate-500">Turnante:</span><span id="rec-emp" class="font-bold text-slate-900"></span></div>
+          <div class="flex justify-between"><span class="text-slate-500">Cédula:</span><span id="rec-doc" class="font-medium"></span></div>
+          <div class="flex justify-between"><span class="text-slate-500">Corte:</span><span id="rec-corte" class="font-semibold text-slate-800"></span></div>
+          <div class="flex justify-between"><span class="text-slate-500">Fecha:</span><span id="rec-fecha" class="font-medium"></span></div>
+        </div>
+        <div class="border-t border-b border-slate-200 py-3">
+          <p class="text-[11px] font-bold uppercase text-slate-400 mb-2">Jornadas Efectivas</p>
+          <div id="rec-items" class="space-y-1.5 text-xs max-h-48 overflow-y-auto"></div>
+        </div>
+        <div class="bg-slate-50 p-3.5 rounded-xl flex items-center justify-between">
+          <div>
+            <p class="text-xs text-slate-500">Total (<span id="rec-total-horas"></span>)</p>
+            <p id="rec-metodo" class="text-[11px] font-semibold text-slate-600"></p>
+          </div>
+          <p id="rec-total" class="text-xl font-extrabold text-emerald-600 tabular-nums"></p>
+        </div>
+      </div>
+      <div class="px-6 py-3 bg-slate-100 flex items-center justify-between gap-2 no-print">
+        <button onclick="copyWhatsAppReceipt()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg">Copiar WhatsApp</button>
+        <button onclick="window.print()" class="bg-white border border-slate-300 text-slate-700 text-xs font-bold py-2.5 px-3 rounded-lg">Imprimir</button>
+        <button onclick="closeModal('receipt-modal')" class="text-slate-500 text-xs font-semibold px-2 py-2">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 no-print"></div>
+
+  <script>
+    const BASE_VALOR_JORNADA = 80000;
+    const BASE_HORAS_EFECTIVAS = 7;
+    const VALOR_HORA_EFECTIVA = BASE_VALOR_JORNADA / BASE_HORAS_EFECTIVAS;
+
+    const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxqwAjxiT00G0ioBGPTNVwBtKl-fJP88lX40MsLZTwcYoXDbqn99uCtdjqolcu-6u10/exec";
+    const DEFAULT_API_TOKEN = "TURNOPAY_2026_SECRETO";
+    const DEFAULT_SU_PIN = "2026";
+
+    // Datos corporativos anclados por defecto para Cuentas de Cobro
+    const DEFAULT_COMPANY = {
+      nombre: "FAGOSA SAS",
+      nit: "900805205",
+      ciudad: "FILANDIA QUINDIO"
+    };
+
+    const STORAGE_KEY = "turnopay_v5_data";
+    const CLOUD_KEY = "turnopay_v5_cloud";
+    const SU_SESSION_KEY = "turnopay_su_unlocked";
+
+    let savedCloud = JSON.parse(localStorage.getItem(CLOUD_KEY)) || {};
+    let cloudConfig = {
+      url: savedCloud.url || DEFAULT_API_URL,
+      token: savedCloud.token || DEFAULT_API_TOKEN,
+      suPin: savedCloud.suPin || DEFAULT_SU_PIN,
+      empNombre: savedCloud.empNombre || DEFAULT_COMPANY.nombre,
+      empNit: savedCloud.empNit || DEFAULT_COMPANY.nit,
+      empCiudad: savedCloud.empCiudad || DEFAULT_COMPANY.ciudad
+    };
+
+    let appState = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+      turnantes: [],
+      asistencia: [],
+      pagos: [],
+      config: []
+    };
+
+    let currentReceiptText = "";
+    let activeKioskEmp = null;
+    let isPushingToCloud = false;
+    let lastPushTimestamp = 0;
+    let excelParsedRows = [];
+
+    /* =======================================================================
+       UTILIDADES DE FECHA, HORA Y MONEDA
+    ======================================================================= */
+    function getTodayISO() {
+      const n = new Date();
+      return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-${String(n.getDate()).padStart(2, '0')}`;
+    }
+
+    function getDynamicSpanishDate() {
+      const n = new Date();
+      const meses = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+      return `${n.getDate()} de ${meses[n.getMonth()]} de ${n.getFullYear()}`;
+    }
+
+    function getCurrentHHMM() {
+      const n = new Date();
+      return `${String(n.getHours()).padStart(2, '0')}:${String(n.getMinutes()).padStart(2, '0')}`;
+    }
+
+    function normalizeTimeStr(v) {
+      if (!v) return "";
+      const s = String(v).trim();
+      if (/^\d{1,2}:\d{2}/.test(s)) {
+        const [h, m] = s.split(':');
+        return `${h.padStart(2, '0')}:${m.slice(0, 2)}`;
       }
-      if(Array.isArray(json.data.asistencia)){
-        appState.asistencia=json.data.asistencia.filter(a=>a.id_turno||a.id_turnante).map(a=>{
-          const hIn=normalizeTimeStr(a.hora_ingreso);
-          const hOut=normalizeTimeStr(a.hora_salida);
-          const aIn=normalizeTimeStr(a.almuerzo_inicio);
-          const aOut=normalizeTimeStr(a.almuerzo_fin);
-          let est=String(a.estado_jornada||'').trim();
-          if(!est||est==='undefined'){
-            est=hOut?'FINALIZADO':(aIn&&!aOut?'EN_ALMUERZO':'TRABAJANDO');
-          }
-          return{
-            ...a,
-            documento:String(a.documento||'').trim(),
-            fecha_turno:String(a.fecha_turno||'').slice(0,10),
-            hora_ingreso:hIn,
-            almuerzo_inicio:aIn,
-            almuerzo_fin:aOut,
-            hora_salida:hOut,
-            minutos_almuerzo:Number(a.minutos_almuerzo||0),
-            horas_efectivas:Number(a.horas_efectivas||a.horas||0),
-            valor_total:Number(a.valor_total||0),
-            estado_jornada:est,
-            estado_pago:a.estado_pago||'PENDIENTE'
-          };
+      return "";
+    }
+
+    function timeToMinutes(t) {
+      const clean = normalizeTimeStr(t);
+      if (!clean) return null;
+      const [h, m] = clean.split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    function calculateJornadaMetrics(i, ai, af, s, vh = VALOR_HORA_EFECTIVA) {
+      const mI = timeToMinutes(i), mO = timeToMinutes(s), mAi = timeToMinutes(ai), mAo = timeToMinutes(af);
+      let ma = 0;
+      if (mAi !== null && mAo !== null && mAo >= mAi) ma = mAo - mAi;
+      if (mI === null || mO === null) return { minutosAlmuerzo: ma, horasEfectivas: 0, valorTotal: 0 };
+      let tb = mO - mI;
+      if (tb < 0) tb += 1440;
+      const me = Math.max(0, tb - ma);
+      const he = Number((me / 60).toFixed(4));
+      return { minutosAlmuerzo: ma, horasEfectivas: he, valorTotal: Math.round(he * Number(vh || VALOR_HORA_EFECTIVA)) };
+    }
+
+    function getCorteInfo(ds) {
+      const [y, m, d] = ds.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      const diff = (dt.getDay() - 2 + 7) % 7;
+      const ci = new Date(dt);
+      ci.setDate(dt.getDate() - diff);
+      const cf = new Date(ci);
+      cf.setDate(ci.getDate() + 6);
+      const fp = new Date(ci);
+      fp.setDate(ci.getDate() + 7);
+      const fmt = x => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+      const mo = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+      const sf = x => `${x.getDate()} ${mo[x.getMonth()]}`;
+      return {
+        corte_inicio: fmt(ci),
+        corte_fin: fmt(cf),
+        fecha_pago_martes: fmt(fp),
+        label: `Mar ${sf(ci)} - Lun ${sf(cf)}`,
+        pagoLabel: `Martes ${sf(fp)}`
+      };
+    }
+
+    function formatCOP(v) {
+      return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v || 0);
+    }
+
+    function formatHoursDisplay(h) {
+      const hrs = Math.floor(h), mins = Math.round((h - hrs) * 60);
+      return `${h.toFixed(2)}h (${hrs}h ${mins}m)`;
+    }
+
+    function formatDurationHMS(ts) {
+      const s = Math.max(0, Math.floor(ts));
+      return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor((s % 3600) / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+    }
+
+    /* Conversión de Pesos Colombianos a Letras para Cuenta de Cobro */
+    function numeroALetrasCOP(num) {
+      num = Math.round(Number(num) || 0);
+      if (num === 0) return "CERO PESOS M/CTE";
+      const unidades = ["", "UN", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE"];
+      const especiales = ["DIEZ", "ONCE", "DOCE", "TRECE", "CATORCE", "QUINCE", "DIECISEIS", "DIECISIETE", "DIECIOCHO", "DIECINUEVE"];
+      const decenas = ["", "", "VEINTE", "TREINTA", "CUARENTA", "CINCUENTA", "SESENTA", "SETENTA", "OCHENTA", "NOVENTA"];
+      const centenas = ["", "CIENTO", "DOSCIENTOS", "TRESCIENTOS", "CUATROCIENTOS", "QUINIENTOS", "SEISCIENTOS", "SETECIENTOS", "OCHOCIENTOS", "NOVECIENTOS"];
+
+      function convertirMenorMil(n) {
+        let out = "";
+        if (n === 100) return "CIEN";
+        if (n > 100) {
+          out += centenas[Math.floor(n / 100)] + " ";
+          n %= 100;
+        }
+        if (n >= 10 && n <= 19) {
+          out += especiales[n - 10];
+          return out.trim();
+        }
+        if (n >= 20) {
+          const d = Math.floor(n / 10);
+          const u = n % 10;
+          if (d === 2 && u > 0) out += "VEINTI" + unidades[u];
+          else out += decenas[d] + (u > 0 ? " Y " + unidades[u] : "");
+          return out.trim();
+        }
+        if (n > 0) out += unidades[n];
+        return out.trim();
+      }
+
+      let res = "";
+      const millones = Math.floor(num / 1000000);
+      const restoMillones = num % 1000000;
+      const miles = Math.floor(restoMillones / 1000);
+      const resto = restoMillones % 1000;
+
+      if (millones > 0) {
+        res += (millones === 1 ? "UN MILLON " : convertirMenorMil(millones) + " MILLONES ");
+      }
+      if (miles > 0) {
+        res += (miles === 1 ? "MIL " : convertirMenorMil(miles) + " MIL ");
+      }
+      if (resto > 0) {
+        res += convertirMenorMil(resto);
+      }
+      return (res.trim() + " PESOS M/CTE").replace(/\s+/g, " ");
+    }
+
+    /* =======================================================================
+       GENERADOR DE CUENTAS DE COBRO EN PDF (SOLO SUPER USUARIO)
+    ======================================================================= */
+    function buildCuentaCobroPDFDoc(group, corteInfo) {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+
+      const empData = appState.turnantes.find(e => String(e.id) === String(group.id_turnante)) || {};
+      const cedula = empData.documento || (group.turnos[0] && group.turnos[0].documento) || "N/A";
+      const telefono = empData.telefono || "";
+      const totalHoras = group.turnos.reduce((s, t) => s + Number(t.horas_efectivas || 0), 0);
+      const totalDinero = group.turnos.reduce((s, t) => s + Number(t.valor_total || 0), 0);
+
+      const empresaNombre = (cloudConfig.empNombre || DEFAULT_COMPANY.nombre).toUpperCase();
+      const empresaNit = cloudConfig.empNit || DEFAULT_COMPANY.nit;
+      const empresaCiudad = (cloudConfig.empCiudad || DEFAULT_COMPANY.ciudad).toUpperCase();
+      const fechaGeneracion = getDynamicSpanishDate();
+      const consecutivo = `CC-${corteInfo.corte_inicio.replace(/-/g, '')}-${String(cedula).slice(-4)}`;
+
+      // Encabezado Ciudad y Fecha Dinámica
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(60, 60, 60);
+      doc.text(`${empresaCiudad}, ${fechaGeneracion}`, 20, 24);
+
+      // Título Cuenta de Cobro
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(15);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`CUENTA DE COBRO N° ${consecutivo}`, 108, 38, { align: "center" });
+
+      // Bloque Empresa Deudora (FAGOSA SAS)
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(20, 45, 176, 22, 2, 2, "FD");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(15, 23, 42);
+      doc.text(empresaNombre, 108, 54, { align: "center" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`NIT: ${empresaNit}`, 108, 61, { align: "center" });
+
+      // Bloque Acreedor (Turnante)
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(15, 23, 42);
+      doc.text("DEBE A:", 108, 77, { align: "center" });
+
+      doc.setFontSize(13);
+      doc.text(String(group.nombre || "").toUpperCase(), 108, 84, { align: "center" });
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(51, 65, 85);
+      doc.text(`C.C. N° ${cedula}${telefono ? '  •  Tel/Cuenta: ' + telefono : ''}`, 108, 90, { align: "center" });
+
+      // Suma en Números y Letras
+      doc.setDrawColor(16, 185, 129);
+      doc.setFillColor(236, 253, 245);
+      doc.roundedRect(20, 97, 176, 22, 2, 2, "FD");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(6, 95, 70);
+      doc.text(`LA SUMA DE: ${formatCOP(totalDinero)}`, 108, 105, { align: "center" });
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      const letrasSplit = doc.splitTextToSize(`(${numeroALetrasCOP(totalDinero)})`, 166);
+      doc.text(letrasSplit, 108, 112, { align: "center" });
+
+      // Concepto
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text("POR CONCEPTO DE:", 20, 129);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(51, 65, 85);
+      const conceptoTexto = `Prestación de servicios operativos por turnos laborados durante el corte semanal comprendido entre ${corteInfo.label}, totalizando ${totalHoras.toFixed(2)} horas efectivas trabajadas (descontando tiempos de almuerzo no remunerados), según el siguiente detalle:`;
+      const conceptoLines = doc.splitTextToSize(conceptoTexto, 176);
+      doc.text(conceptoLines, 20, 135);
+
+      const tableStartY = 135 + (conceptoLines.length * 5) + 4;
+
+      // Tabla de turnos del corte
+      const tableBody = group.turnos.map(t => [
+        t.fecha_turno,
+        t.hora_ingreso || "--:--",
+        t.hora_salida || "--:--",
+        `${t.minutos_almuerzo || 0} min`,
+        `${Number(t.horas_efectivas || 0).toFixed(2)} h`,
+        formatCOP(t.valor_total)
+      ]);
+
+      doc.autoTable({
+        startY: tableStartY,
+        margin: { left: 20, right: 20 },
+        head: [['Fecha Turno', 'Ingreso', 'Salida', 'Almuerzo', 'Horas Ef.', 'Valor']],
+        body: tableBody,
+        foot: [['TOTAL CORTE', '', '', '', `${totalHoras.toFixed(2)} h`, formatCOP(totalDinero)]],
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8.5, halign: 'center' },
+        bodyStyles: { fontSize: 8.5, halign: 'center', textColor: [30, 41, 59] },
+        footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9, halign: 'center' },
+        columnStyles: { 5: { halign: 'right' } }
+      });
+
+      let finalY = doc.lastAutoTable.finalY + 10;
+      if (finalY > 225) {
+        doc.addPage();
+        finalY = 25;
+      }
+
+      // Nota tributaria estándar Colombia
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8.5);
+      doc.setTextColor(71, 85, 105);
+      const notaLegal = "Declaro bajo la gravedad de juramento que los ingresos percibidos por concepto de esta cuenta de cobro corresponden a rentas de trabajo / servicios personales independientes y que no soy responsable del Impuesto sobre las Ventas (IVA).";
+      const notaLines = doc.splitTextToSize(notaLegal, 176);
+      doc.text(notaLines, 20, finalY);
+
+      finalY += (notaLines.length * 4.5) + 18;
+
+      // Firma del turnante
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(15, 23, 42);
+      doc.text("Atentamente,", 20, finalY);
+
+      finalY += 18;
+      doc.setDrawColor(100, 116, 139);
+      doc.line(20, finalY, 95, finalY);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.text(String(group.nombre || "").toUpperCase(), 20, finalY + 5);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.text(`C.C. ${cedula}`, 20, finalY + 10);
+      if (telefono) {
+        doc.text(`Tel / Cuenta: ${telefono}`, 20, finalY + 15);
+      }
+
+      const safeName = String(group.nombre || "Turnante").trim().replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]/g, '_');
+      const fileName = `Cuenta_Cobro_${safeName}_${corteInfo.corte_inicio}.pdf`;
+      return { doc, fileName };
+    }
+
+    function downloadSingleCuentaCobro(idTurnante, corteInicio) {
+      const ef = document.getElementById('filter-corte-estado').value;
+      let turnos = appState.asistencia.filter(t =>
+        String(t.id_turnante) === String(idTurnante) &&
+        t.corte_inicio === corteInicio &&
+        t.estado_jornada === 'FINALIZADO'
+      );
+      if (ef !== 'TODOS') turnos = turnos.filter(t => t.estado_pago === ef);
+      if (turnos.length === 0) {
+        showToast("No hay turnos finalizados para generar cuenta de cobro.");
+        return;
+      }
+      const corteInfo = getCorteInfo(corteInicio);
+      const group = { id_turnante: idTurnante, nombre: turnos[0].nombre_turnante, turnos };
+      const { doc, fileName } = buildCuentaCobroPDFDoc(group, corteInfo);
+      doc.save(fileName);
+      showToast(`PDF generado: ${fileName}`);
+    }
+
+    function downloadAllCuentasCobroCorte() {
+      const ci = document.getElementById('filter-corte-semana').value;
+      const ef = document.getElementById('filter-corte-estado').value;
+      if (!ci) return;
+
+      let tc = appState.asistencia.filter(t => t.corte_inicio === ci && t.estado_jornada === 'FINALIZADO');
+      if (ef !== 'TODOS') tc = tc.filter(t => t.estado_pago === ef);
+      if (tc.length === 0) {
+        showToast("No hay turnos finalizados en este corte para descargar.");
+        return;
+      }
+
+      const byEmp = {};
+      tc.forEach(t => {
+        if (!byEmp[t.id_turnante]) byEmp[t.id_turnante] = { id_turnante: t.id_turnante, nombre: t.nombre_turnante, turnos: [] };
+        byEmp[t.id_turnante].turnos.push(t);
+      });
+
+      const groups = Object.values(byEmp);
+      const corteInfo = getCorteInfo(ci);
+      showToast(`Generando ${groups.length} cuenta(s) de cobro en PDF...`);
+
+      groups.forEach((g, idx) => {
+        setTimeout(() => {
+          const { doc, fileName } = buildCuentaCobroPDFDoc(g, corteInfo);
+          doc.save(fileName);
+        }, idx * 400);
+      });
+    }
+
+    /* =======================================================================
+       RUTEO DE MODOS (KIOSCO vs SUPER USUARIO)
+    ======================================================================= */
+    function detectInitialMode() {
+      const p = new URLSearchParams(window.location.search);
+      const m = p.get('modo');
+      const path = window.location.pathname.toLowerCase();
+      if (m === 'marcacion' || m === 'kiosco' || path.endsWith('/marcacion') || path.endsWith('/kiosco')) {
+        activateKioskMode(false);
+      } else if (sessionStorage.getItem(SU_SESSION_KEY) === 'true') {
+        activateAdminMode();
+      } else {
+        showSuLogin();
+      }
+    }
+
+    function activateKioskMode(u = true) {
+      if (u) {
+        const url = new URL(window.location);
+        url.searchParams.set('modo', 'marcacion');
+        window.history.pushState({}, '', url);
+      }
+      document.getElementById('su-login-shell').classList.add('hidden');
+      document.getElementById('admin-shell').classList.add('hidden');
+      document.getElementById('kiosk-shell').classList.remove('hidden');
+      resetKioskScreen();
+      syncFromGoogleDrive(true);
+    }
+
+    function showSuLogin() {
+      document.getElementById('kiosk-shell').classList.add('hidden');
+      document.getElementById('admin-shell').classList.add('hidden');
+      document.getElementById('su-login-shell').classList.remove('hidden');
+      document.getElementById('su-pin-input').value = '';
+      document.getElementById('su-pin-input').focus();
+    }
+
+    function logoutSuperUser() {
+      sessionStorage.removeItem(SU_SESSION_KEY);
+      showSuLogin();
+      showToast("Sesión de Super Usuario cerrada");
+    }
+
+    function switchToAdminPrompt() {
+      const url = new URL(window.location);
+      url.searchParams.delete('modo');
+      if (url.pathname.toLowerCase().endsWith('/marcacion') || url.pathname.toLowerCase().endsWith('/kiosco')) url.pathname = '/';
+      window.history.pushState({}, '', url);
+      sessionStorage.getItem(SU_SESSION_KEY) === 'true' ? activateAdminMode() : showSuLogin();
+    }
+
+    function handleSuLogin(e) {
+      e.preventDefault();
+      if (document.getElementById('su-pin-input').value.trim() === String(cloudConfig.suPin || DEFAULT_SU_PIN)) {
+        sessionStorage.setItem(SU_SESSION_KEY, 'true');
+        document.getElementById('su-login-error').classList.add('hidden');
+        activateAdminMode();
+      } else {
+        document.getElementById('su-login-error').classList.remove('hidden');
+      }
+    }
+
+    function activateAdminMode() {
+      document.getElementById('kiosk-shell').classList.add('hidden');
+      document.getElementById('su-login-shell').classList.add('hidden');
+      document.getElementById('admin-shell').classList.remove('hidden');
+      loadCloudConfigInputs();
+      renderAllAdmin();
+      syncFromGoogleDrive(true);
+    }
+
+    function copyKioskLink() {
+      const url = new URL(window.location.origin);
+      url.searchParams.set('modo', 'marcacion');
+      navigator.clipboard.writeText(url.toString());
+      showToast("Link del Kiosco copiado");
+    }
+
+    /* =======================================================================
+       PEGAR DESDE EXCEL
+    ======================================================================= */
+    function openExcelPasteModal() {
+      excelParsedRows = [];
+      document.getElementById('excel-paste-area').value = '';
+      document.getElementById('excel-preview-box').classList.add('hidden');
+      document.getElementById('excel-save-btn').disabled = true;
+      openModal('excel-paste-modal');
+      setTimeout(() => document.getElementById('excel-paste-area').focus(), 100);
+    }
+
+    function parseExcelPasteText() {
+      const raw = document.getElementById('excel-paste-area').value;
+      const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const existingDocs = new Set(appState.turnantes.map(t => String(t.documento).trim()));
+      const batchDocs = new Set();
+      excelParsedRows = [];
+
+      lines.forEach(line => {
+        let cols = line.includes('\t') ? line.split('\t') : (line.includes(';') ? line.split(';') : (line.includes(',') ? line.split(',') : line.split(/\s{2,}/)));
+        cols = cols.map(c => c.trim()).filter(Boolean);
+        if (cols.length === 0) return;
+
+        let cedula = "", nombre = "", cargo = "Turnante";
+        const docIdx = cols.findIndex(c => /^\d{6,12}$/.test(c.replace(/\./g, '')));
+        if (docIdx !== -1) {
+          cedula = cols[docIdx].replace(/\./g, '');
+          const rest = cols.filter((_, idx) => idx !== docIdx);
+          if (rest.length > 0) nombre = rest[0];
+          if (rest.length > 1) cargo = rest[1];
+        } else {
+          nombre = cols[0];
+        }
+        const isDup = cedula && (existingDocs.has(cedula) || batchDocs.has(cedula));
+        if (cedula && !isDup) batchDocs.add(cedula);
+        excelParsedRows.push({ nombre, cedula, cargo, valid: Boolean(nombre && cedula && !isDup), isDup });
+      });
+
+      const box = document.getElementById('excel-preview-box');
+      const tbody = document.getElementById('excel-preview-tbody');
+      const btn = document.getElementById('excel-save-btn');
+      const badge = document.getElementById('excel-valid-badge');
+
+      if (excelParsedRows.length === 0) {
+        box.classList.add('hidden');
+        btn.disabled = true;
+        return;
+      }
+      box.classList.remove('hidden');
+      const validCount = excelParsedRows.filter(r => r.valid).length;
+      badge.textContent = `${validCount} listos para guardar`;
+      btn.disabled = validCount === 0;
+
+      tbody.innerHTML = excelParsedRows.map(r => `
+        <tr>
+          <td class="py-1.5 px-3 font-semibold text-slate-900">${r.nombre || '<span class="text-rose-500">Sin nombre</span>'}</td>
+          <td class="py-1.5 px-3 font-mono font-bold">${r.cedula || '<span class="text-rose-500">Sin cédula</span>'}</td>
+          <td class="py-1.5 px-3 text-slate-500">${r.cargo}</td>
+          <td class="py-1.5 px-3">${r.isDup ? '<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">Duplicada</span>' : (r.valid ? '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Listo</span>' : '<span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">Incompleto</span>')}</td>
+        </tr>
+      `).join('');
+    }
+
+    function saveExcelPastedTurnantes() {
+      const valid = excelParsedRows.filter(r => r.valid);
+      if (valid.length === 0) return;
+      valid.forEach((r, i) => {
+        appState.turnantes.push({
+          id: "EMP-" + (Date.now() + i).toString().slice(-5),
+          nombre: r.nombre,
+          documento: r.cedula,
+          telefono: "",
+          cargo: r.cargo || "Turnante",
+          valor_hora_efectiva: VALOR_HORA_EFECTIVA,
+          estado: "Activo",
+          fecha_registro: getTodayISO()
         });
+      });
+      closeModal('excel-paste-modal');
+      persistAndSync();
+      showToast(`${valid.length} turnante(s) creados y sincronizados`);
+    }
+
+    /* =======================================================================
+       KIOSCO DE MARCACIÓN
+    ======================================================================= */
+    function getOpenShiftForEmp(empId) {
+      const today = getTodayISO();
+      return appState.asistencia.find(t =>
+        String(t.id_turnante).trim() === String(empId).trim() &&
+        String(t.fecha_turno).trim() === today &&
+        t.estado_jornada !== 'FINALIZADO' &&
+        !normalizeTimeStr(t.hora_salida)
+      );
+    }
+
+    function updateKioskClockAndTimers() {
+      const now = new Date();
+      const dEl = document.getElementById('kiosk-date');
+      const cEl = document.getElementById('kiosk-clock');
+      if (dEl && cEl) {
+        dEl.textContent = now.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+        cEl.textContent = now.toLocaleTimeString('es-CO', { hour12: false });
       }
-      if(Array.isArray(json.data.pagos)){
-        appState.pagos=json.data.pagos.filter(p=>p.id_recibo).map(p=>({...p,cantidad_turnos:Number(p.cantidad_turnos||0),total_horas:Number(p.total_horas||0),total_pagado:Number(p.total_pagado||0)}));
+      if (activeKioskEmp) updateKioskTimerDisplay(getOpenShiftForEmp(activeKioskEmp.id));
+      if (!document.getElementById('admin-shell').classList.contains('hidden')) renderLiveMonitor();
+    }
+
+    async function handleKioskLookup(e) {
+      e.preventDefault();
+      const doc = document.getElementById('kiosk-cedula-input').value.trim();
+      const err = document.getElementById('kiosk-error-msg');
+      await syncFromGoogleDrive(true);
+      const emp = appState.turnantes.find(t => String(t.documento).trim() === doc && t.estado !== 'Inactivo');
+      if (!emp) {
+        err.textContent = `No se encontró turnante activo con cédula "${doc}".`;
+        err.classList.remove('hidden');
+        return;
       }
-      if(Array.isArray(json.data.config)&&json.data.config.length>0){
-        appState.config=json.data.config;
-        const rPin=json.data.config.find(c=>c.clave==='suPin');
-        if(rPin&&rPin.valor)cloudConfig.suPin=String(rPin.valor).trim();
+      err.classList.add('hidden');
+      activeKioskEmp = emp;
+      renderKioskEmployeePanel();
+    }
+
+    function renderKioskEmployeePanel() {
+      if (!activeKioskEmp) return;
+      document.getElementById('kiosk-lookup-card').classList.add('hidden');
+      document.getElementById('kiosk-feedback-card').classList.add('hidden');
+      document.getElementById('kiosk-action-card').classList.remove('hidden');
+      document.getElementById('kiosk-emp-name').textContent = activeKioskEmp.nombre;
+      document.getElementById('kiosk-emp-meta').textContent = `CC ${activeKioskEmp.documento} • ${activeKioskEmp.cargo || 'Turnante'}`;
+
+      const shift = getOpenShiftForEmp(activeKioskEmp.id);
+      const badge = document.getElementById('kiosk-state-badge');
+      const tl = document.getElementById('kiosk-timeline-summary');
+      const btns = document.getElementById('kiosk-buttons-grid');
+
+      if (!shift) {
+        badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-slate-700 text-slate-200";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span> Sin turno abierto hoy`;
+        tl.innerHTML = `Listo para registrar entrada.`;
+        btns.innerHTML = `<button onclick="executeKioskPunch('INGRESO')" class="sm:col-span-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-5 rounded-2xl shadow-lg transition">Registrar Ingreso (${getCurrentHHMM()})</button>`;
+      } else if (shift.estado_jornada === 'TRABAJANDO') {
+        badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> En Turno`;
+        let l = [`Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong>`];
+        if (shift.almuerzo_inicio && shift.almuerzo_fin) l.push(`Almuerzo: <strong class="text-amber-300">${shift.almuerzo_inicio}-${shift.almuerzo_fin}</strong> (${shift.minutos_almuerzo}m)`);
+        tl.innerHTML = l.join(' • ');
+        btns.innerHTML = `${!shift.almuerzo_inicio ? `<button onclick="executeKioskPunch('ALMUERZO_INICIO')" class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-base py-4 px-4 rounded-2xl shadow-lg transition">Salir a Almuerzo<span class="block text-xs font-semibold opacity-80">Pausa pago</span></button>` : `<div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-4 flex items-center justify-center text-xs text-slate-400">Almuerzo registrado</div>`}<button onclick="executeKioskPunch('SALIDA')" class="bg-rose-500 hover:bg-rose-400 text-white font-extrabold text-base py-4 px-4 rounded-2xl shadow-lg transition">Finalizar Turno<span class="block text-xs font-semibold opacity-90">Marcar Salida</span></button>`;
+      } else if (shift.estado_jornada === 'EN_ALMUERZO') {
+        badge.className = "inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30";
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> En Almuerzo`;
+        tl.innerHTML = `Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong> • Almuerzo: <strong class="text-amber-300">${shift.almuerzo_inicio}</strong>`;
+        btns.innerHTML = `<button onclick="executeKioskPunch('ALMUERZO_FIN')" class="sm:col-span-2 bg-sky-400 hover:bg-sky-300 text-slate-950 font-extrabold text-lg py-5 rounded-2xl shadow-lg transition">Regresar de Almuerzo (${getCurrentHHMM()})</button>`;
       }
+      updateKioskTimerDisplay(shift);
+    }
+
+    function updateKioskTimerDisplay(shift) {
+      const tEl = document.getElementById('kiosk-live-timer');
+      const lEl = document.getElementById('kiosk-timer-label');
+      if (!tEl) return;
+      if (!shift) {
+        lEl.textContent = "Tiempo Efectivo Hoy";
+        tEl.textContent = "00:00:00";
+        tEl.className = "text-3xl font-extrabold tabular-nums text-slate-500 mt-0.5";
+        return;
+      }
+      const now = new Date();
+      const nowS = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      const inM = timeToMinutes(shift.hora_ingreso);
+      if (inM === null) { tEl.textContent = "00:00:00"; return; }
+      if (shift.estado_jornada === 'EN_ALMUERZO') {
+        const almM = timeToMinutes(shift.almuerzo_inicio);
+        lEl.textContent = "Tiempo en Almuerzo";
+        tEl.textContent = formatDurationHMS(almM !== null ? Math.max(0, nowS - almM * 60) : 0);
+        tEl.className = "text-3xl font-extrabold tabular-nums text-amber-400 mt-0.5";
+      } else {
+        lEl.textContent = "Tiempo Efectivo";
+        tEl.textContent = formatDurationHMS(Math.max(0, nowS - inM * 60 - (Number(shift.minutos_almuerzo) || 0) * 60));
+        tEl.className = "text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5";
+      }
+    }
+
+    function executeKioskPunch(act) {
+      if (!activeKioskEmp) return;
+      const today = getTodayISO(), nowT = getCurrentHHMM();
+      let shift = getOpenShiftForEmp(activeKioskEmp.id), ft = "", fd = "";
+
+      if (act === 'INGRESO') {
+        const c = getCorteInfo(today);
+        shift = {
+          id_turno: "TRN-" + Date.now(),
+          id_turnante: activeKioskEmp.id,
+          documento: activeKioskEmp.documento,
+          nombre_turnante: activeKioskEmp.nombre,
+          fecha_turno: today,
+          hora_ingreso: nowT,
+          almuerzo_inicio: "",
+          almuerzo_fin: "",
+          hora_salida: "",
+          minutos_almuerzo: 0,
+          horas_efectivas: 0,
+          valor_total: 0,
+          corte_inicio: c.corte_inicio,
+          corte_fin: c.corte_fin,
+          fecha_pago_martes: c.fecha_pago_martes,
+          estado_jornada: "TRABAJANDO",
+          estado_pago: "PENDIENTE",
+          id_recibo: "",
+          observaciones: "Marcación Kiosco"
+        };
+        appState.asistencia.unshift(shift);
+        ft = `Ingreso: ${nowT}`;
+        fd = `Buen turno, ${activeKioskEmp.nombre}.`;
+      } else if (act === 'ALMUERZO_INICIO' && shift) {
+        shift.almuerzo_inicio = nowT;
+        shift.estado_jornada = "EN_ALMUERZO";
+        ft = `Salida a Almuerzo: ${nowT}`;
+        fd = `Tiempo remunerado pausado.`;
+      } else if (act === 'ALMUERZO_FIN' && shift) {
+        shift.almuerzo_fin = nowT;
+        shift.minutos_almuerzo = Math.max(0, (timeToMinutes(nowT) || 0) - (timeToMinutes(shift.almuerzo_inicio) || 0));
+        shift.estado_jornada = "TRABAJANDO";
+        ft = `Regreso Almuerzo: ${nowT}`;
+        fd = `Almuerzo descontado: ${shift.minutos_almuerzo} min.`;
+      } else if (act === 'SALIDA' && shift) {
+        if (shift.almuerzo_inicio && !shift.almuerzo_fin) shift.almuerzo_fin = nowT;
+        shift.hora_salida = nowT;
+        const m = calculateJornadaMetrics(shift.hora_ingreso, shift.almuerzo_inicio, shift.almuerzo_fin, shift.hora_salida, activeKioskEmp.valor_hora_efectiva || VALOR_HORA_EFECTIVA);
+        shift.minutos_almuerzo = m.minutosAlmuerzo;
+        shift.horas_efectivas = m.horasEfectivas;
+        shift.valor_total = m.valorTotal;
+        shift.estado_jornada = "FINALIZADO";
+        ft = `Turno Finalizado: ${nowT}`;
+        fd = `Efectivo: ${formatHoursDisplay(shift.horas_efectivas)} • Pago: ${getCorteInfo(today).pagoLabel}.`;
+      }
+
+      persistAndSync();
+      document.getElementById('kiosk-action-card').classList.add('hidden');
+      const fb = document.getElementById('kiosk-feedback-card');
+      document.getElementById('kiosk-feedback-title').textContent = ft;
+      document.getElementById('kiosk-feedback-detail').textContent = fd;
+      fb.classList.remove('hidden');
+
+      let s = 5;
+      document.getElementById('kiosk-countdown').textContent = s;
+      clearInterval(window._kioskCD);
+      window._kioskCD = setInterval(() => {
+        s--;
+        document.getElementById('kiosk-countdown').textContent = Math.max(0, s);
+        if (s <= 0) { clearInterval(window._kioskCD); resetKioskScreen(); }
+      }, 1000);
+    }
+
+    function resetKioskScreen() {
+      activeKioskEmp = null;
+      clearInterval(window._kioskCD);
+      ['kiosk-action-card', 'kiosk-feedback-card', 'kiosk-error-msg'].forEach(id => document.getElementById(id).classList.add('hidden'));
+      document.getElementById('kiosk-lookup-card').classList.remove('hidden');
+      const i = document.getElementById('kiosk-cedula-input');
+      i.value = '';
+      i.focus();
+    }
+
+    /* =======================================================================
+       SINCRONIZACIÓN CON GOOGLE DRIVE
+    ======================================================================= */
+    function persistLocal() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      localStorage.setItem(CLOUD_KEY, JSON.stringify(cloudConfig));
+    }
+
+    function persistAndSync() {
       persistLocal();
-      if(!document.getElementById('admin-shell').classList.contains('hidden'))renderAllAdmin();
-      if(activeKioskEmp&&!document.getElementById('kiosk-action-card').classList.contains('hidden'))renderKioskEmployeePanel();
-      setSyncStatus('ok','En Línea (5s)');
-      if(!silent)showToast("Sincronizado con Google Drive");
-    }else setSyncStatus('error','Error Token');
-  }catch(e){setSyncStatus('error','Sin conexión')}
-}
+      if (!document.getElementById('admin-shell').classList.contains('hidden')) renderAllAdmin();
+      pushAllToGoogleDrive(true);
+    }
 
-async function pushAllToGoogleDrive(silent=false){
-  if(!cloudConfig.url)return;
-  isPushingToCloud=true;
-  lastPushTimestamp=Date.now();
-  setSyncStatus('syncing','Guardando...');
-  try{
-    appState.config=[{clave:"suPin",valor:String(cloudConfig.suPin||DEFAULT_SU_PIN),ultima_actualizacion:new Date().toISOString()}];
-    const res=await fetch(cloudConfig.url,{
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body:JSON.stringify({token:cloudConfig.token,action:'SYNC_ALL',turnantes:appState.turnantes,asistencia:appState.asistencia,pagos:appState.pagos,config:appState.config})
-    });
-    const json=await res.json();
-    lastPushTimestamp=Date.now();
-    if(json.status==='ok'){
-      setSyncStatus('ok','Guardado en Nube');
-      if(!silent)showToast("Datos guardados en Google Drive");
-    }else setSyncStatus('error','Error al guardar');
-  }catch(e){
-    setSyncStatus('error','Fallo envío');
-  }finally{
-    isPushingToCloud=false;
-  }
-}
+    function setSyncStatus(st, tx) {
+      const d = document.getElementById('sync-dot'), l = document.getElementById('sync-label');
+      const kd = document.getElementById('kiosk-sync-dot'), kt = document.getElementById('kiosk-sync-text');
+      const ls = document.getElementById('login-cloud-status');
+      if (d && l) {
+        const c = { ok: 'bg-emerald-400', syncing: 'bg-amber-400 animate-pulse', error: 'bg-rose-500' };
+        d.className = `w-2 h-2 rounded-full ${c[st] || 'bg-slate-400'}`;
+        l.textContent = tx;
+      }
+      if (kd && kt) {
+        kd.className = `w-2 h-2 rounded-full ${st === 'error' ? 'bg-rose-400' : (st === 'syncing' ? 'bg-amber-400 animate-pulse' : 'bg-emerald-400')}`;
+        kt.textContent = st === 'error' ? 'Sin red' : (st === 'syncing' ? 'Sincronizando...' : 'En Línea (5s)');
+      }
+      if (ls) ls.textContent = st === 'ok' ? '● Nube conectada' : (st === 'syncing' ? '● Conectando...' : '● Sin conexión');
+    }
 
-/* VISTAS SUPER USUARIO */
-function renderAllAdmin(){renderKPIs();renderLiveMonitor();populateCorteSelector();renderCortesView();renderAsistenciaTable();renderTurnantesGrid();renderHistorialTable()}
-function renderKPIs(){const today=getTodayISO(),cc=getCorteInfo(today),cm=today.slice(0,7),act=appState.asistencia.filter(t=>t.estado_jornada==='TRABAJANDO'||t.estado_jornada==='EN_ALMUERZO'),wc=act.filter(t=>t.estado_jornada==='TRABAJANDO').length,lc=act.filter(t=>t.estado_jornada==='EN_ALMUERZO').length;document.getElementById('kpi-live-count').textContent=act.length;document.getElementById('kpi-live-sub').textContent=`${wc} trabajando • ${lc} en almuerzo`;const pend=appState.asistencia.filter(t=>t.estado_pago==='PENDIENTE'&&t.estado_jornada==='FINALIZADO'),nt=pend.filter(t=>t.fecha_pago_martes>=today).reduce((s,t)=>s+t.valor_total,0),ov=pend.filter(t=>t.fecha_pago_martes<=today);document.getElementById('kpi-next-tuesday').textContent=formatCOP(nt);document.getElementById('kpi-next-tuesday-date').textContent=`Corte actual paga ${cc.pagoLabel}`;document.getElementById('kpi-overdue').textContent=formatCOP(ov.reduce((s,t)=>s+t.valor_total,0));document.getElementById('kpi-overdue-count').textContent=`${ov.length} turnos vencidos / hoy martes`;const mp=appState.pagos.filter(p=>(p.fecha_liquidacion||'').startsWith(cm));document.getElementById('kpi-paid-month').textContent=formatCOP(mp.reduce((s,p)=>s+p.total_pagado,0));document.getElementById('kpi-paid-count').textContent=`${mp.length} recibos`;document.getElementById('count-turnantes').textContent=appState.turnantes.length}
-function renderLiveMonitor(){const g=document.getElementById('live-workers-grid');if(!g)return;const act=appState.asistencia.filter(t=>t.estado_jornada==='TRABAJANDO'||t.estado_jornada==='EN_ALMUERZO');if(act.length===0){g.innerHTML=`<div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center"><p class="text-sm font-semibold text-slate-600">No hay turnantes activos en este momento.</p><p class="text-xs text-slate-400 mt-1">Apenas un empleado marque ingreso en el Kiosco aparecerá aquí automáticamente.</p></div>`;return}const now=new Date(),nowS=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();g.innerHTML=act.map(s=>{const isL=s.estado_jornada==='EN_ALMUERZO',inM=timeToMinutes(s.hora_ingreso)||0,almM=timeToMinutes(s.almuerzo_inicio)||0,el=isL?Math.max(0,nowS-almM*60):Math.max(0,nowS-inM*60-(Number(s.minutos_almuerzo)||0)*60),ep=Math.round((el/3600)*VALOR_HORA_EFECTIVA);return`<div class="bg-white rounded-xl border ${isL?'border-amber-300':'border-emerald-300'} p-5 shadow-sm space-y-3"><div class="flex items-start justify-between"><div><span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${isL?'bg-amber-100 text-amber-800':'bg-emerald-100 text-emerald-800'}"><span class="w-1.5 h-1.5 rounded-full ${isL?'bg-amber-500 animate-pulse':'bg-emerald-500 animate-ping'}"></span>${isL?'EN ALMUERZO':'TRABAJANDO'}</span><h3 class="font-bold text-slate-900 text-base mt-1.5">${s.nombre_turnante}</h3><p class="text-xs text-slate-500">CC ${s.documento} • Ingreso: <strong>${s.hora_ingreso}</strong></p></div><button onclick="openEditTurnoModal('${s.id_turno}')" class="text-xs font-semibold text-slate-500 hover:text-slate-900 underline">Corregir</button></div><div class="bg-slate-50 rounded-lg p-3 flex items-center justify-between"><div><p class="text-[11px] text-slate-500">${isL?'Almuerzo':'Efectivo'}</p><p class="text-lg font-extrabold tabular-nums ${isL?'text-amber-600':'text-emerald-600'}">${formatDurationHMS(el)}</p></div><div class="text-right"><p class="text-[11px] text-slate-500">Causado</p><p class="text-sm font-bold text-slate-800 tabular-nums">${isL?'Pausado':formatCOP(ep)}</p></div></div></div>`}).join('')}
-function populateCorteSelector(){const s=document.getElementById('filter-corte-semana'),pv=s.value,m=new Map(),tc=getCorteInfo(getTodayISO());m.set(tc.corte_inicio,tc);appState.asistencia.forEach(t=>{if(t.corte_inicio&&t.fecha_turno)m.set(t.corte_inicio,getCorteInfo(t.fecha_turno))});const sr=Array.from(m.values()).sort((a,b)=>b.corte_inicio.localeCompare(a.corte_inicio));s.innerHTML=sr.map(c=>`<option value="${c.corte_inicio}">${c.label} (Pago: ${c.pagoLabel})</option>`).join('');if(pv&&m.has(pv))s.value=pv}
-function renderCortesView(){const ci=document.getElementById('filter-corte-semana').value,ef=document.getElementById('filter-corte-estado').value,ct=document.getElementById('cortes-cards-container'),bn=document.getElementById('corte-banner-info');if(!ci)return;const info=getCorteInfo(ci),td=getTodayISO();bn.textContent=td===info.fecha_pago_martes?`HOY ES MARTES DE PAGO (${info.pagoLabel})`:(td>info.fecha_pago_martes?`Pago vencido desde ${info.pagoLabel}`:`Se liquida el ${info.pagoLabel}`);let tc=appState.asistencia.filter(t=>t.corte_inicio===ci&&t.estado_jornada==='FINALIZADO');if(ef!=='TODOS')tc=tc.filter(t=>t.estado_pago===ef);if(tc.length===0){ct.innerHTML=`<div class="bg-white rounded-xl border border-slate-200 p-10 text-center text-sm text-slate-400">Sin registros en este corte.</div>`;return}const by={};tc.forEach(t=>{if(!by[t.id_turnante])by[t.id_turnante]={id_turnante:t.id_turnante,nombre:t.nombre_turnante,turnos:[]};by[t.id_turnante].turnos.push(t)});ct.innerHTML=Object.values(by).map(g=>{const th=g.turnos.reduce((s,t)=>s+Number(t.horas_efectivas),0),tdn=g.turnos.reduce((s,t)=>s+Number(t.valor_total),0),pt=g.turnos.filter(t=>t.estado_pago==='PENDIENTE');return`<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h3 class="font-bold text-slate-900 text-base">${g.nombre}</h3><p class="text-xs text-slate-500">${g.turnos.length} turno(s) • <strong>${formatHoursDisplay(th)}</strong> • Pago: <strong>${info.pagoLabel}</strong></p></div><div class="flex items-center gap-3"><div class="text-right"><p class="text-[11px] uppercase font-bold text-slate-400">Total</p><p class="text-lg font-extrabold text-slate-900 tabular-nums">${formatCOP(tdn)}</p></div>${pt.length>0?`<button onclick="liquidarGrupo('${g.id_turnante}','${ci}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg">Liquidar (${formatCOP(pt.reduce((s,t)=>s+t.valor_total,0))})</button>`:`<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg">PAGADO</span>`}</div></div><div class="divide-y divide-slate-100">${g.turnos.map(t=>`<div class="px-4 py-2.5 flex items-center justify-between text-xs"><div><span class="font-semibold text-slate-800">${t.fecha_turno}</span> <span class="text-slate-500">(${t.hora_ingreso}-${t.hora_salida} | Alm: ${t.minutos_almuerzo}m)</span> <span class="font-bold text-emerald-700">${Number(t.horas_efectivas).toFixed(2)}h</span></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 tabular-nums">${formatCOP(t.valor_total)}</span><button onclick="openEditTurnoModal('${t.id_turno}')" class="text-slate-400 hover:text-slate-800 underline">Editar</button></div></div>`).join('')}</div></div>`}).join('')}
-function renderAsistenciaTable(){const ef=document.getElementById('filter-asist-emp').value,tb=document.getElementById('asistencia-tbody'),sel=document.getElementById('filter-asist-emp'),pv=sel.value;sel.innerHTML=`<option value="ALL">Todos los turnantes</option>`+appState.turnantes.map(e=>`<option value="${e.id}">${e.nombre}</option>`).join('');if(pv)sel.value=pv;const l=appState.asistencia.filter(t=>ef==='ALL'||String(t.id_turnante)===String(ef));tb.innerHTML=l.length===0?`<tr><td colspan="7" class="py-10 text-center text-slate-400">Sin marcaciones.</td></tr>`:l.map(t=>`<tr class="hover:bg-slate-50/70"><td class="py-3 px-4"><p class="font-bold text-slate-900">${t.nombre_turnante}</p><p class="text-xs text-slate-500">${t.fecha_turno}</p></td><td class="py-3 px-4 text-xs">${t.hora_ingreso||'--:--'} → ${t.hora_salida||'En curso'}</td><td class="py-3 px-4 text-xs text-amber-700">${t.almuerzo_inicio?`${t.almuerzo_inicio}-${t.almuerzo_fin||'...'} (${t.minutos_almuerzo}m)`:'Sin almuerzo'}</td><td class="py-3 px-4 text-right font-bold tabular-nums">${Number(t.horas_efectivas||0).toFixed(2)} h</td><td class="py-3 px-4 text-right font-extrabold tabular-nums">${formatCOP(t.valor_total)}</td><td class="py-3 px-4 text-xs"><span class="px-2 py-0.5 rounded font-bold ${t.estado_pago==='PAGADO'?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-800'}">${t.estado_pago} (${t.fecha_pago_martes})</span></td><td class="py-3 px-4 text-right space-x-2"><button onclick="openEditTurnoModal('${t.id_turno}')" class="text-xs font-semibold text-sky-600 hover:underline">Editar</button><button onclick="deleteTurno('${t.id_turno}')" class="text-xs font-semibold text-rose-500 hover:underline">Borrar</button></td></tr>`).join('')}
-function renderTurnantesGrid(){const g=document.getElementById('turnantes-grid');if(appState.turnantes.length===0){g.innerHTML=`<div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-400">Aún no hay turnantes registrados. Haz clic en "+ Nuevo Turnante" o "Pegar desde Excel".</div>`;return}g.innerHTML=appState.turnantes.map(e=>`<div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between gap-3"><div class="flex items-start justify-between"><div><h3 class="font-bold text-slate-900 text-base">${e.nombre}</h3><p class="text-xs text-slate-500">${e.cargo||'Turnante'} • Tel: ${e.telefono||'N/A'}</p></div><span class="text-xs font-mono font-bold bg-slate-900 text-emerald-400 px-2.5 py-1 rounded-lg">CC ${e.documento}</span></div><div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs"><span class="text-slate-500">Tarifa: <strong>${formatCOP(e.valor_hora_efectiva||VALOR_HORA_EFECTIVA)}/h</strong></span><button onclick="deleteTurnante('${e.id}')" class="text-rose-500 hover:underline font-semibold">Eliminar</button></div></div>`).join('')}
-function renderHistorialTable(){const tb=document.getElementById('historial-tbody');tb.innerHTML=appState.pagos.length===0?`<tr><td colspan="7" class="py-10 text-center text-slate-400">Sin liquidaciones.</td></tr>`:appState.pagos.map(p=>`<tr class="hover:bg-slate-50"><td class="py-3 px-4 font-mono text-xs font-bold">${p.id_recibo}</td><td class="py-3 px-4 text-xs">${p.fecha_liquidacion}</td><td class="py-3 px-4 text-xs">${p.corte_semana}</td><td class="py-3 px-4 font-bold">${p.nombre_turnante}</td><td class="py-3 px-4 text-right text-xs">${Number(p.total_horas).toFixed(2)} h</td><td class="py-3 px-4 text-right font-extrabold text-emerald-600">${formatCOP(p.total_pagado)}</td><td class="py-3 px-4 text-right"><button onclick="viewReceipt('${p.id_recibo}')" class="text-xs font-semibold underline">Ver</button></td></tr>`).join('')}
+    async function syncFromGoogleDrive(silent = false) {
+      if (!cloudConfig.url) return;
+      if (isPushingToCloud || (Date.now() - lastPushTimestamp < 5000)) return;
+      if (!silent) setSyncStatus('syncing', 'Sincronizando...');
+      try {
+        const res = await fetch(`${cloudConfig.url}?token=${encodeURIComponent(cloudConfig.token)}&t=${Date.now()}`, { cache: 'no-store' });
+        const json = await res.json();
+        if (json.status === 'ok' && json.data) {
+          if (Array.isArray(json.data.turnantes)) {
+            appState.turnantes = json.data.turnantes.filter(t => t.id || t.documento).map(t => ({
+              ...t,
+              documento: String(t.documento || '').trim(),
+              valor_hora_efectiva: Number(t.valor_hora_efectiva || t.valor_hora || VALOR_HORA_EFECTIVA)
+            }));
+          }
+          if (Array.isArray(json.data.asistencia)) {
+            appState.asistencia = json.data.asistencia.filter(a => a.id_turno || a.id_turnante).map(a => {
+              const hIn = normalizeTimeStr(a.hora_ingreso);
+              const hOut = normalizeTimeStr(a.hora_salida);
+              const aIn = normalizeTimeStr(a.almuerzo_inicio);
+              const aOut = normalizeTimeStr(a.almuerzo_fin);
+              let est = String(a.estado_jornada || '').trim();
+              if (!est || est === 'undefined') {
+                est = hOut ? 'FINALIZADO' : (aIn && !aOut ? 'EN_ALMUERZO' : 'TRABAJANDO');
+              }
+              return {
+                ...a,
+                documento: String(a.documento || '').trim(),
+                fecha_turno: String(a.fecha_turno || '').slice(0, 10),
+                hora_ingreso: hIn,
+                almuerzo_inicio: aIn,
+                almuerzo_fin: aOut,
+                hora_salida: hOut,
+                minutos_almuerzo: Number(a.minutos_almuerzo || 0),
+                horas_efectivas: Number(a.horas_efectivas || a.horas || 0),
+                valor_total: Number(a.valor_total || 0),
+                estado_jornada: est,
+                estado_pago: a.estado_pago || 'PENDIENTE'
+              };
+            });
+          }
+          if (Array.isArray(json.data.pagos)) {
+            appState.pagos = json.data.pagos.filter(p => p.id_recibo).map(p => ({
+              ...p,
+              cantidad_turnos: Number(p.cantidad_turnos || 0),
+              total_horas: Number(p.total_horas || 0),
+              total_pagado: Number(p.total_pagado || 0)
+            }));
+          }
+          if (Array.isArray(json.data.config) && json.data.config.length > 0) {
+            appState.config = json.data.config;
+            const rPin = json.data.config.find(c => c.clave === 'suPin');
+            const rEmp = json.data.config.find(c => c.clave === 'empNombre');
+            const rNit = json.data.config.find(c => c.clave === 'empNit');
+            const rCiu = json.data.config.find(c => c.clave === 'empCiudad');
+            if (rPin && rPin.valor) cloudConfig.suPin = String(rPin.valor).trim();
+            if (rEmp && rEmp.valor) cloudConfig.empNombre = String(rEmp.valor).trim();
+            if (rNit && rNit.valor) cloudConfig.empNit = String(rNit.valor).trim();
+            if (rCiu && rCiu.valor) cloudConfig.empCiudad = String(rCiu.valor).trim();
+          }
+          persistLocal();
+          if (!document.getElementById('admin-shell').classList.contains('hidden')) renderAllAdmin();
+          if (activeKioskEmp && !document.getElementById('kiosk-action-card').classList.contains('hidden')) renderKioskEmployeePanel();
+          setSyncStatus('ok', 'En Línea (5s)');
+          if (!silent) showToast("Sincronizado con Google Drive");
+        } else {
+          setSyncStatus('error', 'Error Token');
+        }
+      } catch (e) {
+        setSyncStatus('error', 'Sin conexión');
+      }
+    }
 
-function openTurnoModal(){document.getElementById('turno-modal-title').textContent="Registrar Marcaje";document.getElementById('edit-turno-id').value="";document.getElementById('t-emp-id').innerHTML=appState.turnantes.map(e=>`<option value="${e.id}">${e.nombre} (CC ${e.documento})</option>`).join('');document.getElementById('t-fecha').value=getTodayISO();document.getElementById('t-ingreso').value="08:00";document.getElementById('t-alm-ini').value="12:00";document.getElementById('t-alm-fin').value="13:00";document.getElementById('t-salida').value="16:00";document.getElementById('t-obs').value="";recalcModalPreview();openModal('turno-modal')}
-function openEditTurnoModal(id){const t=appState.asistencia.find(x=>x.id_turno===id);if(!t)return;document.getElementById('turno-modal-title').textContent="Corregir Marcaje";document.getElementById('edit-turno-id').value=t.id_turno;document.getElementById('t-emp-id').innerHTML=appState.turnantes.map(e=>`<option value="${e.id}">${e.nombre} (CC ${e.documento})</option>`).join('');document.getElementById('t-emp-id').value=t.id_turnante;document.getElementById('t-fecha').value=t.fecha_turno;document.getElementById('t-ingreso').value=normalizeTimeStr(t.hora_ingreso);document.getElementById('t-alm-ini').value=normalizeTimeStr(t.almuerzo_inicio);document.getElementById('t-alm-fin').value=normalizeTimeStr(t.almuerzo_fin);document.getElementById('t-salida').value=normalizeTimeStr(t.hora_salida);document.getElementById('t-obs').value=t.observaciones||"";recalcModalPreview();openModal('turno-modal')}
-function recalcModalPreview(){const emp=appState.turnantes.find(e=>String(e.id)===String(document.getElementById('t-emp-id').value)),f=document.getElementById('t-fecha').value||getTodayISO(),m=calculateJornadaMetrics(document.getElementById('t-ingreso').value,document.getElementById('t-alm-ini').value,document.getElementById('t-alm-fin').value,document.getElementById('t-salida').value,emp?emp.valor_hora_efectiva:VALOR_HORA_EFECTIVA),c=getCorteInfo(f);document.getElementById('prev-alm-min').textContent=`${m.minutosAlmuerzo} min`;document.getElementById('prev-horas-ef').textContent=formatHoursDisplay(m.horasEfectivas);document.getElementById('prev-valor-total').textContent=formatCOP(m.valorTotal);document.getElementById('prev-corte').textContent=c.label;document.getElementById('prev-martes').textContent=c.pagoLabel}
-function saveManualOrEditedTurno(e){e.preventDefault();const eid=document.getElementById('edit-turno-id').value,emp=appState.turnantes.find(x=>String(x.id)===String(document.getElementById('t-emp-id').value)),f=document.getElementById('t-fecha').value,i=document.getElementById('t-ingreso').value,ai=document.getElementById('t-alm-ini').value,af=document.getElementById('t-alm-fin').value,s=document.getElementById('t-salida').value,obs=document.getElementById('t-obs').value.trim(),m=calculateJornadaMetrics(i,ai,af,s,emp.valor_hora_efectiva),c=getCorteInfo(f),ej=s?"FINALIZADO":(ai&&!af?"EN_ALMUERZO":"TRABAJANDO");if(eid){const idx=appState.asistencia.findIndex(x=>x.id_turno===eid);if(idx!==-1)appState.asistencia[idx]={...appState.asistencia[idx],id_turnante:emp.id,documento:emp.documento,nombre_turnante:emp.nombre,fecha_turno:f,hora_ingreso:i,almuerzo_inicio:ai,almuerzo_fin:af,hora_salida:s,minutos_almuerzo:m.minutosAlmuerzo,horas_efectivas:m.horasEfectivas,valor_total:m.valorTotal,corte_inicio:c.corte_inicio,corte_fin:c.corte_fin,fecha_pago_martes:c.fecha_pago_martes,estado_jornada:ej,observaciones:obs||"Corregido SU"};showToast("Marcaje actualizado")}else{appState.asistencia.unshift({id_turno:"TRN-"+Date.now(),id_turnante:emp.id,documento:emp.documento,nombre_turnante:emp.nombre,fecha_turno:f,hora_ingreso:i,almuerzo_inicio:ai,almuerzo_fin:af,hora_salida:s,minutos_almuerzo:m.minutosAlmuerzo,horas_efectivas:m.horasEfectivas,valor_total:m.valorTotal,corte_inicio:c.corte_inicio,corte_fin:c.corte_fin,fecha_pago_martes:c.fecha_pago_martes,estado_jornada:ej,estado_pago:"PENDIENTE",id_recibo:"",observaciones:obs||"Registro SU"});showToast("Turno registrado")}closeModal('turno-modal');persistAndSync()}
-function deleteTurno(id){if(!confirm("¿Eliminar marcación?"))return;appState.asistencia=appState.asistencia.filter(t=>t.id_turno!==id);persistAndSync()}
-function openEmpModal(){['e-nombre','e-doc','e-tel','e-cargo'].forEach(id=>document.getElementById(id).value="");document.getElementById('e-valor-hora').value=VALOR_HORA_EFECTIVA.toFixed(2);openModal('emp-modal')}
-function saveTurnante(e){e.preventDefault();const doc=document.getElementById('e-doc').value.trim();if(appState.turnantes.some(t=>String(t.documento).trim()===doc)){alert("Ya existe un turnante con esa cédula.");return}appState.turnantes.push({id:"EMP-"+Date.now().toString().slice(-4),nombre:document.getElementById('e-nombre').value.trim(),documento:doc,telefono:document.getElementById('e-tel').value.trim(),cargo:document.getElementById('e-cargo').value.trim()||"Turnante",valor_hora_efectiva:Number(document.getElementById('e-valor-hora').value)||VALOR_HORA_EFECTIVA,estado:"Activo",fecha_registro:getTodayISO()});closeModal('emp-modal');persistAndSync();showToast("Turnante registrado y sincronizado")}
-function deleteTurnante(id){if(!confirm("¿Eliminar turnante?"))return;appState.turnantes=appState.turnantes.filter(t=>String(t.id)!==String(id));persistAndSync()}
-function liquidarGrupo(idT,ci){const tg=appState.asistencia.filter(t=>String(t.id_turnante)===String(idT)&&t.corte_inicio===ci&&t.estado_pago==='PENDIENTE'&&t.estado_jornada==='FINALIZADO');if(tg.length===0)return;const tot=tg.reduce((s,t)=>s+Number(t.valor_total),0),th=tg.reduce((s,t)=>s+Number(t.horas_efectivas),0),cInfo=getCorteInfo(ci),met=prompt(`Liquidar ${formatCOP(tot)} (${th.toFixed(2)}h) a ${tg[0].nombre_turnante}.\nMétodo:`,"Transferencia / Nequi");if(met===null)return;const idR="REC-"+Date.now().toString().slice(-6);tg.forEach(t=>{t.estado_pago="PAGADO";t.id_recibo=idR});appState.pagos.unshift({id_recibo:idR,fecha_liquidacion:getTodayISO(),corte_semana:cInfo.label,id_turnante:idT,nombre_turnante:tg[0].nombre_turnante,cantidad_turnos:tg.length,total_horas:Number(th.toFixed(2)),total_pagado:tot,metodo_pago:met||"Efectivo",notas:`Pago ${cInfo.pagoLabel}`});persistAndSync();viewReceipt(idR)}
-function viewReceipt(idR){const p=appState.pagos.find(x=>x.id_recibo===idR);if(!p)return;const emp=appState.turnantes.find(e=>String(e.id)===String(p.id_turnante)),tr=appState.asistencia.filter(t=>t.id_recibo===idR);document.getElementById('rec-id').textContent=`Recibo #${p.id_recibo}`;document.getElementById('rec-emp').textContent=p.nombre_turnante;document.getElementById('rec-doc').textContent=emp?emp.documento:"N/A";document.getElementById('rec-corte').textContent=p.corte_semana;document.getElementById('rec-fecha').textContent=p.fecha_liquidacion;document.getElementById('rec-total-horas').textContent=`${p.total_horas}h ef.`;document.getElementById('rec-metodo').textContent=`Método: ${p.metodo_pago}`;document.getElementById('rec-total').textContent=formatCOP(p.total_pagado);document.getElementById('rec-items').innerHTML=tr.map(t=>`<div class="flex justify-between py-1 border-b border-slate-100"><span>${t.fecha_turno} (${t.hora_ingreso}-${t.hora_salida} | ${Number(t.horas_efectivas).toFixed(2)}h)</span><span class="font-bold">${formatCOP(t.valor_total)}</span></div>`).join('');currentReceiptText=`*COMPROBANTE PAGO TURNANTES*\nRecibo: ${p.id_recibo}\nTurnante: ${p.nombre_turnante}\nCorte: ${p.corte_semana}\nHoras efectivas: ${p.total_horas}h\n*Total Pagado: ${formatCOP(p.total_pagado)}*`;openModal('receipt-modal')}
-function copyWhatsAppReceipt(){navigator.clipboard.writeText(currentReceiptText);showToast("Copiado para WhatsApp")}
-function loadCloudConfigInputs(){document.getElementById('cfg-su-pin').value=cloudConfig.suPin||DEFAULT_SU_PIN;document.getElementById('cfg-api-url').value=cloudConfig.url||DEFAULT_API_URL;document.getElementById('cfg-api-token').value=cloudConfig.token||DEFAULT_API_TOKEN}
-function updateGlobalSuPin(){const np=document.getElementById('cfg-su-pin').value.trim();if(np.length<4){alert("Mínimo 4 dígitos.");return}cloudConfig.suPin=np;persistAndSync();showToast("PIN global actualizado")}
-function saveCloudConfig(){cloudConfig.url=document.getElementById('cfg-api-url').value.trim();cloudConfig.token=document.getElementById('cfg-api-token').value.trim();persistLocal();syncFromGoogleDrive(false)}
-function switchTab(tab){['live','cortes','asistencia','turnantes','historial','config'].forEach(t=>{document.getElementById(`view-${t}`).classList.add('hidden');const b=document.getElementById(`tab-btn-${t}`);b.classList.remove('bg-white','text-slate-900','shadow-sm');b.classList.add('text-slate-600')});document.getElementById(`view-${tab}`).classList.remove('hidden');const ab=document.getElementById(`tab-btn-${tab}`);ab.classList.add('bg-white','text-slate-900','shadow-sm');ab.classList.remove('text-slate-600')}
-function openModal(id){const m=document.getElementById(id);m.classList.remove('hidden');m.classList.add('flex')}
-function closeModal(id){const m=document.getElementById(id);m.classList.add('hidden');m.classList.remove('flex')}
-function exportToCSV(){const h=["ID","Turnante","Cedula","Fecha","Ingreso","Alm_Ini","Alm_Fin","Salida","Min_Alm","Horas_Ef","Valor_COP","Corte","Pago_Martes","Estado"],r=appState.asistencia.map(t=>[t.id_turno,`"${t.nombre_turnante}"`,t.documento,t.fecha_turno,t.hora_ingreso,t.almuerzo_inicio,t.almuerzo_fin,t.hora_salida,t.minutos_almuerzo,t.horas_efectivas,t.valor_total,t.corte_inicio,t.fecha_pago_martes,t.estado_pago]),csv="\uFEFF"+[h.join(","),...r.map(x=>x.join(","))].join("\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));a.download=`Turnantes_${getTodayISO()}.csv`;a.click()}
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('translate-y-20','opacity-0');setTimeout(()=>t.classList.add('translate-y-20','opacity-0'),3000)}
+    async function pushAllToGoogleDrive(silent = false) {
+      if (!cloudConfig.url) return;
+      isPushingToCloud = true;
+      lastPushTimestamp = Date.now();
+      setSyncStatus('syncing', 'Guardando...');
+      try {
+        const nowIso = new Date().toISOString();
+        appState.config = [
+          { clave: "suPin", valor: String(cloudConfig.suPin || DEFAULT_SU_PIN), ultima_actualizacion: nowIso },
+          { clave: "empNombre", valor: String(cloudConfig.empNombre || DEFAULT_COMPANY.nombre), ultima_actualizacion: nowIso },
+          { clave: "empNit", valor: String(cloudConfig.empNit || DEFAULT_COMPANY.nit), ultima_actualizacion: nowIso },
+          { clave: "empCiudad", valor: String(cloudConfig.empCiudad || DEFAULT_COMPANY.ciudad), ultima_actualizacion: nowIso }
+        ];
+        const res = await fetch(cloudConfig.url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            token: cloudConfig.token,
+            action: 'SYNC_ALL',
+            turnantes: appState.turnantes,
+            asistencia: appState.asistencia,
+            pagos: appState.pagos,
+            config: appState.config
+          })
+        });
+        const json = await res.json();
+        lastPushTimestamp = Date.now();
+        if (json.status === 'ok') {
+          setSyncStatus('ok', 'Guardado en Nube');
+          if (!silent) showToast("Datos guardados en Google Drive");
+        } else {
+          setSyncStatus('error', 'Error al guardar');
+        }
+      } catch (e) {
+        setSyncStatus('error', 'Fallo envío');
+      } finally {
+        isPushingToCloud = false;
+      }
+    }
 
-detectInitialMode();updateKioskClockAndTimers();setInterval(updateKioskClockAndTimers,1000);syncFromGoogleDrive(true);setInterval(()=>syncFromGoogleDrive(true),5000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncFromGoogleDrive(true)});
-</script></body></html>
+    /* =======================================================================
+       VISTAS SUPER USUARIO
+    ======================================================================= */
+    function renderAllAdmin() {
+      renderKPIs();
+      renderLiveMonitor();
+      populateCorteSelector();
+      renderCortesView();
+      renderAsistenciaTable();
+      renderTurnantesGrid();
+      renderHistorialTable();
+    }
+
+    function renderKPIs() {
+      const today = getTodayISO(), cc = getCorteInfo(today), cm = today.slice(0, 7);
+      const act = appState.asistencia.filter(t => t.estado_jornada === 'TRABAJANDO' || t.estado_jornada === 'EN_ALMUERZO');
+      const wc = act.filter(t => t.estado_jornada === 'TRABAJANDO').length;
+      const lc = act.filter(t => t.estado_jornada === 'EN_ALMUERZO').length;
+
+      document.getElementById('kpi-live-count').textContent = act.length;
+      document.getElementById('kpi-live-sub').textContent = `${wc} trabajando • ${lc} en almuerzo`;
+
+      const pend = appState.asistencia.filter(t => t.estado_pago === 'PENDIENTE' && t.estado_jornada === 'FINALIZADO');
+      const nt = pend.filter(t => t.fecha_pago_martes >= today).reduce((s, t) => s + t.valor_total, 0);
+      const ov = pend.filter(t => t.fecha_pago_martes <= today);
+
+      document.getElementById('kpi-next-tuesday').textContent = formatCOP(nt);
+      document.getElementById('kpi-next-tuesday-date').textContent = `Corte actual paga ${cc.pagoLabel}`;
+      document.getElementById('kpi-overdue').textContent = formatCOP(ov.reduce((s, t) => s + t.valor_total, 0));
+      document.getElementById('kpi-overdue-count').textContent = `${ov.length} turnos vencidos / hoy martes`;
+
+      const mp = appState.pagos.filter(p => (p.fecha_liquidacion || '').startsWith(cm));
+      document.getElementById('kpi-paid-month').textContent = formatCOP(mp.reduce((s, p) => s + p.total_pagado, 0));
+      document.getElementById('kpi-paid-count').textContent = `${mp.length} recibos`;
+      document.getElementById('count-turnantes').textContent = appState.turnantes.length;
+    }
+
+    function renderLiveMonitor() {
+      const g = document.getElementById('live-workers-grid');
+      if (!g) return;
+      const act = appState.asistencia.filter(t => t.estado_jornada === 'TRABAJANDO' || t.estado_jornada === 'EN_ALMUERZO');
+      if (act.length === 0) {
+        g.innerHTML = `<div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center"><p class="text-sm font-semibold text-slate-600">No hay turnantes activos en este momento.</p><p class="text-xs text-slate-400 mt-1">Apenas un empleado marque ingreso en el Kiosco aparecerá aquí automáticamente.</p></div>`;
+        return;
+      }
+      const now = new Date(), nowS = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+      g.innerHTML = act.map(s => {
+        const isL = s.estado_jornada === 'EN_ALMUERZO';
+        const inM = timeToMinutes(s.hora_ingreso) || 0;
+        const almM = timeToMinutes(s.almuerzo_inicio) || 0;
+        const el = isL ? Math.max(0, nowS - almM * 60) : Math.max(0, nowS - inM * 60 - (Number(s.minutos_almuerzo) || 0) * 60);
+        const ep = Math.round((el / 3600) * VALOR_HORA_EFECTIVA);
+        return `
+          <div class="bg-white rounded-xl border ${isL ? 'border-amber-300' : 'border-emerald-300'} p-5 shadow-sm space-y-3">
+            <div class="flex items-start justify-between">
+              <div>
+                <span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${isL ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
+                  <span class="w-1.5 h-1.5 rounded-full ${isL ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-ping'}"></span>${isL ? 'EN ALMUERZO' : 'TRABAJANDO'}
+                </span>
+                <h3 class="font-bold text-slate-900 text-base mt-1.5">${s.nombre_turnante}</h3>
+                <p class="text-xs text-slate-500">CC ${s.documento} • Ingreso: <strong>${s.hora_ingreso}</strong></p>
+              </div>
+              <button onclick="openEditTurnoModal('${s.id_turno}')" class="text-xs font-semibold text-slate-500 hover:text-slate-900 underline">Corregir</button>
+            </div>
+            <div class="bg-slate-50 rounded-lg p-3 flex items-center justify-between">
+              <div>
+                <p class="text-[11px] text-slate-500">${isL ? 'Almuerzo' : 'Efectivo'}</p>
+                <p class="text-lg font-extrabold tabular-nums ${isL ? 'text-amber-600' : 'text-emerald-600'}">${formatDurationHMS(el)}</p>
+              </div>
+              <div class="text-right">
+                <p class="text-[11px] text-slate-500">Causado</p>
+                <p class="text-sm font-bold text-slate-800 tabular-nums">${isL ? 'Pausado' : formatCOP(ep)}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function populateCorteSelector() {
+      const s = document.getElementById('filter-corte-semana'), pv = s.value, m = new Map(), tc = getCorteInfo(getTodayISO());
+      m.set(tc.corte_inicio, tc);
+      appState.asistencia.forEach(t => { if (t.corte_inicio && t.fecha_turno) m.set(t.corte_inicio, getCorteInfo(t.fecha_turno)); });
+      const sr = Array.from(m.values()).sort((a, b) => b.corte_inicio.localeCompare(a.corte_inicio));
+      s.innerHTML = sr.map(c => `<option value="${c.corte_inicio}">${c.label} (Pago: ${c.pagoLabel})</option>`).join('');
+      if (pv && m.has(pv)) s.value = pv;
+    }
+
+    function renderCortesView() {
+      const ci = document.getElementById('filter-corte-semana').value;
+      const ef = document.getElementById('filter-corte-estado').value;
+      const ct = document.getElementById('cortes-cards-container');
+      const bn = document.getElementById('corte-banner-info');
+      if (!ci) return;
+
+      const info = getCorteInfo(ci), td = getTodayISO();
+      bn.textContent = td === info.fecha_pago_martes ? `HOY ES MARTES DE PAGO (${info.pagoLabel})` : (td > info.fecha_pago_martes ? `Pago vencido desde ${info.pagoLabel}` : `Se liquida el ${info.pagoLabel}`);
+
+      let tc = appState.asistencia.filter(t => t.corte_inicio === ci && t.estado_jornada === 'FINALIZADO');
+      if (ef !== 'TODOS') tc = tc.filter(t => t.estado_pago === ef);
+      if (tc.length === 0) {
+        ct.innerHTML = `<div class="bg-white rounded-xl border border-slate-200 p-10 text-center text-sm text-slate-400">Sin registros en este corte.</div>`;
+        return;
+      }
+
+      const by = {};
+      tc.forEach(t => {
+        if (!by[t.id_turnante]) by[t.id_turnante] = { id_turnante: t.id_turnante, nombre: t.nombre_turnante, turnos: [] };
+        by[t.id_turnante].turnos.push(t);
+      });
+
+      ct.innerHTML = Object.values(by).map(g => {
+        const th = g.turnos.reduce((s, t) => s + Number(t.horas_efectivas), 0);
+        const tdn = g.turnos.reduce((s, t) => s + Number(t.valor_total), 0);
+        const pt = g.turnos.filter(t => t.estado_pago === 'PENDIENTE');
+        return `
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div>
+                <h3 class="font-bold text-slate-900 text-base">${g.nombre}</h3>
+                <p class="text-xs text-slate-500">${g.turnos.length} turno(s) • <strong>${formatHoursDisplay(th)}</strong> • Pago: <strong>${info.pagoLabel}</strong></p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2.5">
+                <div class="text-right mr-2">
+                  <p class="text-[11px] uppercase font-bold text-slate-400">Total</p>
+                  <p class="text-lg font-extrabold text-slate-900 tabular-nums">${formatCOP(tdn)}</p>
+                </div>
+                <button onclick="downloadSingleCuentaCobro('${g.id_turnante}', '${ci}')" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-lg transition">
+                  PDF Cuenta de Cobro
+                </button>
+                ${pt.length > 0 ? `<button onclick="liquidarGrupo('${g.id_turnante}','${ci}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg">Liquidar (${formatCOP(pt.reduce((s, t) => s + t.valor_total, 0))})</button>` : `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg">PAGADO</span>`}
+              </div>
+            </div>
+            <div class="divide-y divide-slate-100">
+              ${g.turnos.map(t => `
+                <div class="px-4 py-2.5 flex items-center justify-between text-xs">
+                  <div>
+                    <span class="font-semibold text-slate-800">${t.fecha_turno}</span>
+                    <span class="text-slate-500">(${t.hora_ingreso}-${t.hora_salida} | Alm: ${t.minutos_almuerzo}m)</span>
+                    <span class="font-bold text-emerald-700">${Number(t.horas_efectivas).toFixed(2)}h</span>
+                  </div>
+                  <div class="flex items-center gap-3">
+                    <span class="font-bold text-slate-900 tabular-nums">${formatCOP(t.valor_total)}</span>
+                    <button onclick="openEditTurnoModal('${t.id_turno}')" class="text-slate-400 hover:text-slate-800 underline">Editar</button>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAsistenciaTable() {
+      const ef = document.getElementById('filter-asist-emp').value;
+      const tb = document.getElementById('asistencia-tbody');
+      const sel = document.getElementById('filter-asist-emp'), pv = sel.value;
+      sel.innerHTML = `<option value="ALL">Todos los turnantes</option>` + appState.turnantes.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+      if (pv) sel.value = pv;
+
+      const l = appState.asistencia.filter(t => ef === 'ALL' || String(t.id_turnante) === String(ef));
+      tb.innerHTML = l.length === 0 ? `<tr><td colspan="7" class="py-10 text-center text-slate-400">Sin marcaciones.</td></tr>` : l.map(t => `
+        <tr class="hover:bg-slate-50/70">
+          <td class="py-3 px-4"><p class="font-bold text-slate-900">${t.nombre_turnante}</p><p class="text-xs text-slate-500">${t.fecha_turno}</p></td>
+          <td class="py-3 px-4 text-xs">${t.hora_ingreso || '--:--'} → ${t.hora_salida || 'En curso'}</td>
+          <td class="py-3 px-4 text-xs text-amber-700">${t.almuerzo_inicio ? `${t.almuerzo_inicio}-${t.almuerzo_fin || '...'} (${t.minutos_almuerzo}m)` : 'Sin almuerzo'}</td>
+          <td class="py-3 px-4 text-right font-bold tabular-nums">${Number(t.horas_efectivas || 0).toFixed(2)} h</td>
+          <td class="py-3 px-4 text-right font-extrabold tabular-nums">${formatCOP(t.valor_total)}</td>
+          <td class="py-3 px-4 text-xs"><span class="px-2 py-0.5 rounded font-bold ${t.estado_pago === 'PAGADO' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}">${t.estado_pago} (${t.fecha_pago_martes})</span></td>
+          <td class="py-3 px-4 text-right space-x-2"><button onclick="openEditTurnoModal('${t.id_turno}')" class="text-xs font-semibold text-sky-600 hover:underline">Editar</button><button onclick="deleteTurno('${t.id_turno}')" class="text-xs font-semibold text-rose-500 hover:underline">Borrar</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function renderTurnantesGrid() {
+      const g = document.getElementById('turnantes-grid');
+      if (appState.turnantes.length === 0) {
+        g.innerHTML = `<div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-400">Aún no hay turnantes registrados. Haz clic en "+ Nuevo Turnante" o "Pegar desde Excel".</div>`;
+        return;
+      }
+      g.innerHTML = appState.turnantes.map(e => `
+        <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between gap-3">
+          <div class="flex items-start justify-between">
+            <div>
+              <h3 class="font-bold text-slate-900 text-base">${e.nombre}</h3>
+              <p class="text-xs text-slate-500">${e.cargo || 'Turnante'} • Tel/Cuenta: ${e.telefono || 'N/A'}</p>
+            </div>
+            <span class="text-xs font-mono font-bold bg-slate-900 text-emerald-400 px-2.5 py-1 rounded-lg">CC ${e.documento}</span>
+          </div>
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span class="text-slate-500">Tarifa: <strong>${formatCOP(e.valor_hora_efectiva || VALOR_HORA_EFECTIVA)}/h</strong></span>
+            <button onclick="deleteTurnante('${e.id}')" class="text-rose-500 hover:underline font-semibold">Eliminar</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderHistorialTable() {
+      const tb = document.getElementById('historial-tbody');
+      tb.innerHTML = appState.pagos.length === 0 ? `<tr><td colspan="7" class="py-10 text-center text-slate-400">Sin liquidaciones.</td></tr>` : appState.pagos.map(p => `
+        <tr class="hover:bg-slate-50">
+          <td class="py-3 px-4 font-mono text-xs font-bold">${p.id_recibo}</td>
+          <td class="py-3 px-4 text-xs">${p.fecha_liquidacion}</td>
+          <td class="py-3 px-4 text-xs">${p.corte_semana}</td>
+          <td class="py-3 px-4 font-bold">${p.nombre_turnante}</td>
+          <td class="py-3 px-4 text-right text-xs">${Number(p.total_horas).toFixed(2)} h</td>
+          <td class="py-3 px-4 text-right font-extrabold text-emerald-600">${formatCOP(p.total_pagado)}</td>
+          <td class="py-3 px-4 text-right"><button onclick="viewReceipt('${p.id_recibo}')" class="text-xs font-semibold underline">Ver</button></td>
+        </tr>
+      `).join('');
+    }
+
+    function openTurnoModal() {
+      document.getElementById('turno-modal-title').textContent = "Registrar Marcaje";
+      document.getElementById('edit-turno-id').value = "";
+      document.getElementById('t-emp-id').innerHTML = appState.turnantes.map(e => `<option value="${e.id}">${e.nombre} (CC ${e.documento})</option>`).join('');
+      document.getElementById('t-fecha').value = getTodayISO();
+      document.getElementById('t-ingreso').value = "08:00";
+      document.getElementById('t-alm-ini').value = "12:00";
+      document.getElementById('t-alm-fin').value = "13:00";
+      document.getElementById('t-salida').value = "16:00";
+      document.getElementById('t-obs').value = "";
+      recalcModalPreview();
+      openModal('turno-modal');
+    }
+
+    function openEditTurnoModal(id) {
+      const t = appState.asistencia.find(x => x.id_turno === id);
+      if (!t) return;
+      document.getElementById('turno-modal-title').textContent = "Corregir Marcaje";
+      document.getElementById('edit-turno-id').value = t.id_turno;
+      document.getElementById('t-emp-id').innerHTML = appState.turnantes.map(e => `<option value="${e.id}">${e.nombre} (CC ${e.documento})</option>`).join('');
+      document.getElementById('t-emp-id').value = t.id_turnante;
+      document.getElementById('t-fecha').value = t.fecha_turno;
+      document.getElementById('t-ingreso').value = normalizeTimeStr(t.hora_ingreso);
+      document.getElementById('t-alm-ini').value = normalizeTimeStr(t.almuerzo_inicio);
+      document.getElementById('t-alm-fin').value = normalizeTimeStr(t.almuerzo_fin);
+      document.getElementById('t-salida').value = normalizeTimeStr(t.hora_salida);
+      document.getElementById('t-obs').value = t.observaciones || "";
+      recalcModalPreview();
+      openModal('turno-modal');
+    }
+
+    function recalcModalPreview() {
+      const emp = appState.turnantes.find(e => String(e.id) === String(document.getElementById('t-emp-id').value));
+      const f = document.getElementById('t-fecha').value || getTodayISO();
+      const m = calculateJornadaMetrics(
+        document.getElementById('t-ingreso').value,
+        document.getElementById('t-alm-ini').value,
+        document.getElementById('t-alm-fin').value,
+        document.getElementById('t-salida').value,
+        emp ? emp.valor_hora_efectiva : VALOR_HORA_EFECTIVA
+      );
+      const c = getCorteInfo(f);
+      document.getElementById('prev-alm-min').textContent = `${m.minutosAlmuerzo} min`;
+      document.getElementById('prev-horas-ef').textContent = formatHoursDisplay(m.horasEfectivas);
+      document.getElementById('prev-valor-total').textContent = formatCOP(m.valorTotal);
+      document.getElementById('prev-corte').textContent = c.label;
+      document.getElementById('prev-martes').textContent = c.pagoLabel;
+    }
+
+    function saveManualOrEditedTurno(e) {
+      e.preventDefault();
+      const eid = document.getElementById('edit-turno-id').value;
+      const emp = appState.turnantes.find(x => String(x.id) === String(document.getElementById('t-emp-id').value));
+      const f = document.getElementById('t-fecha').value;
+      const i = document.getElementById('t-ingreso').value;
+      const ai = document.getElementById('t-alm-ini').value;
+      const af = document.getElementById('t-alm-fin').value;
+      const s = document.getElementById('t-salida').value;
+      const obs = document.getElementById('t-obs').value.trim();
+      const m = calculateJornadaMetrics(i, ai, af, s, emp.valor_hora_efectiva);
+      const c = getCorteInfo(f);
+      const ej = s ? "FINALIZADO" : (ai && !af ? "EN_ALMUERZO" : "TRABAJANDO");
+
+      if (eid) {
+        const idx = appState.asistencia.findIndex(x => x.id_turno === eid);
+        if (idx !== -1) {
+          appState.asistencia[idx] = {
+            ...appState.asistencia[idx],
+            id_turnante: emp.id,
+            documento: emp.documento,
+            nombre_turnante: emp.nombre,
+            fecha_turno: f,
+            hora_ingreso: i,
+            almuerzo_inicio: ai,
+            almuerzo_fin: af,
+            hora_salida: s,
+            minutos_almuerzo: m.minutosAlmuerzo,
+            horas_efectivas: m.horasEfectivas,
+            valor_total: m.valorTotal,
+            corte_inicio: c.corte_inicio,
+            corte_fin: c.corte_fin,
+            fecha_pago_martes: c.fecha_pago_martes,
+            estado_jornada: ej,
+            observaciones: obs || "Corregido SU"
+          };
+        }
+        showToast("Marcaje actualizado");
+      } else {
+        appState.asistencia.unshift({
+          id_turno: "TRN-" + Date.now(),
+          id_turnante: emp.id,
+          documento: emp.documento,
+          nombre_turnante: emp.nombre,
+          fecha_turno: f,
+          hora_ingreso: i,
+          almuerzo_inicio: ai,
+          almuerzo_fin: af,
+          hora_salida: s,
+          minutos_almuerzo: m.minutosAlmuerzo,
+          horas_efectivas: m.horasEfectivas,
+          valor_total: m.valorTotal,
+          corte_inicio: c.corte_inicio,
+          corte_fin: c.corte_fin,
+          fecha_pago_martes: c.fecha_pago_martes,
+          estado_jornada: ej,
+          estado_pago: "PENDIENTE",
+          id_recibo: "",
+          observaciones: obs || "Registro SU"
+        });
+        showToast("Turno registrado");
+      }
+      closeModal('turno-modal');
+      persistAndSync();
+    }
+
+    function deleteTurno(id) {
+      if (!confirm("¿Eliminar marcación?")) return;
+      appState.asistencia = appState.asistencia.filter(t => t.id_turno !== id);
+      persistAndSync();
+    }
+
+    function openEmpModal() {
+      ['e-nombre', 'e-doc', 'e-tel', 'e-cargo'].forEach(id => document.getElementById(id).value = "");
+      document.getElementById('e-valor-hora').value = VALOR_HORA_EFECTIVA.toFixed(2);
+      openModal('emp-modal');
+    }
+
+    function saveTurnante(e) {
+      e.preventDefault();
+      const doc = document.getElementById('e-doc').value.trim();
+      if (appState.turnantes.some(t => String(t.documento).trim() === doc)) {
+        alert("Ya existe un turnante con esa cédula.");
+        return;
+      }
+      appState.turnantes.push({
+        id: "EMP-" + Date.now().toString().slice(-4),
+        nombre: document.getElementById('e-nombre').value.trim(),
+        documento: doc,
+        telefono: document.getElementById('e-tel').value.trim(),
+        cargo: document.getElementById('e-cargo').value.trim() || "Turnante",
+        valor_hora_efectiva: Number(document.getElementById('e-valor-hora').value) || VALOR_HORA_EFECTIVA,
+        estado: "Activo",
+        fecha_registro: getTodayISO()
+      });
+      closeModal('emp-modal');
+      persistAndSync();
+      showToast("Turnante registrado y sincronizado");
+    }
+
+    function deleteTurnante(id) {
+      if (!confirm("¿Eliminar turnante?")) return;
+      appState.turnantes = appState.turnantes.filter(t => String(t.id) !== String(id));
+      persistAndSync();
+    }
+
+    function liquidarGrupo(idT, ci) {
+      const tg = appState.asistencia.filter(t => String(t.id_turnante) === String(idT) && t.corte_inicio === ci && t.estado_pago === 'PENDIENTE' && t.estado_jornada === 'FINALIZADO');
+      if (tg.length === 0) return;
+      const tot = tg.reduce((s, t) => s + Number(t.valor_total), 0);
+      const th = tg.reduce((s, t) => s + Number(t.horas_efectivas), 0);
+      const cInfo = getCorteInfo(ci);
+      const met = prompt(`Liquidar ${formatCOP(tot)} (${th.toFixed(2)}h) a ${tg[0].nombre_turnante}.\nMétodo:`, "Transferencia / Nequi");
+      if (met === null) return;
+      const idR = "REC-" + Date.now().toString().slice(-6);
+      tg.forEach(t => { t.estado_pago = "PAGADO"; t.id_recibo = idR; });
+      appState.pagos.unshift({
+        id_recibo: idR,
+        fecha_liquidacion: getTodayISO(),
+        corte_semana: cInfo.label,
+        id_turnante: idT,
+        nombre_turnante: tg[0].nombre_turnante,
+        cantidad_turnos: tg.length,
+        total_horas: Number(th.toFixed(2)),
+        total_pagado: tot,
+        metodo_pago: met || "Efectivo",
+        notas: `Pago ${cInfo.pagoLabel}`
+      });
+      persistAndSync();
+      viewReceipt(idR);
+    }
+
+    function viewReceipt(idR) {
+      const p = appState.pagos.find(x => x.id_recibo === idR);
+      if (!p) return;
+      const emp = appState.turnantes.find(e => String(e.id) === String(p.id_turnante));
+      const tr = appState.asistencia.filter(t => t.id_recibo === idR);
+      document.getElementById('rec-id').textContent = `Recibo #${p.id_recibo}`;
+      document.getElementById('rec-emp').textContent = p.nombre_turnante;
+      document.getElementById('rec-doc').textContent = emp ? emp.documento : "N/A";
+      document.getElementById('rec-corte').textContent = p.corte_semana;
+      document.getElementById('rec-fecha').textContent = p.fecha_liquidacion;
+      document.getElementById('rec-total-horas').textContent = `${p.total_horas}h ef.`;
+      document.getElementById('rec-metodo').textContent = `Método: ${p.metodo_pago}`;
+      document.getElementById('rec-total').textContent = formatCOP(p.total_pagado);
+      document.getElementById('rec-items').innerHTML = tr.map(t => `<div class="flex justify-between py-1 border-b border-slate-100"><span>${t.fecha_turno} (${t.hora_ingreso}-${t.hora_salida} | ${Number(t.horas_efectivas).toFixed(2)}h)</span><span class="font-bold">${formatCOP(t.valor_total)}</span></div>`).join('');
+      currentReceiptText = `*COMPROBANTE PAGO TURNANTES*\nRecibo: ${p.id_recibo}\nTurnante: ${p.nombre_turnante}\nCorte: ${p.corte_semana}\nHoras efectivas: ${p.total_horas}h\n*Total Pagado: ${formatCOP(p.total_pagado)}*`;
+      openModal('receipt-modal');
+    }
+
+    function copyWhatsAppReceipt() {
+      navigator.clipboard.writeText(currentReceiptText);
+      showToast("Copiado para WhatsApp");
+    }
+
+    function loadCloudConfigInputs() {
+      document.getElementById('cfg-su-pin').value = cloudConfig.suPin || DEFAULT_SU_PIN;
+      document.getElementById('cfg-emp-nombre').value = cloudConfig.empNombre || DEFAULT_COMPANY.nombre;
+      document.getElementById('cfg-emp-nit').value = cloudConfig.empNit || DEFAULT_COMPANY.nit;
+      document.getElementById('cfg-emp-ciudad').value = cloudConfig.empCiudad || DEFAULT_COMPANY.ciudad;
+      document.getElementById('cfg-api-url').value = cloudConfig.url || DEFAULT_API_URL;
+      document.getElementById('cfg-api-token').value = cloudConfig.token || DEFAULT_API_TOKEN;
+    }
+
+    function updateGlobalSuPin() {
+      const np = document.getElementById('cfg-su-pin').value.trim();
+      if (np.length < 4) { alert("Mínimo 4 dígitos."); return; }
+      cloudConfig.suPin = np;
+      persistAndSync();
+      showToast("PIN global actualizado");
+    }
+
+    function saveCompanyConfig() {
+      cloudConfig.empNombre = document.getElementById('cfg-emp-nombre').value.trim() || DEFAULT_COMPANY.nombre;
+      cloudConfig.empNit = document.getElementById('cfg-emp-nit').value.trim() || DEFAULT_COMPANY.nit;
+      cloudConfig.empCiudad = document.getElementById('cfg-emp-ciudad').value.trim() || DEFAULT_COMPANY.ciudad;
+      persistAndSync();
+      showToast("Datos de empresa actualizados");
+    }
+
+    function saveCloudConfig() {
+      cloudConfig.url = document.getElementById('cfg-api-url').value.trim();
+      cloudConfig.token = document.getElementById('cfg-api-token').value.trim();
+      persistLocal();
+      syncFromGoogleDrive(false);
+    }
+
+    function switchTab(tab) {
+      ['live', 'cortes', 'asistencia', 'turnantes', 'historial', 'config'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+        const b = document.getElementById(`tab-btn-${t}`);
+        b.classList.remove('bg-white', 'text-slate-900', 'shadow-sm');
+        b.classList.add('text-slate-600');
+      });
+      document.getElementById(`view-${tab}`).classList.remove('hidden');
+      const ab = document.getElementById(`tab-btn-${tab}`);
+      ab.classList.add('bg-white', 'text-slate-900', 'shadow-sm');
+      ab.classList.remove('text-slate-600');
+    }
+
+    function openModal(id) { const m = document.getElementById(id); m.classList.remove('hidden'); m.classList.add('flex'); }
+    function closeModal(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); }
+
+    function exportToCSV() {
+      const h = ["ID", "Turnante", "Cedula", "Fecha", "Ingreso", "Alm_Ini", "Alm_Fin", "Salida", "Min_Alm", "Horas_Ef", "Valor_COP", "Corte", "Pago_Martes", "Estado"];
+      const r = appState.asistencia.map(t => [t.id_turno, `"${t.nombre_turnante}"`, t.documento, t.fecha_turno, t.hora_ingreso, t.almuerzo_inicio, t.almuerzo_fin, t.hora_salida, t.minutos_almuerzo, t.horas_efectivas, t.valor_total, t.corte_inicio, t.fecha_pago_martes, t.estado_pago]);
+      const csv = "\uFEFF" + [h.join(","), ...r.map(x => x.join(","))].join("\n");
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+      a.download = `Turnantes_${getTodayISO()}.csv`;
+      a.click();
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.remove('translate-y-20', 'opacity-0');
+      setTimeout(() => t.classList.add('translate-y-20', 'opacity-0'), 3000);
+    }
+
+    detectInitialMode();
+    updateKioskClockAndTimers();
+    setInterval(updateKioskClockAndTimers, 1000);
+    syncFromGoogleDrive(true);
+    setInterval(() => syncFromGoogleDrive(true), 5000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) syncFromGoogleDrive(true); });
+  </script>
+</body>
+</html>
