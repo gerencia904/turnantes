@@ -1,31 +1,31 @@
-<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>TurnoPay | Control de Marcación y Cortes</title><script src="https://cdn.tailwindcss.com"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script><script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script><script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>body{font-family:'Inter',sans-serif}.tabular-nums{font-variant-numeric:tabular-nums}@media print{.no-print{display:none!important}body{background:#fff!important}#print-area{display:block!important;box-shadow:none!important;border:none!important}}</style></head><body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>TurnoPay | Control de Marcación y Cortes</title><script src="https://cdn.tailwindcss.com"></script><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"><style>body{font-family:'Inter',sans-serif}.tabular-nums{font-variant-numeric:tabular-nums}@media print{.no-print{display:none!important}body{background:#fff!important}#print-area{display:block!important;box-shadow:none!important;border:none!important}}</style></head><body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
 
 <!-- KIOSCO MARCACIÓN -->
 <div id="kiosk-shell" class="hidden min-h-screen bg-slate-900 text-white flex flex-col justify-between p-4 sm:p-8">
-<header class="max-w-3xl w-full mx-auto flex items-center justify-between border-b border-slate-800 pb-4"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-extrabold text-xl">T</div><div><h1 class="font-bold text-lg tracking-tight leading-none">TurnoPay <span class="text-emerald-400">Kiosco</span></h1><p class="text-xs text-slate-400 mt-1">Registro Oficial de Asistencia y Almuerzo</p></div></div><div class="flex items-center gap-2 sm:gap-3"><button onclick="syncFromGoogleDrive(false)" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition"><span id="kiosk-sync-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span><span id="kiosk-sync-text">Drive Activo</span></button><button onclick="switchToAdminPrompt()" title="Acceso Super Usuario" class="text-xs text-slate-500 hover:text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 transition">SU</button></div></header>
-<main class="max-w-2xl w-full mx-auto my-auto py-8"><div class="text-center mb-8"><p id="kiosk-date" class="text-sm sm:text-base font-medium text-emerald-400 uppercase tracking-widest mb-1"></p><div id="kiosk-clock" class="text-5xl sm:text-7xl font-extrabold tracking-tight tabular-nums text-white">00:00:00</div></div><div id="kiosk-lookup-card" class="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl"><label for="kiosk-cedula-input" class="block text-sm font-semibold text-slate-300 mb-2 text-center">Digita tu número de cédula para registrar marcación</label><form onsubmit="handleKioskLookup(event)" class="space-y-4"><input type="text" id="kiosk-cedula-input" inputmode="numeric" autocomplete="off" required placeholder="Ej: 1094912345" class="w-full text-center text-2xl sm:text-3xl font-bold tracking-wider bg-slate-900 border-2 border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-4 text-white outline-none transition tabular-nums"/><button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-4 rounded-2xl shadow-lg shadow-emerald-500/20 transition">Continuar</button></form><p id="kiosk-error-msg" class="hidden mt-4 text-center text-sm font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl py-2.5 px-4"></p></div><div id="kiosk-action-card" class="hidden bg-slate-800/90 border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"><div class="flex items-start justify-between border-b border-slate-700 pb-4"><div><span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Turnante Identificado</span><h2 id="kiosk-emp-name" class="text-2xl sm:text-3xl font-extrabold text-white mt-0.5"></h2><p id="kiosk-emp-meta" class="text-sm text-slate-400 mt-0.5"></p></div><button onclick="resetKioskScreen()" class="text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl transition">Cambiar Cédula</button></div><div id="kiosk-status-panel" class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div><span id="kiosk-state-badge" class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full"></span><p id="kiosk-timeline-summary" class="text-xs text-slate-400 mt-2 space-y-0.5"></p></div><div class="text-left sm:text-right"><p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold" id="kiosk-timer-label">Tiempo Efectivo Hoy</p><p id="kiosk-live-timer" class="text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5">00:00:00</p></div></div><div id="kiosk-buttons-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div></div><div id="kiosk-feedback-card" class="hidden mt-4 bg-emerald-500/15 border border-emerald-500/40 rounded-2xl p-5 text-center space-y-2"><p id="kiosk-feedback-title" class="text-lg font-extrabold text-emerald-300"></p><p id="kiosk-feedback-detail" class="text-sm text-slate-200"></p><p class="text-xs text-slate-400 pt-1">Volverá al inicio en <span id="kiosk-countdown" class="font-bold text-white">6</span>s...</p></div></main>
+<header class="max-w-3xl w-full mx-auto flex items-center justify-between border-b border-slate-800 pb-4"><div class="flex items-center gap-3"><div class="w-10 h-10 rounded-xl bg-emerald-500 text-slate-950 flex items-center justify-center font-extrabold text-xl">T</div><div><h1 class="font-bold text-lg tracking-tight leading-none">TurnoPay <span class="text-emerald-400">Kiosco</span></h1><p class="text-xs text-slate-400 mt-1">Registro Oficial de Asistencia y Almuerzo</p></div></div><div class="flex items-center gap-2 sm:gap-3"><button onclick="syncFromGoogleDrive(false)" title="Sincronizar ahora" class="text-xs bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 px-3 py-1.5 rounded-full flex items-center gap-1.5 transition"><span id="kiosk-sync-dot" class="w-2 h-2 rounded-full bg-emerald-400"></span><span id="kiosk-sync-text">Drive Activo</span></button><button onclick="switchToAdminPrompt()" title="Acceso Super Usuario" class="text-xs text-slate-500 hover:text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-800 hover:border-slate-700 transition">SU</button></div></header>
+<main class="max-w-2xl w-full mx-auto my-auto py-8"><div class="text-center mb-8"><p id="kiosk-date" class="text-sm sm:text-base font-medium text-emerald-400 uppercase tracking-widest mb-1"></p><div id="kiosk-clock" class="text-5xl sm:text-7xl font-extrabold tracking-tight tabular-nums text-white">00:00:00</div></div><div id="kiosk-lookup-card" class="bg-slate-800/80 backdrop-blur border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl"><label for="kiosk-cedula-input" class="block text-sm font-semibold text-slate-300 mb-2 text-center">Digita tu número de cédula para registrar marcación</label><form onsubmit="handleKioskLookup(event)" class="space-y-4"><input type="text" id="kiosk-cedula-input" inputmode="numeric" autocomplete="off" required placeholder="Ej: 1094912345" class="w-full text-center text-2xl sm:text-3xl font-bold tracking-wider bg-slate-900 border-2 border-slate-700 focus:border-emerald-500 rounded-2xl px-4 py-4 text-white outline-none transition tabular-nums"/><button type="submit" class="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-4 rounded-2xl shadow-lg shadow-emerald-500/20 transition">Continuar</button></form><p id="kiosk-error-msg" class="hidden mt-4 text-center text-sm font-semibold text-rose-400 bg-rose-500/10 border border-rose-500/30 rounded-xl py-2.5 px-4"></p></div><div id="kiosk-action-card" class="hidden bg-slate-800/90 border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6"><div class="flex items-start justify-between border-b border-slate-700 pb-4"><div><span class="text-xs font-semibold uppercase tracking-wider text-emerald-400">Turnante Identificado</span><h2 id="kiosk-emp-name" class="text-2xl sm:text-3xl font-extrabold text-white mt-0.5"></h2><p id="kiosk-emp-meta" class="text-sm text-slate-400 mt-0.5"></p></div><button onclick="resetKioskScreen()" class="text-xs font-semibold bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-xl transition">Cambiar Cédula</button></div><div id="kiosk-status-panel" class="bg-slate-900/90 border border-slate-700/80 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div><span id="kiosk-state-badge" class="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full"></span><p id="kiosk-timeline-summary" class="text-xs text-slate-400 mt-2 space-y-0.5"></p></div><div class="text-left sm:text-right"><p class="text-[11px] uppercase tracking-wider text-slate-400 font-semibold" id="kiosk-timer-label">Tiempo Efectivo Hoy</p><p id="kiosk-live-timer" class="text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5">00:00:00</p></div></div><div id="kiosk-buttons-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div></div><div id="kiosk-feedback-card" class="hidden mt-4 bg-emerald-500/15 border border-emerald-500/40 rounded-2xl p-5 text-center space-y-2"><p id="kiosk-feedback-title" class="text-lg font-extrabold text-emerald-300"></p><p id="kiosk-feedback-detail" class="text-sm text-slate-200"></p><p class="text-xs text-slate-400 pt-1">Volverá al inicio en <span id="kiosk-countdown" class="font-bold text-white">5</span>s...</p></div></main>
 <footer class="max-w-3xl w-full mx-auto text-center text-xs text-slate-500 border-t border-slate-800 pt-4">Corte semanal: Martes a Lunes • Pagos: Días Martes • Almuerzo no remunerado.</footer>
 </div>
 
 <!-- LOGIN SU -->
-<div id="su-login-shell" class="hidden min-h-screen bg-slate-900 flex items-center justify-center p-4"><div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6"><div class="text-center"><div class="w-12 h-12 rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center font-extrabold text-2xl mx-auto mb-3">SU</div><h1 class="text-xl font-extrabold text-slate-900">Acceso Super Usuario</h1><p class="text-sm text-slate-500 mt-1">Administración global sincronizada en la nube</p></div><form onsubmit="handleSuLogin(event)" class="space-y-4"><div><label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">PIN de Administrador</label><input type="password" id="su-pin-input" inputmode="numeric" required placeholder="••••" class="w-full text-center text-2xl font-bold tracking-[0.5em] border-2 border-slate-200 focus:border-slate-900 rounded-2xl px-4 py-3.5 outline-none"/></div><p id="su-login-error" class="hidden text-xs font-semibold text-rose-600 text-center">PIN incorrecto. Intenta nuevamente.</p><button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-2xl transition">Ingresar al Panel SU</button></form><div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs"><span id="login-cloud-status" class="text-slate-400">Verificando nube...</span><button onclick="activateKioskMode()" class="font-semibold text-emerald-600 hover:text-emerald-700">Ir al Kiosco (Empleados) →</button></div></div></div>
+<div id="su-login-shell" class="hidden min-h-screen bg-slate-900 flex items-center justify-center p-4"><div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl space-y-6"><div class="text-center"><div class="w-12 h-12 rounded-2xl bg-slate-900 text-emerald-400 flex items-center justify-center font-extrabold text-2xl mx-auto mb-3">SU</div><h1 class="text-xl font-extrabold text-slate-900">Acceso Super Usuario</h1><p class="text-sm text-slate-500 mt-1">Administración global sincronizada en tiempo real</p></div><form onsubmit="handleSuLogin(event)" class="space-y-4"><div><label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">PIN de Administrador</label><input type="password" id="su-pin-input" inputmode="numeric" required placeholder="••••" class="w-full text-center text-2xl font-bold tracking-[0.5em] border-2 border-slate-200 focus:border-slate-900 rounded-2xl px-4 py-3.5 outline-none"/></div><p id="su-login-error" class="hidden text-xs font-semibold text-rose-600 text-center">PIN incorrecto. Intenta nuevamente.</p><button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-2xl transition">Ingresar al Panel SU</button></form><div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs"><span id="login-cloud-status" class="text-slate-400">Verificando nube...</span><button onclick="activateKioskMode()" class="font-semibold text-emerald-600 hover:text-emerald-700">Ir al Kiosco (Empleados) →</button></div></div></div>
 
 <!-- PANEL ADMIN SU -->
 <div id="admin-shell" class="hidden">
-<header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md no-print"><div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center font-extrabold text-lg">T</div><div><div class="flex items-center gap-2"><h1 class="font-bold text-base sm:text-lg tracking-tight leading-none">TurnoPay</h1><span class="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">Super Usuario</span></div><p class="text-[11px] text-slate-400 hidden sm:block">7h efectivas = $80.000 ($11.428,57/h) • Corte Mar-Lun</p></div></div><div class="flex items-center gap-2"><button onclick="copyKioskLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition hidden sm:inline">Copiar Link Kiosco</button><button onclick="syncFromGoogleDrive(false)" id="sync-status-btn" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition"><span id="sync-dot" class="w-2 h-2 rounded-full bg-amber-400"></span><span id="sync-label" class="hidden md:inline">Sincronizando...</span></button><button onclick="openTurnoModal()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs sm:text-sm transition shadow-sm">+ Marcaje</button><button onclick="logoutSuperUser()" title="Cerrar Sesión SU" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-2 rounded-lg text-xs transition shadow-sm">Salir SU</button></div></div></header>
+<header class="bg-slate-900 text-white sticky top-0 z-30 shadow-md no-print"><div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2"><div class="flex items-center gap-3"><div class="w-9 h-9 rounded-lg bg-emerald-500 text-slate-950 flex items-center justify-center font-extrabold text-lg">T</div><div><div class="flex items-center gap-2"><h1 class="font-bold text-base sm:text-lg tracking-tight leading-none">TurnoPay</h1><span class="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">Super Usuario</span></div><p class="text-[11px] text-slate-400 hidden sm:block">7h efectivas = $80.000 ($11.428,57/h) • Corte Mar-Lun</p></div></div><div class="flex items-center gap-2"><button onclick="copyKioskLink()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-emerald-400 px-3 py-1.5 rounded-lg text-xs font-semibold transition hidden sm:inline">Copiar Link Kiosco</button><button onclick="syncFromGoogleDrive(false)" id="sync-status-btn" title="Clic para forzar sincronización" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-2 transition"><span id="sync-dot" class="w-2 h-2 rounded-full bg-amber-400"></span><span id="sync-label" class="hidden md:inline">Sincronizando...</span></button><button onclick="openTurnoModal()" class="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-2 rounded-lg text-xs sm:text-sm transition shadow-sm">+ Marcaje</button><button onclick="logoutSuperUser()" title="Cerrar Sesión SU" class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-3 py-2 rounded-lg text-xs transition shadow-sm">Salir SU</button></div></div></header>
 
 <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 no-print">
 <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"><div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">En Turno Ahora</p><p id="kpi-live-count" class="text-2xl font-extrabold text-emerald-600 mt-1 tabular-nums">0</p><p id="kpi-live-sub" class="text-xs text-slate-400 mt-0.5">0 trabajando • 0 en almuerzo</p></div><div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Por Pagar (Próx. Martes)</p><p id="kpi-next-tuesday" class="text-2xl font-extrabold text-slate-900 mt-1 tabular-nums">$0</p><p id="kpi-next-tuesday-date" class="text-xs text-slate-500 mt-0.5">Calculando corte...</p></div><div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Vencido / Hoy Martes</p><p id="kpi-overdue" class="text-2xl font-extrabold text-rose-600 mt-1 tabular-nums">$0</p><p id="kpi-overdue-count" class="text-xs text-rose-600/80 mt-0.5">0 pendientes</p></div><div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"><p class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Pagado Este Mes</p><p id="kpi-paid-month" class="text-2xl font-extrabold text-slate-800 mt-1 tabular-nums">$0</p><p id="kpi-paid-count" class="text-xs text-slate-400 mt-0.5">0 recibos</p></div></section>
 
 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200 pb-3"><div class="flex flex-wrap gap-1.5 bg-slate-200/70 p-1 rounded-xl w-fit"><button onclick="switchTab('live')" id="tab-btn-live" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold bg-white text-slate-900 shadow-sm transition">Monitor en Vivo</button><button onclick="switchTab('cortes')" id="tab-btn-cortes" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Cortes (Mar-Lun)</button><button onclick="switchTab('asistencia')" id="tab-btn-asistencia" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Auditoría</button><button onclick="switchTab('turnantes')" id="tab-btn-turnantes" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Turnantes (<span id="count-turnantes">0</span>)</button><button onclick="switchTab('historial')" id="tab-btn-historial" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Recibos</button><button onclick="switchTab('config')" id="tab-btn-config" class="tab-btn px-3.5 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:text-slate-900 transition">Configuración SU</button></div><button onclick="exportToCSV()" class="text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-200 px-3 py-2 rounded-lg shadow-sm transition self-start sm:self-auto">Exportar CSV</button></div>
 
-<section id="view-live" class="space-y-4"><div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div><h2 class="font-bold text-slate-800 text-base">Jornadas Activas del Día</h2><p class="text-xs text-slate-500">Supervisa en tiempo real quién marcó ingreso, quién está en almuerzo y cuánto lleva acumulado hoy.</p></div><button onclick="activateKioskMode()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition">Cambiar a Pantalla Kiosco</button></div><div id="live-workers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
+<section id="view-live" class="space-y-4"><div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"><div><div class="flex items-center gap-2"><h2 class="font-bold text-slate-800 text-base">Jornadas Activas del Día</h2><span class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> EN VIVO (5s)</span></div><p class="text-xs text-slate-500 mt-0.5">Actualización automática cada 5 segundos desde todos los equipos conectados.</p></div><div class="flex gap-2"><button onclick="syncFromGoogleDrive(false)" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl transition">Actualizar Ya</button><button onclick="activateKioskMode()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition">Cambiar a Pantalla Kiosco</button></div></div><div id="live-workers-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
 
 <section id="view-cortes" class="hidden space-y-5"><div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3"><div class="flex flex-wrap items-center gap-3"><label class="text-xs font-bold uppercase text-slate-500">Semana:</label><select id="filter-corte-semana" onchange="renderCortesView()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold text-slate-800 outline-none"></select><select id="filter-corte-estado" onchange="renderCortesView()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 outline-none"><option value="PENDIENTE">Pendientes</option><option value="TODOS">Todos</option><option value="PAGADO">Pagados</option></select></div><div id="corte-banner-info" class="text-xs font-medium px-3 py-2 rounded-lg bg-slate-100 text-slate-700"></div></div><div id="cortes-cards-container" class="space-y-4"></div></section>
 
 <section id="view-asistencia" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h2 class="font-bold text-slate-800 text-base">Bitácora de Marcaciones</h2><p class="text-xs text-slate-500">Edita horas de ingreso, almuerzo o salida si algún empleado olvidó marcar.</p></div><select id="filter-asist-emp" onchange="renderAsistenciaTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none"><option value="ALL">Todos los turnantes</option></select></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th class="py-3 px-4">Fecha / Turnante</th><th class="py-3 px-4">Ingreso / Salida</th><th class="py-3 px-4">Almuerzo</th><th class="py-3 px-4 text-right">Horas Ef.</th><th class="py-3 px-4 text-right">Valor</th><th class="py-3 px-4">Pago Martes</th><th class="py-3 px-4 text-right">Acciones</th></tr></thead><tbody id="asistencia-tbody" class="divide-y divide-slate-100 text-sm"></tbody></table></div></section>
 
-<section id="view-turnantes" class="hidden space-y-4"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><div><h2 class="font-bold text-slate-800 text-base">Base de Datos de Turnantes</h2><p class="text-xs text-slate-500">Sube varios PDFs o fotos de cédulas a la vez (lee código PDF417 y texto OCR automáticamente).</p></div><div class="flex flex-wrap gap-2"><button onclick="openBulkPdfModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow-xs">Subir Cédulas PDF (Masivo)</button><button onclick="openEmpModal()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg text-xs sm:text-sm transition">+ Registro Manual</button></div></div><div id="turnantes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
+<section id="view-turnantes" class="hidden space-y-4"><div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><div><h2 class="font-bold text-slate-800 text-base">Base de Datos de Turnantes</h2><p class="text-xs text-slate-500">Registra manualmente uno o varios turnantes; quedan activos al instante en todos los equipos.</p></div><div class="flex flex-wrap gap-2"><button onclick="openEmpModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs sm:text-sm transition shadow-xs">+ Nuevo Turnante</button></div></div><div id="turnantes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
 
 <section id="view-historial" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 border-b border-slate-100"><h2 class="font-bold text-slate-800 text-base">Comprobantes Emitidos</h2></div><div class="overflow-x-auto"><table class="w-full text-left border-collapse"><thead><tr class="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase tracking-wider text-slate-500"><th class="py-3 px-4">Recibo</th><th class="py-3 px-4">Fecha</th><th class="py-3 px-4">Corte</th><th class="py-3 px-4">Turnante</th><th class="py-3 px-4 text-right">Horas Ef.</th><th class="py-3 px-4 text-right">Pagado</th><th class="py-3 px-4 text-right">Acción</th></tr></thead><tbody id="historial-tbody" class="divide-y divide-slate-100 text-sm"></tbody></table></div></section>
 
@@ -37,26 +37,22 @@
 <div id="turno-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print"><div class="bg-white rounded-2xl max-w-lg w-full shadow-xl overflow-hidden"><div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between"><h3 id="turno-modal-title" class="font-bold text-base">Registrar / Corregir Marcaje</h3><button onclick="closeModal('turno-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><form onsubmit="saveManualOrEditedTurno(event)" class="p-6 space-y-4"><input type="hidden" id="edit-turno-id"/><div class="grid grid-cols-1 sm:grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Turnante</label><select id="t-emp-id" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white"></select></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Fecha</label><input type="date" id="t-fecha" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div></div><div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200"><div><label class="block text-[11px] font-bold text-slate-600 mb-1">Ingreso</label><input type="time" id="t-ingreso" required onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div><div><label class="block text-[11px] font-bold text-amber-700 mb-1">Sale Alm.</label><input type="time" id="t-alm-ini" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div><div><label class="block text-[11px] font-bold text-amber-700 mb-1">Regresa Alm.</label><input type="time" id="t-alm-fin" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div><div><label class="block text-[11px] font-bold text-slate-600 mb-1">Salida</label><input type="time" id="t-salida" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white"/></div></div><div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs space-y-1"><div class="flex justify-between"><span class="text-slate-600">Almuerzo descontado:</span><strong id="prev-alm-min" class="text-amber-700">0 min</strong></div><div class="flex justify-between"><span class="text-slate-600">Horas efectivas:</span><strong id="prev-horas-ef" class="text-slate-900">0.00 h</strong></div><div class="flex justify-between text-sm pt-1 border-t border-emerald-200/70"><span class="font-bold text-emerald-900">Total ($11.428,57/h):</span><strong id="prev-valor-total" class="text-emerald-700 font-extrabold">$0</strong></div><div class="flex justify-between text-[11px] text-slate-500 pt-0.5"><span>Corte: <strong id="prev-corte">-</strong></span><span>Pago: <strong id="prev-martes">-</strong></span></div></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Observación</label><input type="text" id="t-obs" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal('turno-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button><button type="submit" class="px-5 py-2 text-sm font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-lg">Guardar</button></div></form></div></div>
 
 <!-- MODAL 2: REGISTRO MANUAL DE TURNANTE -->
-<div id="emp-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print"><div class="bg-white rounded-2xl max-w-md w-full shadow-xl overflow-hidden"><div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between"><h3 class="font-bold text-base">Registrar Turnante Manual</h3><button onclick="closeModal('emp-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><form onsubmit="saveTurnante(event)" class="p-6 space-y-4"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo *</label><input type="text" id="e-nombre" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Cédula * (Kiosco)</label><input type="text" id="e-doc" inputmode="numeric" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold"/></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Celular</label><input type="tel" id="e-tel" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Cargo</label><input type="text" id="e-cargo" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Valor Hora Ef. (COP)</label><input type="number" id="e-valor-hora" step="0.01" value="11428.57" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold"/></div></div><div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal('emp-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button><button type="submit" class="px-5 py-2 text-sm font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg">Guardar</button></div></form></div></div>
+<div id="emp-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print"><div class="bg-white rounded-2xl max-w-md w-full shadow-xl overflow-hidden"><div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between"><h3 class="font-bold text-base">Registrar Turnante Manual</h3><button onclick="closeModal('emp-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><form onsubmit="saveTurnante(event)" class="p-6 space-y-4"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Nombre Completo *</label><input type="text" id="e-nombre" required placeholder="Ej: Carlos Pérez" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Cédula * (Clave Kiosco)</label><input type="text" id="e-doc" inputmode="numeric" required placeholder="Ej: 1094912345" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold"/></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Celular</label><input type="tel" id="e-tel" placeholder="300 000 0000" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div></div><div class="grid grid-cols-2 gap-3"><div><label class="block text-xs font-semibold text-slate-700 mb-1">Cargo</label><input type="text" id="e-cargo" placeholder="Operario" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"/></div><div><label class="block text-xs font-semibold text-slate-700 mb-1">Valor Hora Ef. (COP)</label><input type="number" id="e-valor-hora" step="0.01" value="11428.57" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold"/></div></div><div class="flex justify-end gap-2 pt-2"><button type="button" onclick="closeModal('emp-modal')" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button><button type="submit" class="px-5 py-2 text-sm font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-lg">Guardar Turnante</button></div></form></div></div>
 
-<!-- MODAL 3: CARGA MASIVA DE CÉDULAS PDF / IMAGEN -->
-<div id="bulk-pdf-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4 no-print"><div class="bg-white rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"><div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between"><div><h3 class="font-bold text-base">Carga Masiva de Cédulas (PDF o Imagen)</h3><p class="text-[11px] text-slate-400">Doble motor: Lector código de barras PDF417 (alto contraste) + OCR Texto en Español</p></div><button onclick="closeModal('bulk-pdf-modal')" class="text-slate-400 hover:text-white text-xl leading-none">&times;</button></div><div class="p-6 space-y-4 overflow-y-auto"><label for="bulk-files-input" class="border-2 border-dashed border-emerald-400 bg-emerald-50/50 hover:bg-emerald-50 rounded-2xl p-6 text-center cursor-pointer block transition"><p class="text-sm font-extrabold text-emerald-900">Haz clic aquí para seleccionar uno o varios archivos PDF / fotos de cédulas</p><p class="text-xs text-slate-500 mt-1">Soporta cédula amarilla escaneada y cédula digital (.pdf, .jpg, .png)</p><input type="file" id="bulk-files-input" accept=".pdf,image/*" multiple onchange="handleBulkCedulaFiles(event)" class="hidden"/></label><div id="bulk-progress-box" class="hidden bg-slate-100 rounded-xl p-3 text-xs font-semibold text-slate-700 flex items-center justify-between"><span id="bulk-progress-text">Analizando archivos...</span><span id="bulk-progress-count" class="font-mono font-bold text-emerald-700">0/0</span></div><div id="bulk-preview-wrapper" class="hidden space-y-3"><div class="flex items-center justify-between"><h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Turnantes Detectados (Revisa o edita si es necesario)</h4><button onclick="addEmptyBulkRow()" class="text-xs font-semibold text-emerald-700 hover:underline">+ Añadir fila</button></div><div class="overflow-x-auto border border-slate-200 rounded-xl"><table class="w-full text-left border-collapse text-xs"><thead><tr class="bg-slate-50 border-b border-slate-200 font-bold text-slate-600"><th class="py-2 px-3">Archivo / Método</th><th class="py-2 px-3">Nombre Completo *</th><th class="py-2 px-3">Cédula *</th><th class="py-2 px-3">Cargo</th><th class="py-2 px-3">Estado</th><th class="py-2 px-2"></th></tr></thead><tbody id="bulk-preview-tbody" class="divide-y divide-slate-100"></tbody></table></div></div></div><div class="px-6 py-4 bg-slate-100 flex items-center justify-between gap-2 border-t border-slate-200"><span id="bulk-summary-label" class="text-xs text-slate-500">Selecciona los PDFs para comenzar</span><div class="flex gap-2"><button type="button" onclick="closeModal('bulk-pdf-modal')" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-200 rounded-lg">Cancelar</button><button type="button" id="bulk-save-btn" onclick="saveBulkTurnantes()" disabled class="px-5 py-2 text-xs font-bold bg-emerald-600 disabled:bg-slate-300 hover:bg-emerald-700 text-white rounded-lg transition">Registrar Todos en Drive</button></div></div></div></div>
-
-<!-- MODAL 4: COMPROBANTE DE PAGO -->
+<!-- MODAL 3: COMPROBANTE DE PAGO -->
 <div id="receipt-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden items-center justify-center p-4"><div class="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden"><div id="print-area" class="p-6 space-y-4"><div class="text-center border-b border-dashed border-slate-300 pb-4"><span class="inline-block bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase">Comprobante Pago Martes</span><h3 class="text-lg font-extrabold text-slate-900 mt-1">LIQUIDACIÓN SEMANAL</h3><p id="rec-id" class="text-xs font-mono text-slate-500 mt-0.5"></p></div><div class="text-sm space-y-1.5"><div class="flex justify-between"><span class="text-slate-500">Turnante:</span><span id="rec-emp" class="font-bold text-slate-900"></span></div><div class="flex justify-between"><span class="text-slate-500">Cédula:</span><span id="rec-doc" class="font-medium"></span></div><div class="flex justify-between"><span class="text-slate-500">Corte:</span><span id="rec-corte" class="font-semibold text-slate-800"></span></div><div class="flex justify-between"><span class="text-slate-500">Fecha:</span><span id="rec-fecha" class="font-medium"></span></div></div><div class="border-t border-b border-slate-200 py-3"><p class="text-[11px] font-bold uppercase text-slate-400 mb-2">Jornadas Efectivas</p><div id="rec-items" class="space-y-1.5 text-xs max-h-48 overflow-y-auto"></div></div><div class="bg-slate-50 p-3.5 rounded-xl flex items-center justify-between"><div><p class="text-xs text-slate-500">Total (<span id="rec-total-horas"></span>)</p><p id="rec-metodo" class="text-[11px] font-semibold text-slate-600"></p></div><p id="rec-total" class="text-xl font-extrabold text-emerald-600 tabular-nums"></p></div></div><div class="px-6 py-3 bg-slate-100 flex items-center justify-between gap-2 no-print"><button onclick="copyWhatsAppReceipt()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg">Copiar WhatsApp</button><button onclick="window.print()" class="bg-white border border-slate-300 text-slate-700 text-xs font-bold py-2.5 px-3 rounded-lg">Imprimir</button><button onclick="closeModal('receipt-modal')" class="text-slate-500 text-xs font-semibold px-2 py-2">Cerrar</button></div></div></div>
 
 <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white text-xs font-semibold px-4 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 no-print"></div>
 
 <script>
-if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const BASE_VALOR_JORNADA=80000,BASE_HORAS_EFECTIVAS=7,VALOR_HORA_EFECTIVA=BASE_VALOR_JORNADA/BASE_HORAS_EFECTIVAS,DEFAULT_API_URL="https://script.google.com/macros/s/AKfycbxqwAjxiT00G0ioBGPTNVwBtKl-fJP88lX40MsLZTwcYoXDbqn99uCtdjqolcu-6u10/exec",DEFAULT_API_TOKEN="TURNOPAY_2026_SECRETO",DEFAULT_SU_PIN="2026",STORAGE_KEY="turnopay_v3_data",CLOUD_KEY="turnopay_v3_cloud",SU_SESSION_KEY="turnopay_su_unlocked";
+const BASE_VALOR_JORNADA=80000,BASE_HORAS_EFECTIVAS=7,VALOR_HORA_EFECTIVA=BASE_VALOR_JORNADA/BASE_HORAS_EFECTIVAS,DEFAULT_API_URL="https://script.google.com/macros/s/AKfycbxqwAjxiT00G0ioBGPTNVwBtKl-fJP88lX40MsLZTwcYoXDbqn99uCtdjqolcu-6u10/exec",DEFAULT_API_TOKEN="TURNOPAY_2026_SECRETO",DEFAULT_SU_PIN="2026",STORAGE_KEY="turnopay_v4_data",CLOUD_KEY="turnopay_v4_cloud",SU_SESSION_KEY="turnopay_su_unlocked";
 let cloudConfig=JSON.parse(localStorage.getItem(CLOUD_KEY))||{url:DEFAULT_API_URL,token:DEFAULT_API_TOKEN,suPin:DEFAULT_SU_PIN};
-let appState=JSON.parse(localStorage.getItem(STORAGE_KEY))||{turnantes:[{id:"EMP-01",nombre:"Ender",documento:"1094912345",cargo:"Operario Turnante",telefono:"3104558899",valor_hora_efectiva:VALOR_HORA_EFECTIVA,estado:"Activo"}],asistencia:[],pagos:[],config:[{clave:"suPin",valor:cloudConfig.suPin||DEFAULT_SU_PIN,ultima_actualizacion:new Date().toISOString()}]};
-let currentReceiptText="",activeKioskEmp=null,bulkDetectedRows=[];
+let appState=JSON.parse(localStorage.getItem(STORAGE_KEY))||{turnantes:[],asistencia:[],pagos:[],config:[{clave:"suPin",valor:cloudConfig.suPin||DEFAULT_SU_PIN,ultima_actualizacion:new Date().toISOString()}]};
+let currentReceiptText="",activeKioskEmp=null,isPushingToCloud=false,lastPushTimestamp=0;
 
 function getTodayISO(){const n=new Date();return`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`}
 function getCurrentHHMM(){const n=new Date();return`${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}`}
-function timeToMinutes(t){if(!t||!t.includes(':'))return null;const[h,m]=t.split(':').map(Number);return h*60+m}
+function timeToMinutes(t){if(!t||!String(t).includes(':'))return null;const[h,m]=String(t).split(':').map(Number);return h*60+m}
 function calculateJornadaMetrics(i,ai,af,s,vh=VALOR_HORA_EFECTIVA){const mI=timeToMinutes(i),mO=timeToMinutes(s),mAi=timeToMinutes(ai),mAo=timeToMinutes(af);let ma=0;if(mAi!==null&&mAo!==null&&mAo>=mAi)ma=mAo-mAi;if(mI===null||mO===null)return{minutosAlmuerzo:ma,horasEfectivas:0,valorTotal:0};let tb=mO-mI;if(tb<0)tb+=1440;const me=Math.max(0,tb-ma),he=Number((me/60).toFixed(4));return{minutosAlmuerzo:ma,horasEfectivas:he,valorTotal:Math.round(he*Number(vh||VALOR_HORA_EFECTIVA))}}
 function getCorteInfo(ds){const[y,m,d]=ds.split('-').map(Number),dt=new Date(y,m-1,d),diff=(dt.getDay()-2+7)%7,ci=new Date(dt);ci.setDate(dt.getDate()-diff);const cf=new Date(ci);cf.setDate(ci.getDate()+6);const fp=new Date(ci);fp.setDate(ci.getDate()+7);const fmt=x=>`${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`,mo=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],sf=x=>`${x.getDate()} ${mo[x.getMonth()]}`;return{corte_inicio:fmt(ci),corte_fin:fmt(cf),fecha_pago_martes:fmt(fp),label:`Mar ${sf(ci)} - Lun ${sf(cf)}`,pagoLabel:`Martes ${sf(fp)}`}}
 function formatCOP(v){return new Intl.NumberFormat('es-CO',{style:'currency',currency:'COP',maximumFractionDigits:0}).format(v||0)}
@@ -64,355 +60,94 @@ function formatHoursDisplay(h){const hrs=Math.floor(h),mins=Math.round((h-hrs)*6
 function formatDurationHMS(ts){const s=Math.max(0,Math.floor(ts));return`${String(Math.floor(s/3600)).padStart(2,'0')}:${String(Math.floor((s%3600)/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`}
 
 function detectInitialMode(){const p=new URLSearchParams(window.location.search),m=p.get('modo'),path=window.location.pathname.toLowerCase();if(m==='marcacion'||m==='kiosco'||path.endsWith('/marcacion')||path.endsWith('/kiosco'))activateKioskMode(false);else if(sessionStorage.getItem(SU_SESSION_KEY)==='true')activateAdminMode();else showSuLogin()}
-function activateKioskMode(u=true){if(u){const url=new URL(window.location);url.searchParams.set('modo','marcacion');window.history.pushState({},'',url)}document.getElementById('su-login-shell').classList.add('hidden');document.getElementById('admin-shell').classList.add('hidden');document.getElementById('kiosk-shell').classList.remove('hidden');resetKioskScreen()}
+function activateKioskMode(u=true){if(u){const url=new URL(window.location);url.searchParams.set('modo','marcacion');window.history.pushState({},'',url)}document.getElementById('su-login-shell').classList.add('hidden');document.getElementById('admin-shell').classList.add('hidden');document.getElementById('kiosk-shell').classList.remove('hidden');resetKioskScreen();syncFromGoogleDrive(true)}
 function showSuLogin(){document.getElementById('kiosk-shell').classList.add('hidden');document.getElementById('admin-shell').classList.add('hidden');document.getElementById('su-login-shell').classList.remove('hidden');document.getElementById('su-pin-input').value='';document.getElementById('su-pin-input').focus()}
 function logoutSuperUser(){sessionStorage.removeItem(SU_SESSION_KEY);showSuLogin();showToast("Sesión de Super Usuario cerrada")}
 function switchToAdminPrompt(){const url=new URL(window.location);url.searchParams.delete('modo');if(url.pathname.toLowerCase().endsWith('/marcacion')||url.pathname.toLowerCase().endsWith('/kiosco'))url.pathname='/';window.history.pushState({},'',url);sessionStorage.getItem(SU_SESSION_KEY)==='true'?activateAdminMode():showSuLogin()}
 function handleSuLogin(e){e.preventDefault();if(document.getElementById('su-pin-input').value.trim()===String(cloudConfig.suPin||DEFAULT_SU_PIN)){sessionStorage.setItem(SU_SESSION_KEY,'true');document.getElementById('su-login-error').classList.add('hidden');activateAdminMode()}else document.getElementById('su-login-error').classList.remove('hidden')}
-function activateAdminMode(){document.getElementById('kiosk-shell').classList.add('hidden');document.getElementById('su-login-shell').classList.add('hidden');document.getElementById('admin-shell').classList.remove('hidden');loadCloudConfigInputs();renderAllAdmin()}
+function activateAdminMode(){document.getElementById('kiosk-shell').classList.add('hidden');document.getElementById('su-login-shell').classList.add('hidden');document.getElementById('admin-shell').classList.remove('hidden');loadCloudConfigInputs();renderAllAdmin();syncFromGoogleDrive(true)}
 function copyKioskLink(){const url=new URL(window.location.origin);url.searchParams.set('modo','marcacion');navigator.clipboard.writeText(url.toString());showToast("Link del Kiosco copiado")}
 
-/* ========================================================================
-   DOBLE MOTOR DE EXTRACCIÓN DE CÉDULA COLOMBIANA (PDF417 CONTRASTE + OCR)
-======================================================================== */
-function parseColombianCedulaRaw(raw){
-  if(!raw)return null;
-  const clean=raw.replace(/\u0000/g,' ').replace(/[^\x20-\x7EÁÉÍÓÚÑáéíóúñ\n]/g,' ');
-  const tokens=clean.split(/\s+/).filter(Boolean);
-  let cedula="",nameTokens=[];
-  const stopWords=/^(0M|0F|M|F|COL|PUBDSK|AFIS|ICEL|REPUBLICA|DE|COLOMBIA|IDENTIFICACION|PERSONAL|CEDULA|CIUDADANIA|NUMERO|NUIP|APELLIDOS|NOMBRES|FIRMA|FECHA|NACIMIENTO|ESTATURA|GRUPO|SANGUINEO|RH|SEXO|EXPEDICION|REGISTRADOR|NACIONAL|INDICE|DERECHO)$/i;
-
-  // 1. Análisis de cadena PDF417 (PubDSK / AFIS)
-  const pubIdx=tokens.findIndex(t=>/PubDSK|AFIS|ICEL/i.test(t));
-  const searchPool=pubIdx!==-1?tokens.slice(pubIdx):tokens;
-  for(let i=0;i<searchPool.length;i++){
-    const tk=searchPool[i];
-    const glued=tk.match(/^0*(\d{6,10})([A-ZÁÉÍÓÚÑ]{2,})$/);
-    if(glued){
-      cedula=glued[1];
-      nameTokens.push(glued[2]);
-      for(let j=i+1;j<Math.min(i+6,searchPool.length);j++){
-        if(/^[A-ZÁÉÍÓÚÑ]{2,}$/.test(searchPool[j])&&!stopWords.test(searchPool[j]))nameTokens.push(searchPool[j]);
-        else if(nameTokens.length>=2)break;
-      }
-      break;
-    }
-    const pureNum=tk.match(/^0*(\d{6,10})$/);
-    if(pureNum&&i+2<searchPool.length&&/^[A-ZÁÉÍÓÚÑ]{2,}$/.test(searchPool[i+1])&&!stopWords.test(searchPool[i+1])){
-      cedula=pureNum[1];
-      for(let j=i+1;j<Math.min(i+6,searchPool.length);j++){
-        if(/^[A-ZÁÉÍÓÚÑ]{2,}$/.test(searchPool[j])&&!stopWords.test(searchPool[j]))nameTokens.push(searchPool[j]);
-        else break;
-      }
-      break;
-    }
-  }
-
-  // 2. Análisis de texto OCR frontal de la cédula
-  if(!cedula){
-    const numMatch=clean.match(/(?:N[UÚ]MERO|NUIP|C\.?C\.?)\s*[:.]?\s*([\d.\s]{6,15})/i);
-    if(numMatch){
-      const digits=numMatch[1].replace(/\D/g,'');
-      if(digits.length>=6&&digits.length<=11)cedula=digits;
-    }
-    if(!cedula){
-      const dotted=clean.match(/\b(\d{1,3}\.\d{3}\.\d{3}|\d{7,10})\b/);
-      if(dotted)cedula=dotted[1].replace(/\./g,'');
-    }
-  }
-
-  let nombre="";
-  if(nameTokens.length>=3){
-    // En PDF417 vienen APELLIDO1 APELLIDO2 NOMBRE1 NOMBRE2
-    nombre=`${nameTokens.slice(2).join(' ')} ${nameTokens.slice(0,2).join(' ')}`;
-  }else if(nameTokens.length>0){
-    nombre=nameTokens.join(' ');
-  }else{
-    // Buscar líneas cercanas a APELLIDOS y NOMBRES en OCR
-    const lines=clean.split(/\n+/).map(l=>l.trim()).filter(Boolean);
-    let ap="",nom="";
-    for(let i=0;i<lines.length;i++){
-      if(/APELLIDOS/i.test(lines[i])){
-        const same=lines[i].replace(/.*APELLIDOS\s*[:.]?\s*/i,'').trim();
-        ap=(same.length>2?same:(lines[i+1]||'')) .replace(/[^A-ZÁÉÍÓÚÑ\s]/gi,'').trim();
-      }
-      if(/NOMBRES/i.test(lines[i])){
-        const same=lines[i].replace(/.*NOMBRES\s*[:.]?\s*/i,'').trim();
-        nom=(same.length>2?same:(lines[i+1]||'')).replace(/[^A-ZÁÉÍÓÚÑ\s]/gi,'').trim();
-      }
-    }
-    if(nom||ap)nombre=`${nom} ${ap}`.trim();
-  }
-
-  nombre=nombre.replace(/\s+/g,' ').toLowerCase().replace(/\b\w/g,l=>l.toUpperCase()).trim();
-  return(cedula||nombre)?{cedula,nombre}:null;
-}
-
-function createHighContrastCanvas(srcCanvas,threshold=135){
-  const c=document.createElement('canvas');
-  c.width=srcCanvas.width;c.height=srcCanvas.height;
-  const ctx=c.getContext('2d');
-  ctx.drawImage(srcCanvas,0,0);
-  const imgData=ctx.getImageData(0,0,c.width,c.height),d=imgData.data;
-  for(let i=0;i<d.length;i+=4){
-    const gray=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-    const v=gray>threshold?255:0;
-    d[i]=d[i+1]=d[i+2]=v;
-  }
-  ctx.putImageData(imgData,0,0);
-  return c;
-}
-
-function cropCanvasRegion(srcCanvas,xRatio,yRatio,wRatio,hRatio){
-  const c=document.createElement('canvas');
-  const sx=Math.floor(srcCanvas.width*xRatio),sy=Math.floor(srcCanvas.height*yRatio);
-  const sw=Math.floor(srcCanvas.width*wRatio),sh=Math.floor(srcCanvas.height*hRatio);
-  c.width=sw;c.height=sh;
-  c.getContext('2d').drawImage(srcCanvas,sx,sy,sw,sh,0,0,sw,sh);
-  return c;
-}
-
-async function decodeBarcodeMultiPass(baseCanvas){
-  if(!window.ZXing)return null;
-  const hints=new Map();
-  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS,[ZXing.BarcodeFormat.PDF_417]);
-  hints.set(ZXing.DecodeHintType.TRY_HARDER,true);
-  const reader=new ZXing.MultiFormatReader();
-  reader.setHints(hints);
-
-  // Probar hoja completa, mitad inferior y mitad superior, con imagen original y alto contraste
-  const regions=[
-    baseCanvas,
-    cropCanvasRegion(baseCanvas,0,0.4,1,0.6),
-    cropCanvasRegion(baseCanvas,0,0,1,0.6)
-  ];
-  const variants=[];
-  regions.forEach(reg=>{
-    variants.push(reg);
-    variants.push(createHighContrastCanvas(reg,125));
-    variants.push(createHighContrastCanvas(reg,165));
-  });
-
-  for(const variant of variants){
-    for(const deg of [0,90,180,270]){
-      const c=document.createElement('canvas');
-      const ctx=c.getContext('2d');
-      if(deg===90||deg===270){c.width=variant.height;c.height=variant.width}else{c.width=variant.width;c.height=variant.height}
-      ctx.translate(c.width/2,c.height/2);
-      ctx.rotate(deg*Math.PI/180);
-      ctx.drawImage(variant,-variant.width/2,-variant.height/2);
-      try{
-        const lum=new ZXing.HTMLCanvasElementLuminanceSource(c);
-        const bin=new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
-        const res=reader.decode(bin);
-        if(res&&res.getText())return res.getText();
-      }catch(e){}
-    }
-  }
-  return null;
-}
-
-async function runOcrOnCanvas(canvas){
-  if(!window.Tesseract)return "";
-  try{
-    const res=await Tesseract.recognize(canvas,'spa');
-    return res?.data?.text||"";
-  }catch(e){return ""}
-}
-
-async function extractCedulaFromFile(file,onStage){
-  const canvases=[];
-  let embeddedText="";
-
-  if(file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf')){
-    const buf=await file.arrayBuffer();
-    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
-    for(let p=1;p<=pdf.numPages;p++){
-      const page=await pdf.getPage(p);
-      const tc=await page.getTextContent();
-      embeddedText+="\n"+tc.items.map(it=>it.str).join(' ');
-      const vp=page.getViewport({scale:3.2});
-      const canvas=document.createElement('canvas');
-      canvas.width=vp.width;canvas.height=vp.height;
-      await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
-      canvases.push(canvas);
-    }
-  }else{
-    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(file)});
-    const canvas=document.createElement('canvas');
-    const scale=img.width<1400?2:1;
-    canvas.width=img.width*scale;canvas.height=img.height*scale;
-    canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-    canvases.push(canvas);
-  }
-
-  // Paso 1: Intentar leer código de barras PDF417 en todas las páginas
-  if(onStage)onStage("Buscando código PDF417...");
-  for(const c of canvases){
-    const rawBarcode=await decodeBarcodeMultiPass(c);
-    if(rawBarcode){
-      const parsed=parseColombianCedulaRaw(rawBarcode);
-      if(parsed&&(parsed.cedula||parsed.nombre))return{...parsed,source:'PDF417'};
-    }
-  }
-
-  // Paso 2: Intentar texto embebido del PDF
-  if(embeddedText.trim().length>15){
-    const parsedTxt=parseColombianCedulaRaw(embeddedText);
-    if(parsedTxt&&parsedTxt.cedula&&parsedTxt.nombre)return{...parsedTxt,source:'PDF Texto'};
-  }
-
-  // Paso 3: Motor OCR visual en Español sobre la imagen escaneada
-  if(onStage)onStage("Ejecutando lectura OCR...");
-  let ocrFullText="";
-  for(const c of canvases){
-    ocrFullText+="\n"+await runOcrOnCanvas(c);
-  }
-  const parsedOcr=parseColombianCedulaRaw(ocrFullText);
-  if(parsedOcr&&(parsedOcr.cedula||parsedOcr.nombre))return{...parsedOcr,source:'OCR Visual'};
-
-  return{cedula:'',nombre:file.name.replace(/\.[^.]+$/,'').replace(/[_-]/g,' '),source:'Manual'};
-}
-
-function openBulkPdfModal(){
-  bulkDetectedRows=[];
-  document.getElementById('bulk-files-input').value='';
-  document.getElementById('bulk-progress-box').classList.add('hidden');
-  document.getElementById('bulk-preview-wrapper').classList.add('hidden');
-  document.getElementById('bulk-save-btn').disabled=true;
-  document.getElementById('bulk-summary-label').textContent='Selecciona uno o varios PDFs para comenzar';
-  openModal('bulk-pdf-modal');
-}
-
-async function handleBulkCedulaFiles(e){
-  const files=Array.from(e.target.files||[]);
-  if(files.length===0)return;
-  const pBox=document.getElementById('bulk-progress-box');
-  const pText=document.getElementById('bulk-progress-text');
-  const pCount=document.getElementById('bulk-progress-count');
-  pBox.classList.remove('hidden');
-  bulkDetectedRows=[];
-
-  for(let i=0;i<files.length;i++){
-    pCount.textContent=`${i+1}/${files.length}`;
-    try{
-      const info=await extractCedulaFromFile(files[i],(stage)=>{
-        pText.textContent=`${files[i].name}: ${stage}`;
-      });
-      const exists=info.cedula&&appState.turnantes.some(t=>String(t.documento).trim()===String(info.cedula).trim());
-      bulkDetectedRows.push({
-        fileName:files[i].name,
-        source:info.source,
-        nombre:info.nombre||'',
-        cedula:info.cedula||'',
-        cargo:'Turnante',
-        status:exists?'DUPLICADA':(info.cedula&&info.nombre?'OK':'REVISAR')
-      });
-    }catch(err){
-      bulkDetectedRows.push({fileName:files[i].name,source:'Error',nombre:'',cedula:'',cargo:'Turnante',status:'REVISAR'});
-    }
-    renderBulkPreviewTable();
-  }
-  pText.textContent='Análisis completado';
-}
-
-function addEmptyBulkRow(){
-  bulkDetectedRows.push({fileName:'Manual',source:'Manual',nombre:'',cedula:'',cargo:'Turnante',status:'REVISAR'});
-  renderBulkPreviewTable();
-}
-
-function removeBulkRow(idx){
-  bulkDetectedRows.splice(idx,1);
-  renderBulkPreviewTable();
-}
-
-function renderBulkPreviewTable(){
-  const wrap=document.getElementById('bulk-preview-wrapper');
-  const tbody=document.getElementById('bulk-preview-tbody');
-  const saveBtn=document.getElementById('bulk-save-btn');
-  wrap.classList.remove('hidden');
-
-  if(bulkDetectedRows.length===0){
-    tbody.innerHTML=`<tr><td colspan="6" class="py-6 text-center text-slate-400">Sin filas cargadas.</td></tr>`;
-    saveBtn.disabled=true;
-    return;
-  }
-
-  tbody.innerHTML=bulkDetectedRows.map((r,idx)=>{
-    const isDup=r.cedula&&appState.turnantes.some(t=>String(t.documento).trim()===String(r.cedula).trim());
-    const badge=isDup
-      ?`<span class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">Ya existe</span>`
-      :(r.nombre&&r.cedula
-        ?`<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Listo</span>`
-        :`<span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-bold">Completar</span>`);
-    return`<tr class="hover:bg-slate-50">
-      <td class="py-2 px-3 max-w-[150px]"><p class="truncate text-slate-700 font-medium" title="${r.fileName}">${r.fileName}</p><span class="text-[10px] font-bold text-slate-400">${r.source||''}</span></td>
-      <td class="py-2 px-3"><input type="text" value="${r.nombre}" oninput="bulkDetectedRows[${idx}].nombre=this.value;updateBulkSummary()" placeholder="Nombre Completo" class="w-full border border-slate-300 rounded px-2 py-1 font-semibold text-slate-900"/></td>
-      <td class="py-2 px-3"><input type="text" value="${r.cedula}" oninput="bulkDetectedRows[${idx}].cedula=this.value.trim();renderBulkPreviewTable()" placeholder="Cédula" class="w-32 border border-slate-300 rounded px-2 py-1 font-mono font-bold"/></td>
-      <td class="py-2 px-3"><input type="text" value="${r.cargo}" oninput="bulkDetectedRows[${idx}].cargo=this.value" class="w-28 border border-slate-300 rounded px-2 py-1"/></td>
-      <td class="py-2 px-3">${badge}</td>
-      <td class="py-2 px-2 text-right"><button onclick="removeBulkRow(${idx})" class="text-rose-500 hover:underline font-bold">✕</button></td>
-    </tr>`;
-  }).join('');
-  updateBulkSummary();
-}
-
-function updateBulkSummary(){
-  const valid=bulkDetectedRows.filter(r=>r.nombre.trim()&&r.cedula.trim()&&!appState.turnantes.some(t=>String(t.documento).trim()===String(r.cedula).trim()));
-  document.getElementById('bulk-save-btn').disabled=valid.length===0;
-  document.getElementById('bulk-summary-label').textContent=`${valid.length} turnante(s) nuevos listos para registrar`;
-}
-
-function saveBulkTurnantes(){
-  const seenDocs=new Set(appState.turnantes.map(t=>String(t.documento).trim()));
-  let added=0;
-  bulkDetectedRows.forEach((r,idx)=>{
-    const nom=r.nombre.trim(),doc=r.cedula.trim();
-    if(nom&&doc&&!seenDocs.has(doc)){
-      seenDocs.add(doc);
-      appState.turnantes.push({
-        id:"EMP-"+(Date.now()+idx).toString().slice(-5),
-        nombre:nom,
-        documento:doc,
-        telefono:"",
-        cargo:r.cargo.trim()||"Turnante",
-        valor_hora_efectiva:VALOR_HORA_EFECTIVA,
-        estado:"Activo",
-        fecha_registro:getTodayISO()
-      });
-      added++;
-    }
-  });
-  if(added>0){
-    closeModal('bulk-pdf-modal');
-    persistAndSync();
-    showToast(`${added} turnante(s) registrados y sincronizados con Drive`);
-  }
-}
-
-/* ========================================================================
-   KIOSCO, SINCRONIZACIÓN Y VISTAS SUPER USUARIO
-======================================================================== */
+/* KIOSCO */
 function updateKioskClockAndTimers(){const now=new Date(),dEl=document.getElementById('kiosk-date'),cEl=document.getElementById('kiosk-clock');if(dEl&&cEl){dEl.textContent=now.toLocaleDateString('es-CO',{weekday:'long',year:'numeric',month:'long',day:'numeric'});cEl.textContent=now.toLocaleTimeString('es-CO',{hour12:false})}if(activeKioskEmp){const today=getTodayISO(),openShift=appState.asistencia.find(t=>String(t.id_turnante)===String(activeKioskEmp.id)&&t.fecha_turno===today&&t.estado_jornada!=='FINALIZADO');updateKioskTimerDisplay(openShift)}if(!document.getElementById('admin-shell').classList.contains('hidden'))renderLiveMonitor()}
-function handleKioskLookup(e){e.preventDefault();const doc=document.getElementById('kiosk-cedula-input').value.trim(),err=document.getElementById('kiosk-error-msg'),emp=appState.turnantes.find(t=>String(t.documento).trim()===doc&&t.estado!=='Inactivo');if(!emp){err.textContent=`No se encontró turnante activo con cédula "${doc}".`;err.classList.remove('hidden');return}err.classList.add('hidden');activeKioskEmp=emp;renderKioskEmployeePanel()}
+async function handleKioskLookup(e){e.preventDefault();const doc=document.getElementById('kiosk-cedula-input').value.trim(),err=document.getElementById('kiosk-error-msg');let emp=appState.turnantes.find(t=>String(t.documento).trim()===doc&&t.estado!=='Inactivo');if(!emp){await syncFromGoogleDrive(true);emp=appState.turnantes.find(t=>String(t.documento).trim()===doc&&t.estado!=='Inactivo')}if(!emp){err.textContent=`No se encontró turnante activo con cédula "${doc}".`;err.classList.remove('hidden');return}err.classList.add('hidden');activeKioskEmp=emp;renderKioskEmployeePanel()}
 function renderKioskEmployeePanel(){if(!activeKioskEmp)return;document.getElementById('kiosk-lookup-card').classList.add('hidden');document.getElementById('kiosk-feedback-card').classList.add('hidden');document.getElementById('kiosk-action-card').classList.remove('hidden');document.getElementById('kiosk-emp-name').textContent=activeKioskEmp.nombre;document.getElementById('kiosk-emp-meta').textContent=`CC ${activeKioskEmp.documento} • ${activeKioskEmp.cargo||'Turnante'}`;const today=getTodayISO(),shift=appState.asistencia.find(t=>String(t.id_turnante)===String(activeKioskEmp.id)&&t.fecha_turno===today&&t.estado_jornada!=='FINALIZADO'),badge=document.getElementById('kiosk-state-badge'),tl=document.getElementById('kiosk-timeline-summary'),btns=document.getElementById('kiosk-buttons-grid');if(!shift){badge.className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-slate-700 text-slate-200";badge.innerHTML=`<span class="w-2 h-2 rounded-full bg-slate-400"></span> Sin turno hoy`;tl.innerHTML=`Listo para registrar entrada.`;btns.innerHTML=`<button onclick="executeKioskPunch('INGRESO')" class="sm:col-span-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-lg py-5 rounded-2xl shadow-lg transition">Registrar Ingreso (${getCurrentHHMM()})</button>`}else if(shift.estado_jornada==='TRABAJANDO'){badge.className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";badge.innerHTML=`<span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> En Turno`;let l=[`Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong>`];if(shift.almuerzo_inicio&&shift.almuerzo_fin)l.push(`Almuerzo: <strong class="text-amber-300">${shift.almuerzo_inicio}-${shift.almuerzo_fin}</strong> (${shift.minutos_almuerzo}m)`);tl.innerHTML=l.join(' • ');btns.innerHTML=`${!shift.almuerzo_inicio?`<button onclick="executeKioskPunch('ALMUERZO_INICIO')" class="bg-amber-400 hover:bg-amber-300 text-slate-950 font-extrabold text-base py-4 px-4 rounded-2xl shadow-lg transition">Salir a Almuerzo<span class="block text-xs font-semibold opacity-80">Pausa pago</span></button>`:`<div class="bg-slate-900/60 border border-slate-700 rounded-2xl p-4 flex items-center justify-center text-xs text-slate-400">Almuerzo registrado</div>`}<button onclick="executeKioskPunch('SALIDA')" class="bg-rose-500 hover:bg-rose-400 text-white font-extrabold text-base py-4 px-4 rounded-2xl shadow-lg transition">Finalizar Turno<span class="block text-xs font-semibold opacity-90">Marcar Salida</span></button>`}else if(shift.estado_jornada==='EN_ALMUERZO'){badge.className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30";badge.innerHTML=`<span class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span> En Almuerzo`;tl.innerHTML=`Ingreso: <strong class="text-white">${shift.hora_ingreso}</strong> • Almuerzo: <strong class="text-amber-300">${shift.almuerzo_inicio}</strong>`;btns.innerHTML=`<button onclick="executeKioskPunch('ALMUERZO_FIN')" class="sm:col-span-2 bg-sky-400 hover:bg-sky-300 text-slate-950 font-extrabold text-lg py-5 rounded-2xl shadow-lg transition">Regresar de Almuerzo (${getCurrentHHMM()})</button>`}updateKioskTimerDisplay(shift)}
 function updateKioskTimerDisplay(shift){const tEl=document.getElementById('kiosk-live-timer'),lEl=document.getElementById('kiosk-timer-label');if(!tEl)return;if(!shift){lEl.textContent="Tiempo Efectivo Hoy";tEl.textContent="00:00:00";tEl.className="text-3xl font-extrabold tabular-nums text-slate-500 mt-0.5";return}const now=new Date(),nowS=now.getHours()*3600+now.getMinutes()*60+now.getSeconds(),inS=timeToMinutes(shift.hora_ingreso)*60;if(shift.estado_jornada==='EN_ALMUERZO'){lEl.textContent="Tiempo en Almuerzo";tEl.textContent=formatDurationHMS(Math.max(0,nowS-timeToMinutes(shift.almuerzo_inicio)*60));tEl.className="text-3xl font-extrabold tabular-nums text-amber-400 mt-0.5"}else{lEl.textContent="Tiempo Efectivo";tEl.textContent=formatDurationHMS(Math.max(0,nowS-inS-(Number(shift.minutos_almuerzo)||0)*60));tEl.className="text-3xl font-extrabold tabular-nums text-emerald-400 mt-0.5"}}
-function executeKioskPunch(act){if(!activeKioskEmp)return;const today=getTodayISO(),nowT=getCurrentHHMM();let shift=appState.asistencia.find(t=>String(t.id_turnante)===String(activeKioskEmp.id)&&t.fecha_turno===today&&t.estado_jornada!=='FINALIZADO'),ft="",fd="";if(act==='INGRESO'){const c=getCorteInfo(today);shift={id_turno:"TRN-"+Date.now(),id_turnante:activeKioskEmp.id,documento:activeKioskEmp.documento,nombre_turnante:activeKioskEmp.nombre,fecha_turno:today,hora_ingreso:nowT,almuerzo_inicio:"",almuerzo_fin:"",hora_salida:"",minutos_almuerzo:0,horas_efectivas:0,valor_total:0,corte_inicio:c.corte_inicio,corte_fin:c.corte_fin,fecha_pago_martes:c.fecha_pago_martes,estado_jornada:"TRABAJANDO",estado_pago:"PENDIENTE",id_recibo:"",observaciones:"Marcación Kiosco"};appState.asistencia.unshift(shift);ft=`Ingreso: ${nowT}`;fd=`Buen turno, ${activeKioskEmp.nombre}.`}else if(act==='ALMUERZO_INICIO'&&shift){shift.almuerzo_inicio=nowT;shift.estado_jornada="EN_ALMUERZO";ft=`Salida a Almuerzo: ${nowT}`;fd=`Tiempo remunerado pausado.`}else if(act==='ALMUERZO_FIN'&&shift){shift.almuerzo_fin=nowT;shift.minutos_almuerzo=Math.max(0,timeToMinutes(nowT)-timeToMinutes(shift.almuerzo_inicio));shift.estado_jornada="TRABAJANDO";ft=`Regreso Almuerzo: ${nowT}`;fd=`Almuerzo descontado: ${shift.minutos_almuerzo} min.`}else if(act==='SALIDA'&&shift){if(shift.almuerzo_inicio&&!shift.almuerzo_fin)shift.almuerzo_fin=nowT;shift.hora_salida=nowT;const m=calculateJornadaMetrics(shift.hora_ingreso,shift.almuerzo_inicio,shift.almuerzo_fin,shift.hora_salida,activeKioskEmp.valor_hora_efectiva||VALOR_HORA_EFECTIVA);shift.minutos_almuerzo=m.minutosAlmuerzo;shift.horas_efectivas=m.horasEfectivas;shift.valor_total=m.valorTotal;shift.estado_jornada="FINALIZADO";ft=`Turno Finalizado: ${nowT}`;fd=`Efectivo: ${formatHoursDisplay(shift.horas_efectivas)} • Pago: ${getCorteInfo(today).pagoLabel}.`}persistAndSync();document.getElementById('kiosk-action-card').classList.add('hidden');const fb=document.getElementById('kiosk-feedback-card');document.getElementById('kiosk-feedback-title').textContent=ft;document.getElementById('kiosk-feedback-detail').textContent=fd;fb.classList.remove('hidden');let s=6;document.getElementById('kiosk-countdown').textContent=s;clearInterval(window._kioskCD);window._kioskCD=setInterval(()=>{s--;document.getElementById('kiosk-countdown').textContent=Math.max(0,s);if(s<=0){clearInterval(window._kioskCD);resetKioskScreen()}},1000)}
+async function executeKioskPunch(act){if(!activeKioskEmp)return;const today=getTodayISO(),nowT=getCurrentHHMM();let shift=appState.asistencia.find(t=>String(t.id_turnante)===String(activeKioskEmp.id)&&t.fecha_turno===today&&t.estado_jornada!=='FINALIZADO'),ft="",fd="";if(act==='INGRESO'){const c=getCorteInfo(today);shift={id_turno:"TRN-"+Date.now(),id_turnante:activeKioskEmp.id,documento:activeKioskEmp.documento,nombre_turnante:activeKioskEmp.nombre,fecha_turno:today,hora_ingreso:nowT,almuerzo_inicio:"",almuerzo_fin:"",hora_salida:"",minutos_almuerzo:0,horas_efectivas:0,valor_total:0,corte_inicio:c.corte_inicio,corte_fin:c.corte_fin,fecha_pago_martes:c.fecha_pago_martes,estado_jornada:"TRABAJANDO",estado_pago:"PENDIENTE",id_recibo:"",observaciones:"Marcación Kiosco"};appState.asistencia.unshift(shift);ft=`Ingreso: ${nowT}`;fd=`Buen turno, ${activeKioskEmp.nombre}.`}else if(act==='ALMUERZO_INICIO'&&shift){shift.almuerzo_inicio=nowT;shift.estado_jornada="EN_ALMUERZO";ft=`Salida a Almuerzo: ${nowT}`;fd=`Tiempo remunerado pausado.`}else if(act==='ALMUERZO_FIN'&&shift){shift.almuerzo_fin=nowT;shift.minutos_almuerzo=Math.max(0,timeToMinutes(nowT)-timeToMinutes(shift.almuerzo_inicio));shift.estado_jornada="TRABAJANDO";ft=`Regreso Almuerzo: ${nowT}`;fd=`Almuerzo descontado: ${shift.minutos_almuerzo} min.`}else if(act==='SALIDA'&&shift){if(shift.almuerzo_inicio&&!shift.almuerzo_fin)shift.almuerzo_fin=nowT;shift.hora_salida=nowT;const m=calculateJornadaMetrics(shift.hora_ingreso,shift.almuerzo_inicio,shift.almuerzo_fin,shift.hora_salida,activeKioskEmp.valor_hora_efectiva||VALOR_HORA_EFECTIVA);shift.minutos_almuerzo=m.minutosAlmuerzo;shift.horas_efectivas=m.horasEfectivas;shift.valor_total=m.valorTotal;shift.estado_jornada="FINALIZADO";ft=`Turno Finalizado: ${nowT}`;fd=`Efectivo: ${formatHoursDisplay(shift.horas_efectivas)} • Pago: ${getCorteInfo(today).pagoLabel}.`}persistAndSync();document.getElementById('kiosk-action-card').classList.add('hidden');const fb=document.getElementById('kiosk-feedback-card');document.getElementById('kiosk-feedback-title').textContent=ft;document.getElementById('kiosk-feedback-detail').textContent=fd;fb.classList.remove('hidden');let s=5;document.getElementById('kiosk-countdown').textContent=s;clearInterval(window._kioskCD);window._kioskCD=setInterval(()=>{s--;document.getElementById('kiosk-countdown').textContent=Math.max(0,s);if(s<=0){clearInterval(window._kioskCD);resetKioskScreen()}},1000)}
 function resetKioskScreen(){activeKioskEmp=null;clearInterval(window._kioskCD);['kiosk-action-card','kiosk-feedback-card','kiosk-error-msg'].forEach(id=>document.getElementById(id).classList.add('hidden'));document.getElementById('kiosk-lookup-card').classList.remove('hidden');const i=document.getElementById('kiosk-cedula-input');i.value='';i.focus()}
 
+/* SINCRONIZACIÓN ROBUSTA MULTI-DISPOSITIVO */
 function persistLocal(){localStorage.setItem(STORAGE_KEY,JSON.stringify(appState));localStorage.setItem(CLOUD_KEY,JSON.stringify(cloudConfig))}
 function persistAndSync(){persistLocal();if(!document.getElementById('admin-shell').classList.contains('hidden'))renderAllAdmin();pushAllToGoogleDrive(true)}
-function setSyncStatus(st,tx){const d=document.getElementById('sync-dot'),l=document.getElementById('sync-label'),kd=document.getElementById('kiosk-sync-dot'),kt=document.getElementById('kiosk-sync-text'),ls=document.getElementById('login-cloud-status');if(d&&l){const c={ok:'bg-emerald-400',syncing:'bg-amber-400 animate-pulse',error:'bg-rose-500'};d.className=`w-2 h-2 rounded-full ${c[st]||'bg-slate-400'}`;l.textContent=tx}if(kd&&kt){kd.className=`w-2 h-2 rounded-full ${st==='error'?'bg-rose-400':(st==='syncing'?'bg-amber-400 animate-pulse':'bg-emerald-400')}`;kt.textContent=st==='error'?'Modo Local':(st==='syncing'?'Sincronizando...':'Drive Activo')}if(ls)ls.textContent=st==='ok'?'● Nube sincronizada':(st==='syncing'?'● Conectando...':'● Sin conexión')}
-async function syncFromGoogleDrive(silent=false){if(!cloudConfig.url)return;setSyncStatus('syncing','Sincronizando...');try{const res=await fetch(`${cloudConfig.url}?token=${encodeURIComponent(cloudConfig.token)}&t=${Date.now()}`),json=await res.json();if(json.status==='ok'&&json.data){if(Array.isArray(json.data.turnantes)&&json.data.turnantes.length>0)appState.turnantes=json.data.turnantes.map(t=>({...t,valor_hora_efectiva:Number(t.valor_hora_efectiva||t.valor_hora||VALOR_HORA_EFECTIVA)}));if(Array.isArray(json.data.asistencia))appState.asistencia=json.data.asistencia.map(a=>({...a,minutos_almuerzo:Number(a.minutos_almuerzo||0),horas_efectivas:Number(a.horas_efectivas||a.horas||0),valor_total:Number(a.valor_total||0),estado_jornada:a.estado_jornada||'FINALIZADO'}));if(Array.isArray(json.data.pagos))appState.pagos=json.data.pagos.map(p=>({...p,cantidad_turnos:Number(p.cantidad_turnos||0),total_horas:Number(p.total_horas||0),total_pagado:Number(p.total_pagado||0)}));if(Array.isArray(json.data.config)&&json.data.config.length>0){appState.config=json.data.config;const rPin=json.data.config.find(c=>c.clave==='suPin');if(rPin&&rPin.valor)cloudConfig.suPin=String(rPin.valor).trim()}persistLocal();if(!document.getElementById('admin-shell').classList.contains('hidden')){loadCloudConfigInputs();renderAllAdmin()}setSyncStatus('ok','Drive Sincronizado');if(!silent)showToast("Sincronizado desde Google Drive")}else setSyncStatus('error','Error Token')}catch(e){setSyncStatus('error','Sin conexión')}}
-async function pushAllToGoogleDrive(silent=false){if(!cloudConfig.url)return;setSyncStatus('syncing','Guardando...');try{appState.config=[{clave:"suPin",valor:String(cloudConfig.suPin||DEFAULT_SU_PIN),ultima_actualizacion:new Date().toISOString()}];await fetch(cloudConfig.url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({token:cloudConfig.token,action:'SYNC_ALL',turnantes:appState.turnantes,asistencia:appState.asistencia,pagos:appState.pagos,config:appState.config})});setSyncStatus('ok','Guardado en Drive');if(!silent)showToast("Respaldo enviado a Google Drive")}catch(e){setSyncStatus('error','Fallo envío')}}
+function setSyncStatus(st,tx){const d=document.getElementById('sync-dot'),l=document.getElementById('sync-label'),kd=document.getElementById('kiosk-sync-dot'),kt=document.getElementById('kiosk-sync-text'),ls=document.getElementById('login-cloud-status');if(d&&l){const c={ok:'bg-emerald-400',syncing:'bg-amber-400 animate-pulse',error:'bg-rose-500'};d.className=`w-2 h-2 rounded-full ${c[st]||'bg-slate-400'}`;l.textContent=tx}if(kd&&kt){kd.className=`w-2 h-2 rounded-full ${st==='error'?'bg-rose-400':(st==='syncing'?'bg-amber-400 animate-pulse':'bg-emerald-400')}`;kt.textContent=st==='error'?'Sin red':(st==='syncing'?'Sincronizando...':'En Línea (5s)')}if(ls)ls.textContent=st==='ok'?'● Nube conectada':(st==='syncing'?'● Conectando...':'● Sin conexión')}
 
+async function syncFromGoogleDrive(silent=false){
+  if(!cloudConfig.url)return;
+  // Evitar pisar datos mientras se está guardando un cambio reciente (< 4s)
+  if(isPushingToCloud||(Date.now()-lastPushTimestamp<4000))return;
+  if(!silent)setSyncStatus('syncing','Sincronizando...');
+  try{
+    const res=await fetch(`${cloudConfig.url}?token=${encodeURIComponent(cloudConfig.token)}&t=${Date.now()}`,{cache:'no-store'});
+    const json=await res.json();
+    if(json.status==='ok'&&json.data){
+      if(Array.isArray(json.data.turnantes)){
+        appState.turnantes=json.data.turnantes.map(t=>({...t,documento:String(t.documento||'').trim(),valor_hora_efectiva:Number(t.valor_hora_efectiva||t.valor_hora||VALOR_HORA_EFECTIVA)}));
+      }
+      if(Array.isArray(json.data.asistencia)){
+        appState.asistencia=json.data.asistencia.map(a=>({...a,documento:String(a.documento||'').trim(),minutos_almuerzo:Number(a.minutos_almuerzo||0),horas_efectivas:Number(a.horas_efectivas||a.horas||0),valor_total:Number(a.valor_total||0),estado_jornada:a.estado_jornada||'FINALIZADO'}));
+      }
+      if(Array.isArray(json.data.pagos)){
+        appState.pagos=json.data.pagos.map(p=>({...p,cantidad_turnos:Number(p.cantidad_turnos||0),total_horas:Number(p.total_horas||0),total_pagado:Number(p.total_pagado||0)}));
+      }
+      if(Array.isArray(json.data.config)&&json.data.config.length>0){
+        appState.config=json.data.config;
+        const rPin=json.data.config.find(c=>c.clave==='suPin');
+        if(rPin&&rPin.valor)cloudConfig.suPin=String(rPin.valor).trim();
+      }
+      persistLocal();
+      if(!document.getElementById('admin-shell').classList.contains('hidden'))renderAllAdmin();
+      if(activeKioskEmp&&!document.getElementById('kiosk-action-card').classList.contains('hidden'))renderKioskEmployeePanel();
+      setSyncStatus('ok','En Línea (5s)');
+      if(!silent)showToast("Sincronizado con todos los dispositivos");
+    }else setSyncStatus('error','Error Token');
+  }catch(e){setSyncStatus('error','Sin conexión')}
+}
+
+async function pushAllToGoogleDrive(silent=false){
+  if(!cloudConfig.url)return;
+  isPushingToCloud=true;
+  lastPushTimestamp=Date.now();
+  setSyncStatus('syncing','Guardando...');
+  try{
+    appState.config=[{clave:"suPin",valor:String(cloudConfig.suPin||DEFAULT_SU_PIN),ultima_actualizacion:new Date().toISOString()}];
+    const res=await fetch(cloudConfig.url,{
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify({token:cloudConfig.token,action:'SYNC_ALL',turnantes:appState.turnantes,asistencia:appState.asistencia,pagos:appState.pagos,config:appState.config})
+    });
+    const json=await res.json();
+    lastPushTimestamp=Date.now();
+    if(json.status==='ok'){
+      setSyncStatus('ok','Guardado en Nube');
+      if(!silent)showToast("Datos guardados y sincronizados");
+    }else{
+      setSyncStatus('error','Error al guardar');
+    }
+  }catch(e){
+    setSyncStatus('error','Fallo envío');
+  }finally{
+    isPushingToCloud=false;
+  }
+}
+
+/* VISTAS SUPER USUARIO */
 function renderAllAdmin(){renderKPIs();renderLiveMonitor();populateCorteSelector();renderCortesView();renderAsistenciaTable();renderTurnantesGrid();renderHistorialTable()}
 function renderKPIs(){const today=getTodayISO(),cc=getCorteInfo(today),cm=today.slice(0,7),act=appState.asistencia.filter(t=>t.estado_jornada==='TRABAJANDO'||t.estado_jornada==='EN_ALMUERZO'),wc=act.filter(t=>t.estado_jornada==='TRABAJANDO').length,lc=act.filter(t=>t.estado_jornada==='EN_ALMUERZO').length;document.getElementById('kpi-live-count').textContent=act.length;document.getElementById('kpi-live-sub').textContent=`${wc} trabajando • ${lc} en almuerzo`;const pend=appState.asistencia.filter(t=>t.estado_pago==='PENDIENTE'&&t.estado_jornada==='FINALIZADO'),nt=pend.filter(t=>t.fecha_pago_martes>=today).reduce((s,t)=>s+t.valor_total,0),ov=pend.filter(t=>t.fecha_pago_martes<=today);document.getElementById('kpi-next-tuesday').textContent=formatCOP(nt);document.getElementById('kpi-next-tuesday-date').textContent=`Corte actual paga ${cc.pagoLabel}`;document.getElementById('kpi-overdue').textContent=formatCOP(ov.reduce((s,t)=>s+t.valor_total,0));document.getElementById('kpi-overdue-count').textContent=`${ov.length} turnos vencidos / hoy martes`;const mp=appState.pagos.filter(p=>(p.fecha_liquidacion||'').startsWith(cm));document.getElementById('kpi-paid-month').textContent=formatCOP(mp.reduce((s,p)=>s+p.total_pagado,0));document.getElementById('kpi-paid-count').textContent=`${mp.length} recibos`;document.getElementById('count-turnantes').textContent=appState.turnantes.length}
-function renderLiveMonitor(){const g=document.getElementById('live-workers-grid');if(!g)return;const act=appState.asistencia.filter(t=>t.estado_jornada==='TRABAJANDO'||t.estado_jornada==='EN_ALMUERZO');if(act.length===0){g.innerHTML=`<div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center"><p class="text-sm font-semibold text-slate-600">No hay turnantes activos en este momento.</p></div>`;return}const now=new Date(),nowS=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();g.innerHTML=act.map(s=>{const isL=s.estado_jornada==='EN_ALMUERZO',el=isL?Math.max(0,nowS-timeToMinutes(s.almuerzo_inicio)*60):Math.max(0,nowS-timeToMinutes(s.hora_ingreso)*60-(Number(s.minutos_almuerzo)||0)*60),ep=Math.round((el/3600)*VALOR_HORA_EFECTIVA);return`<div class="bg-white rounded-xl border ${isL?'border-amber-300':'border-emerald-300'} p-5 shadow-sm space-y-3"><div class="flex items-start justify-between"><div><span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${isL?'bg-amber-100 text-amber-800':'bg-emerald-100 text-emerald-800'}">${isL?'EN ALMUERZO':'TRABAJANDO'}</span><h3 class="font-bold text-slate-900 text-base mt-1.5">${s.nombre_turnante}</h3><p class="text-xs text-slate-500">CC ${s.documento} • Ingreso: <strong>${s.hora_ingreso}</strong></p></div><button onclick="openEditTurnoModal('${s.id_turno}')" class="text-xs font-semibold text-slate-500 hover:text-slate-900 underline">Corregir</button></div><div class="bg-slate-50 rounded-lg p-3 flex items-center justify-between"><div><p class="text-[11px] text-slate-500">${isL?'Almuerzo':'Efectivo'}</p><p class="text-lg font-extrabold tabular-nums ${isL?'text-amber-600':'text-emerald-600'}">${formatDurationHMS(el)}</p></div><div class="text-right"><p class="text-[11px] text-slate-500">Causado</p><p class="text-sm font-bold text-slate-800 tabular-nums">${isL?'Pausado':formatCOP(ep)}</p></div></div></div>`}).join('')}
+function renderLiveMonitor(){const g=document.getElementById('live-workers-grid');if(!g)return;const act=appState.asistencia.filter(t=>t.estado_jornada==='TRABAJANDO'||t.estado_jornada==='EN_ALMUERZO');if(act.length===0){g.innerHTML=`<div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center"><p class="text-sm font-semibold text-slate-600">No hay turnantes activos en este momento.</p><p class="text-xs text-slate-400 mt-1">Apenas un empleado marque ingreso en el Kiosco aparecerá aquí automáticamente.</p></div>`;return}const now=new Date(),nowS=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();g.innerHTML=act.map(s=>{const isL=s.estado_jornada==='EN_ALMUERZO',el=isL?Math.max(0,nowS-timeToMinutes(s.almuerzo_inicio)*60):Math.max(0,nowS-timeToMinutes(s.hora_ingreso)*60-(Number(s.minutos_almuerzo)||0)*60),ep=Math.round((el/3600)*VALOR_HORA_EFECTIVA);return`<div class="bg-white rounded-xl border ${isL?'border-amber-300':'border-emerald-300'} p-5 shadow-sm space-y-3"><div class="flex items-start justify-between"><div><span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${isL?'bg-amber-100 text-amber-800':'bg-emerald-100 text-emerald-800'}"><span class="w-1.5 h-1.5 rounded-full ${isL?'bg-amber-500 animate-pulse':'bg-emerald-500 animate-ping'}"></span>${isL?'EN ALMUERZO':'TRABAJANDO'}</span><h3 class="font-bold text-slate-900 text-base mt-1.5">${s.nombre_turnante}</h3><p class="text-xs text-slate-500">CC ${s.documento} • Ingreso: <strong>${s.hora_ingreso}</strong></p></div><button onclick="openEditTurnoModal('${s.id_turno}')" class="text-xs font-semibold text-slate-500 hover:text-slate-900 underline">Corregir</button></div><div class="bg-slate-50 rounded-lg p-3 flex items-center justify-between"><div><p class="text-[11px] text-slate-500">${isL?'Almuerzo':'Efectivo'}</p><p class="text-lg font-extrabold tabular-nums ${isL?'text-amber-600':'text-emerald-600'}">${formatDurationHMS(el)}</p></div><div class="text-right"><p class="text-[11px] text-slate-500">Causado</p><p class="text-sm font-bold text-slate-800 tabular-nums">${isL?'Pausado':formatCOP(ep)}</p></div></div></div>`}).join('')}
 function populateCorteSelector(){const s=document.getElementById('filter-corte-semana'),pv=s.value,m=new Map(),tc=getCorteInfo(getTodayISO());m.set(tc.corte_inicio,tc);appState.asistencia.forEach(t=>{if(t.corte_inicio)m.set(t.corte_inicio,getCorteInfo(t.fecha_turno))});const sr=Array.from(m.values()).sort((a,b)=>b.corte_inicio.localeCompare(a.corte_inicio));s.innerHTML=sr.map(c=>`<option value="${c.corte_inicio}">${c.label} (Pago: ${c.pagoLabel})</option>`).join('');if(pv&&m.has(pv))s.value=pv}
 function renderCortesView(){const ci=document.getElementById('filter-corte-semana').value,ef=document.getElementById('filter-corte-estado').value,ct=document.getElementById('cortes-cards-container'),bn=document.getElementById('corte-banner-info');if(!ci)return;const info=getCorteInfo(ci),td=getTodayISO();bn.textContent=td===info.fecha_pago_martes?`HOY ES MARTES DE PAGO (${info.pagoLabel})`:(td>info.fecha_pago_martes?`Pago vencido desde ${info.pagoLabel}`:`Se liquida el ${info.pagoLabel}`);let tc=appState.asistencia.filter(t=>t.corte_inicio===ci&&t.estado_jornada==='FINALIZADO');if(ef!=='TODOS')tc=tc.filter(t=>t.estado_pago===ef);if(tc.length===0){ct.innerHTML=`<div class="bg-white rounded-xl border border-slate-200 p-10 text-center text-sm text-slate-400">Sin registros en este corte.</div>`;return}const by={};tc.forEach(t=>{if(!by[t.id_turnante])by[t.id_turnante]={id_turnante:t.id_turnante,nombre:t.nombre_turnante,turnos:[]};by[t.id_turnante].turnos.push(t)});ct.innerHTML=Object.values(by).map(g=>{const th=g.turnos.reduce((s,t)=>s+Number(t.horas_efectivas),0),tdn=g.turnos.reduce((s,t)=>s+Number(t.valor_total),0),pt=g.turnos.filter(t=>t.estado_pago==='PENDIENTE');return`<div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3"><div><h3 class="font-bold text-slate-900 text-base">${g.nombre}</h3><p class="text-xs text-slate-500">${g.turnos.length} turno(s) • <strong>${formatHoursDisplay(th)}</strong> • Pago: <strong>${info.pagoLabel}</strong></p></div><div class="flex items-center gap-3"><div class="text-right"><p class="text-[11px] uppercase font-bold text-slate-400">Total</p><p class="text-lg font-extrabold text-slate-900 tabular-nums">${formatCOP(tdn)}</p></div>${pt.length>0?`<button onclick="liquidarGrupo('${g.id_turnante}','${ci}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg">Liquidar (${formatCOP(pt.reduce((s,t)=>s+t.valor_total,0))})</button>`:`<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg">PAGADO</span>`}</div></div><div class="divide-y divide-slate-100">${g.turnos.map(t=>`<div class="px-4 py-2.5 flex items-center justify-between text-xs"><div><span class="font-semibold text-slate-800">${t.fecha_turno}</span> <span class="text-slate-500">(${t.hora_ingreso}-${t.hora_salida} | Alm: ${t.minutos_almuerzo}m)</span> <span class="font-bold text-emerald-700">${Number(t.horas_efectivas).toFixed(2)}h</span></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 tabular-nums">${formatCOP(t.valor_total)}</span><button onclick="openEditTurnoModal('${t.id_turno}')" class="text-slate-400 hover:text-slate-800 underline">Editar</button></div></div>`).join('')}</div></div>`}).join('')}
 function renderAsistenciaTable(){const ef=document.getElementById('filter-asist-emp').value,tb=document.getElementById('asistencia-tbody'),sel=document.getElementById('filter-asist-emp'),pv=sel.value;sel.innerHTML=`<option value="ALL">Todos los turnantes</option>`+appState.turnantes.map(e=>`<option value="${e.id}">${e.nombre}</option>`).join('');if(pv)sel.value=pv;const l=appState.asistencia.filter(t=>ef==='ALL'||String(t.id_turnante)===String(ef));tb.innerHTML=l.length===0?`<tr><td colspan="7" class="py-10 text-center text-slate-400">Sin marcaciones.</td></tr>`:l.map(t=>`<tr class="hover:bg-slate-50/70"><td class="py-3 px-4"><p class="font-bold text-slate-900">${t.nombre_turnante}</p><p class="text-xs text-slate-500">${t.fecha_turno}</p></td><td class="py-3 px-4 text-xs">${t.hora_ingreso||'--:--'} → ${t.hora_salida||'En curso'}</td><td class="py-3 px-4 text-xs text-amber-700">${t.almuerzo_inicio?`${t.almuerzo_inicio}-${t.almuerzo_fin||'...'} (${t.minutos_almuerzo}m)`:'Sin almuerzo'}</td><td class="py-3 px-4 text-right font-bold tabular-nums">${Number(t.horas_efectivas||0).toFixed(2)} h</td><td class="py-3 px-4 text-right font-extrabold tabular-nums">${formatCOP(t.valor_total)}</td><td class="py-3 px-4 text-xs"><span class="px-2 py-0.5 rounded font-bold ${t.estado_pago==='PAGADO'?'bg-emerald-100 text-emerald-700':'bg-amber-100 text-amber-800'}">${t.estado_pago} (${t.fecha_pago_martes})</span></td><td class="py-3 px-4 text-right space-x-2"><button onclick="openEditTurnoModal('${t.id_turno}')" class="text-xs font-semibold text-sky-600 hover:underline">Editar</button><button onclick="deleteTurno('${t.id_turno}')" class="text-xs font-semibold text-rose-500 hover:underline">Borrar</button></td></tr>`).join('')}
-function renderTurnantesGrid(){document.getElementById('turnantes-grid').innerHTML=appState.turnantes.map(e=>`<div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between gap-3"><div class="flex items-start justify-between"><div><h3 class="font-bold text-slate-900 text-base">${e.nombre}</h3><p class="text-xs text-slate-500">${e.cargo||'Turnante'} • Tel: ${e.telefono||'N/A'}</p></div><span class="text-xs font-mono font-bold bg-slate-900 text-emerald-400 px-2.5 py-1 rounded-lg">CC ${e.documento}</span></div><div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs"><span class="text-slate-500">Tarifa: <strong>${formatCOP(e.valor_hora_efectiva||VALOR_HORA_EFECTIVA)}/h</strong></span><button onclick="deleteTurnante('${e.id}')" class="text-rose-500 hover:underline font-semibold">Eliminar</button></div></div>`).join('')}
+function renderTurnantesGrid(){const g=document.getElementById('turnantes-grid');if(appState.turnantes.length===0){g.innerHTML=`<div class="col-span-full bg-white rounded-xl border border-dashed border-slate-300 p-10 text-center text-sm text-slate-400">Aún no hay turnantes registrados. Haz clic en "+ Nuevo Turnante".</div>`;return}g.innerHTML=appState.turnantes.map(e=>`<div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between gap-3"><div class="flex items-start justify-between"><div><h3 class="font-bold text-slate-900 text-base">${e.nombre}</h3><p class="text-xs text-slate-500">${e.cargo||'Turnante'} • Tel: ${e.telefono||'N/A'}</p></div><span class="text-xs font-mono font-bold bg-slate-900 text-emerald-400 px-2.5 py-1 rounded-lg">CC ${e.documento}</span></div><div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs"><span class="text-slate-500">Tarifa: <strong>${formatCOP(e.valor_hora_efectiva||VALOR_HORA_EFECTIVA)}/h</strong></span><button onclick="deleteTurnante('${e.id}')" class="text-rose-500 hover:underline font-semibold">Eliminar</button></div></div>`).join('')}
 function renderHistorialTable(){const tb=document.getElementById('historial-tbody');tb.innerHTML=appState.pagos.length===0?`<tr><td colspan="7" class="py-10 text-center text-slate-400">Sin liquidaciones.</td></tr>`:appState.pagos.map(p=>`<tr class="hover:bg-slate-50"><td class="py-3 px-4 font-mono text-xs font-bold">${p.id_recibo}</td><td class="py-3 px-4 text-xs">${p.fecha_liquidacion}</td><td class="py-3 px-4 text-xs">${p.corte_semana}</td><td class="py-3 px-4 font-bold">${p.nombre_turnante}</td><td class="py-3 px-4 text-right text-xs">${Number(p.total_horas).toFixed(2)} h</td><td class="py-3 px-4 text-right font-extrabold text-emerald-600">${formatCOP(p.total_pagado)}</td><td class="py-3 px-4 text-right"><button onclick="viewReceipt('${p.id_recibo}')" class="text-xs font-semibold underline">Ver</button></td></tr>`).join('')}
 
 function openTurnoModal(){document.getElementById('turno-modal-title').textContent="Registrar Marcaje";document.getElementById('edit-turno-id').value="";document.getElementById('t-emp-id').innerHTML=appState.turnantes.map(e=>`<option value="${e.id}">${e.nombre} (CC ${e.documento})</option>`).join('');document.getElementById('t-fecha').value=getTodayISO();document.getElementById('t-ingreso').value="08:00";document.getElementById('t-alm-ini').value="12:00";document.getElementById('t-alm-fin').value="13:00";document.getElementById('t-salida').value="16:00";document.getElementById('t-obs').value="";recalcModalPreview();openModal('turno-modal')}
@@ -421,7 +156,7 @@ function recalcModalPreview(){const emp=appState.turnantes.find(e=>String(e.id)=
 function saveManualOrEditedTurno(e){e.preventDefault();const eid=document.getElementById('edit-turno-id').value,emp=appState.turnantes.find(x=>String(x.id)===String(document.getElementById('t-emp-id').value)),f=document.getElementById('t-fecha').value,i=document.getElementById('t-ingreso').value,ai=document.getElementById('t-alm-ini').value,af=document.getElementById('t-alm-fin').value,s=document.getElementById('t-salida').value,obs=document.getElementById('t-obs').value.trim(),m=calculateJornadaMetrics(i,ai,af,s,emp.valor_hora_efectiva),c=getCorteInfo(f),ej=s?"FINALIZADO":(ai&&!af?"EN_ALMUERZO":"TRABAJANDO");if(eid){const idx=appState.asistencia.findIndex(x=>x.id_turno===eid);if(idx!==-1)appState.asistencia[idx]={...appState.asistencia[idx],id_turnante:emp.id,documento:emp.documento,nombre_turnante:emp.nombre,fecha_turno:f,hora_ingreso:i,almuerzo_inicio:ai,almuerzo_fin:af,hora_salida:s,minutos_almuerzo:m.minutosAlmuerzo,horas_efectivas:m.horasEfectivas,valor_total:m.valorTotal,corte_inicio:c.corte_inicio,corte_fin:c.corte_fin,fecha_pago_martes:c.fecha_pago_martes,estado_jornada:ej,observaciones:obs||"Corregido SU"};showToast("Marcaje actualizado")}else{appState.asistencia.unshift({id_turno:"TRN-"+Date.now(),id_turnante:emp.id,documento:emp.documento,nombre_turnante:emp.nombre,fecha_turno:f,hora_ingreso:i,almuerzo_inicio:ai,almuerzo_fin:af,hora_salida:s,minutos_almuerzo:m.minutosAlmuerzo,horas_efectivas:m.horasEfectivas,valor_total:m.valorTotal,corte_inicio:c.corte_inicio,corte_fin:c.corte_fin,fecha_pago_martes:c.fecha_pago_martes,estado_jornada:ej,estado_pago:"PENDIENTE",id_recibo:"",observaciones:obs||"Registro SU"});showToast("Turno registrado")}closeModal('turno-modal');persistAndSync()}
 function deleteTurno(id){if(!confirm("¿Eliminar marcación?"))return;appState.asistencia=appState.asistencia.filter(t=>t.id_turno!==id);persistAndSync()}
 function openEmpModal(){['e-nombre','e-doc','e-tel','e-cargo'].forEach(id=>document.getElementById(id).value="");document.getElementById('e-valor-hora').value=VALOR_HORA_EFECTIVA.toFixed(2);openModal('emp-modal')}
-function saveTurnante(e){e.preventDefault();const doc=document.getElementById('e-doc').value.trim();if(appState.turnantes.some(t=>String(t.documento).trim()===doc)){alert("Ya existe un turnante con esa cédula.");return}appState.turnantes.push({id:"EMP-"+Date.now().toString().slice(-4),nombre:document.getElementById('e-nombre').value.trim(),documento:doc,telefono:document.getElementById('e-tel').value.trim(),cargo:document.getElementById('e-cargo').value.trim()||"Turnante",valor_hora_efectiva:Number(document.getElementById('e-valor-hora').value)||VALOR_HORA_EFECTIVA,estado:"Activo",fecha_registro:getTodayISO()});closeModal('emp-modal');persistAndSync();showToast("Turnante registrado")}
+function saveTurnante(e){e.preventDefault();const doc=document.getElementById('e-doc').value.trim();if(appState.turnantes.some(t=>String(t.documento).trim()===doc)){alert("Ya existe un turnante con esa cédula.");return}appState.turnantes.push({id:"EMP-"+Date.now().toString().slice(-4),nombre:document.getElementById('e-nombre').value.trim(),documento:doc,telefono:document.getElementById('e-tel').value.trim(),cargo:document.getElementById('e-cargo').value.trim()||"Turnante",valor_hora_efectiva:Number(document.getElementById('e-valor-hora').value)||VALOR_HORA_EFECTIVA,estado:"Activo",fecha_registro:getTodayISO()});closeModal('emp-modal');persistAndSync();showToast("Turnante registrado y sincronizado")}
 function deleteTurnante(id){if(!confirm("¿Eliminar turnante?"))return;appState.turnantes=appState.turnantes.filter(t=>String(t.id)!==String(id));persistAndSync()}
 function liquidarGrupo(idT,ci){const tg=appState.asistencia.filter(t=>String(t.id_turnante)===String(idT)&&t.corte_inicio===ci&&t.estado_pago==='PENDIENTE'&&t.estado_jornada==='FINALIZADO');if(tg.length===0)return;const tot=tg.reduce((s,t)=>s+Number(t.valor_total),0),th=tg.reduce((s,t)=>s+Number(t.horas_efectivas),0),cInfo=getCorteInfo(ci),met=prompt(`Liquidar ${formatCOP(tot)} (${th.toFixed(2)}h) a ${tg[0].nombre_turnante}.\nMétodo:`,"Transferencia / Nequi");if(met===null)return;const idR="REC-"+Date.now().toString().slice(-6);tg.forEach(t=>{t.estado_pago="PAGADO";t.id_recibo=idR});appState.pagos.unshift({id_recibo:idR,fecha_liquidacion:getTodayISO(),corte_semana:cInfo.label,id_turnante:idT,nombre_turnante:tg[0].nombre_turnante,cantidad_turnos:tg.length,total_horas:Number(th.toFixed(2)),total_pagado:tot,metodo_pago:met||"Efectivo",notas:`Pago ${cInfo.pagoLabel}`});persistAndSync();viewReceipt(idR)}
 function viewReceipt(idR){const p=appState.pagos.find(x=>x.id_recibo===idR);if(!p)return;const emp=appState.turnantes.find(e=>String(e.id)===String(p.id_turnante)),tr=appState.asistencia.filter(t=>t.id_recibo===idR);document.getElementById('rec-id').textContent=`Recibo #${p.id_recibo}`;document.getElementById('rec-emp').textContent=p.nombre_turnante;document.getElementById('rec-doc').textContent=emp?emp.documento:"N/A";document.getElementById('rec-corte').textContent=p.corte_semana;document.getElementById('rec-fecha').textContent=p.fecha_liquidacion;document.getElementById('rec-total-horas').textContent=`${p.total_horas}h ef.`;document.getElementById('rec-metodo').textContent=`Método: ${p.metodo_pago}`;document.getElementById('rec-total').textContent=formatCOP(p.total_pagado);document.getElementById('rec-items').innerHTML=tr.map(t=>`<div class="flex justify-between py-1 border-b border-slate-100"><span>${t.fecha_turno} (${t.hora_ingreso}-${t.hora_salida} | ${Number(t.horas_efectivas).toFixed(2)}h)</span><span class="font-bold">${formatCOP(t.valor_total)}</span></div>`).join('');currentReceiptText=`*COMPROBANTE PAGO TURNANTES*\nRecibo: ${p.id_recibo}\nTurnante: ${p.nombre_turnante}\nCorte: ${p.corte_semana}\nHoras efectivas: ${p.total_horas}h\n*Total Pagado: ${formatCOP(p.total_pagado)}*`;openModal('receipt-modal')}
@@ -435,5 +170,5 @@ function closeModal(id){const m=document.getElementById(id);m.classList.add('hid
 function exportToCSV(){const h=["ID","Turnante","Cedula","Fecha","Ingreso","Alm_Ini","Alm_Fin","Salida","Min_Alm","Horas_Ef","Valor_COP","Corte","Pago_Martes","Estado"],r=appState.asistencia.map(t=>[t.id_turno,`"${t.nombre_turnante}"`,t.documento,t.fecha_turno,t.hora_ingreso,t.almuerzo_inicio,t.almuerzo_fin,t.hora_salida,t.minutos_almuerzo,t.horas_efectivas,t.valor_total,t.corte_inicio,t.fecha_pago_martes,t.estado_pago]),csv="\uFEFF"+[h.join(","),...r.map(x=>x.join(","))].join("\n"),a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8;"}));a.download=`Turnantes_${getTodayISO()}.csv`;a.click()}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('translate-y-20','opacity-0');setTimeout(()=>t.classList.add('translate-y-20','opacity-0'),3000)}
 
-detectInitialMode();updateKioskClockAndTimers();setInterval(updateKioskClockAndTimers,1000);syncFromGoogleDrive(true);setInterval(()=>syncFromGoogleDrive(true),30000);
+detectInitialMode();updateKioskClockAndTimers();setInterval(updateKioskClockAndTimers,1000);syncFromGoogleDrive(true);setInterval(()=>syncFromGoogleDrive(true),5000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncFromGoogleDrive(true)});
 </script></body></html>
