@@ -43,7 +43,6 @@
     </header>
 
     <main class="max-w-2xl w-full mx-auto my-auto py-8">
-      <!-- Bloqueo si el dispositivo no es uno de los 2 preestablecidos -->
       <div id="kiosk-unauthorized-card" class="hidden bg-rose-950/70 border border-rose-500/40 rounded-3xl p-8 text-center space-y-4 shadow-2xl">
         <div class="w-14 h-14 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center font-extrabold text-2xl mx-auto">!</div>
         <h2 class="text-xl font-extrabold text-white">Dispositivo No Autorizado para Marcación</h2>
@@ -150,7 +149,7 @@
               <h1 class="font-bold text-base sm:text-lg tracking-tight leading-none">TurnoPay</h1>
               <span class="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">Super Usuario</span>
             </div>
-            <p class="text-[11px] text-slate-400 hidden sm:block">7h efectivas = $80.000 ($11.428,57/h) • Corte Mar-Lun</p>
+            <p class="text-[11px] text-slate-400 hidden sm:block">7h ord. ($80.000) • H8+ extra +25% ($14.286/h)</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
@@ -212,10 +211,10 @@
         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="font-bold text-slate-800 text-base">Jornadas Activas (Cierre automático tras 16h sin salida)</h2>
+              <h2 class="font-bold text-slate-800 text-base">Jornadas Activas (7h Ordinarias + Extras +25% desde H8 completa)</h2>
               <span class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> EN VIVO</span>
             </div>
-            <p class="text-xs text-slate-500 mt-0.5">Si un empleado olvida marcar salida y pasan 16 horas, el turno se cierra automáticamente sin cálculo horario y alerta al SU.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Al completar la primera hora adicional (8.00h efectivas), el recargo del +25% se activa sobre el tiempo extra. Cierre automático tras 16h.</p>
           </div>
           <div class="flex gap-2">
             <button onclick="manualForceSync()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl transition">Actualizar Ya</button>
@@ -286,7 +285,7 @@
       <section id="view-asistencia" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h2 class="font-bold text-slate-800 text-base">Bitácora de Marcaciones</h2>
+            <h2 class="font-bold text-slate-800 text-base">Bitácora de Marcaciones (Discriminación Ordinaria vs. Extra +25%)</h2>
             <p class="text-xs text-slate-500">Los turnos cerrados automáticamente a las 16h aparecen marcados en rojo para que asignes la hora real de salida.</p>
           </div>
           <div class="flex flex-wrap gap-2">
@@ -306,8 +305,8 @@
                 <th class="py-3 px-4">Fecha / Turnante</th>
                 <th class="py-3 px-4">Ingreso / Salida</th>
                 <th class="py-3 px-4">Almuerzo</th>
-                <th class="py-3 px-4 text-right">Horas Ef.</th>
-                <th class="py-3 px-4 text-right">Valor</th>
+                <th class="py-3 px-4 text-right">H. Ord / H. Ext</th>
+                <th class="py-3 px-4 text-right">Total Día</th>
                 <th class="py-3 px-4">Estado</th>
                 <th class="py-3 px-4 text-right">Acciones</th>
               </tr>
@@ -397,9 +396,10 @@
                 <button onclick="updateGlobalSuPin()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2 rounded-lg">Actualizar PIN</button>
               </div>
             </div>
-            <div class="text-xs text-slate-600 flex flex-col justify-center">
-              <p class="font-bold text-slate-800">Tarifa Vigente:</p>
-              <p><strong>7.0h efectivas</strong> = <strong>$80.000 COP</strong> ($11.428,57/h)</p>
+            <div class="text-xs text-slate-600 flex flex-col justify-center space-y-0.5">
+              <p class="font-bold text-slate-800">Esquema Tarifario Vigente:</p>
+              <p>• Primeras <strong>7.0h</strong>: <strong>$11.428,57/h</strong> ($80.000/día)</p>
+              <p>• Desde <strong>8.0h completa en adelante</strong>: <strong>+25%</strong> ($14.285,71/h)</p>
             </div>
           </div>
 
@@ -449,7 +449,6 @@
 
   <!-- =======================================================================
        POPUP DE ALERTAS PERSISTENTES PARA SUPER USUARIO
-       (Turnos >16h cerrados sin cálculo horario + Vencimientos de ARL)
   ======================================================================= -->
   <div id="alerts-popup-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 hidden items-center justify-center p-4 no-print">
     <div class="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[88vh]">
@@ -509,10 +508,12 @@
             <input type="time" id="t-salida" onchange="recalcModalPreview()" class="w-full border border-slate-300 rounded-lg px-2 py-1.5 text-sm bg-white" />
           </div>
         </div>
-        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs space-y-1">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3.5 text-xs space-y-1.5">
           <div class="flex justify-between"><span class="text-slate-600">Almuerzo descontado:</span><strong id="prev-alm-min" class="text-amber-700">0 min</strong></div>
-          <div class="flex justify-between"><span class="text-slate-600">Horas efectivas:</span><strong id="prev-horas-ef" class="text-slate-900">0.00 h</strong></div>
-          <div class="flex justify-between text-sm pt-1 border-t border-emerald-200/70"><span class="font-bold text-emerald-900">Total ($11.428,57/h):</span><strong id="prev-valor-total" class="text-emerald-700 font-extrabold">$0</strong></div>
+          <div class="flex justify-between"><span class="text-slate-600">Total horas efectivas:</span><strong id="prev-horas-ef" class="text-slate-900">0.00 h</strong></div>
+          <div class="flex justify-between"><span class="text-slate-600">Horas ordinarias (base):</span><strong id="prev-horas-ord" class="text-slate-800">0.00 h ($0)</strong></div>
+          <div class="flex justify-between"><span class="text-slate-600">Horas extras (+25% desde H8 completa):</span><strong id="prev-horas-ext" class="text-sky-700">0.00 h ($0)</strong></div>
+          <div class="flex justify-between text-sm pt-1.5 border-t border-emerald-200/70"><span class="font-bold text-emerald-900">Total Día:</span><strong id="prev-valor-total" class="text-emerald-700 font-extrabold">$0</strong></div>
           <div class="flex justify-between text-[11px] text-slate-500 pt-0.5"><span>Corte: <strong id="prev-corte">-</strong></span><span>Pago: <strong id="prev-martes">-</strong></span></div>
         </div>
         <div>
@@ -527,7 +528,7 @@
     </div>
   </div>
 
-  <!-- MODAL 2: CREAR / EDITAR TURNANTE (CON BANCO, CUENTA Y VIGENCIA ARL) -->
+  <!-- MODAL 2: CREAR / EDITAR TURNANTE -->
   <div id="emp-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-40 hidden items-center justify-center p-4 no-print">
     <div class="bg-white rounded-2xl max-w-lg w-full shadow-xl overflow-hidden">
       <div class="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
@@ -591,7 +592,7 @@
             <input type="text" id="e-cargo" placeholder="Operario" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Valor Hora Ef.</label>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Valor Hora Base</label>
             <input type="number" id="e-valor-hora" step="0.01" value="11428.57" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-semibold" />
           </div>
         </div>
@@ -732,6 +733,7 @@
     const BASE_VALOR_JORNADA = 80000;
     const BASE_HORAS_EFECTIVAS = 7;
     const VALOR_HORA_EFECTIVA = BASE_VALOR_JORNADA / BASE_HORAS_EFECTIVAS;
+    const OVERTIME_MULTIPLIER = 1.25; // +25% de recargo al completar la primera hora extra (desde hora 8 completa)
 
     const DEFAULT_API_URL = "https://script.google.com/macros/s/AKfycbxqwAjxiT00G0ioBGPTNVwBtKl-fJP88lX40MsLZTwcYoXDbqn99uCtdjqolcu-6u10/exec";
     const DEFAULT_API_TOKEN = "TURNOPAY_2026_SECRETO";
@@ -742,14 +744,13 @@
       ciudad: "FILANDIA QUINDIO"
     };
 
-    const STORAGE_KEY = "turnopay_v7_data";
-    const CLOUD_KEY = "turnopay_v7_cloud";
-    const QUEUE_KEY = "turnopay_v7_offline_queue";
+    const STORAGE_KEY = "turnopay_v8_data";
+    const CLOUD_KEY = "turnopay_v8_cloud";
+    const QUEUE_KEY = "turnopay_v8_offline_queue";
     const DEVICE_ID_KEY = "turnopay_device_id";
     const SU_SESSION_KEY = "turnopay_su_unlocked";
     const SNOOZE_KEY = "turnopay_alerts_snooze_until";
 
-    // Identificador único persistente de este dispositivo (para control de los 2 equipos Kiosco)
     function getOrCreateDeviceId() {
       let id = localStorage.getItem(DEVICE_ID_KEY);
       if (!id) {
@@ -786,12 +787,10 @@
     let isPullingCloud = false;
     let excelParsedRows = [];
 
-    // Offset en milisegundos respecto a la hora oficial de Colombia en el servidor
     let serverTimeOffsetMs = 0;
-    let isServerTimeSynced = false;
 
     /* =======================================================================
-       HORA OFICIAL COLOMBIA (ANTI-TRAMPA RELOJ LOCAL)
+       HORA OFICIAL COLOMBIA
     ======================================================================= */
     function getOfficialNow() {
       return new Date(Date.now() + serverTimeOffsetMs);
@@ -800,7 +799,6 @@
     function syncColombiaOffset(serverEpochMs) {
       if (serverEpochMs && !isNaN(serverEpochMs)) {
         serverTimeOffsetMs = Number(serverEpochMs) - Date.now();
-        isServerTimeSynced = true;
         const badge = document.getElementById('kiosk-time-source');
         if (badge) {
           badge.textContent = "Oficial Servidor";
@@ -873,6 +871,42 @@
       return Math.max(0, totalElapsedSec - almSec);
     }
 
+    /* =======================================================================
+       CÁLCULO DE HORAS ORDINARIAS Y EXTRAS (+25% SOLO AL COMPLETAR LA 1ª HORA EXTRA)
+       - Jornada base: 7.00h efectivas (sin almuerzo).
+       - Si trabaja < 8.00h efectivas (ej: 7.50h), aún no completa la primera hora extra,
+         por lo que todas las horas se pagan a tarifa ordinaria base.
+       - Al completar la primera hora extra (he >= 8.00h), todas las horas por encima
+         de 7.00h (es decir, he - 7.00h) se liquidan con recargo del +25%.
+    ======================================================================= */
+    function computeOvertimeBreakdown(horasEfectivas, vhBase = VALOR_HORA_EFECTIVA) {
+      const he = Math.max(0, Number(horasEfectivas) || 0);
+      const rate = Number(vhBase) || VALOR_HORA_EFECTIVA;
+
+      let horasOrdinarias = he;
+      let horasExtras = 0;
+
+      if (he >= 8.0) {
+        horasOrdinarias = 7.0;
+        horasExtras = Number((he - 7.0).toFixed(4));
+      } else {
+        horasOrdinarias = Number(he.toFixed(4));
+        horasExtras = 0;
+      }
+
+      const valorOrdinario = Math.round(horasOrdinarias * rate);
+      const valorExtra = Math.round(horasExtras * rate * OVERTIME_MULTIPLIER);
+      const valorTotal = valorOrdinario + valorExtra;
+
+      return {
+        horasOrdinarias,
+        horasExtras,
+        valorOrdinario,
+        valorExtra,
+        valorTotal
+      };
+    }
+
     function calculateJornadaMetrics(i, ai, af, s, vh = VALOR_HORA_EFECTIVA) {
       const mI = timeToMinutes(i), mO = timeToMinutes(s), mAi = timeToMinutes(ai), mAo = timeToMinutes(af);
       let ma = 0;
@@ -881,12 +915,46 @@
         if (diffAlm < 0) diffAlm += 1440;
         ma = diffAlm;
       }
-      if (mI === null || mO === null) return { minutosAlmuerzo: ma, horasEfectivas: 0, valorTotal: 0 };
+      if (mI === null || mO === null) {
+        return {
+          minutosAlmuerzo: ma,
+          horasEfectivas: 0,
+          horasOrdinarias: 0,
+          horasExtras: 0,
+          valorOrdinario: 0,
+          valorExtra: 0,
+          valorTotal: 0
+        };
+      }
       let tb = mO - mI;
       if (tb < 0) tb += 1440;
       const me = Math.max(0, tb - ma);
       const he = Number((me / 60).toFixed(4));
-      return { minutosAlmuerzo: ma, horasEfectivas: he, valorTotal: Math.round(he * Number(vh || VALOR_HORA_EFECTIVA)) };
+      const split = computeOvertimeBreakdown(he, vh);
+
+      return {
+        minutosAlmuerzo: ma,
+        horasEfectivas: he,
+        ...split
+      };
+    }
+
+    // Asegura compatibilidad con turnos viejos guardados antes de v8.0
+    function getTurnoNormalizedBreakdown(t) {
+      const he = Number(t.horas_efectivas || 0);
+      if (t.horas_ordinarias !== undefined && t.horas_ordinarias !== "" && t.valor_ordinario !== undefined && t.valor_ordinario !== "") {
+        return {
+          horasEfectivas: he,
+          horasOrdinarias: Number(t.horas_ordinarias || 0),
+          horasExtras: Number(t.horas_extras || 0),
+          valorOrdinario: Number(t.valor_ordinario || 0),
+          valorExtra: Number(t.valor_extra || 0),
+          valorTotal: Number(t.valor_total || 0)
+        };
+      }
+      const emp = appState.turnantes.find(e => String(e.id) === String(t.id_turnante));
+      const split = computeOvertimeBreakdown(he, emp ? emp.valor_hora_efectiva : VALOR_HORA_EFECTIVA);
+      return { horasEfectivas: he, ...split };
     }
 
     function getCorteInfo(ds) {
@@ -972,6 +1040,10 @@
           if (startDt && (now - startDt) >= 16 * 3600 * 1000) {
             t.estado_jornada = "PENDIENTE_REVISION";
             t.horas_efectivas = 0;
+            t.horas_ordinarias = 0;
+            t.horas_extras = 0;
+            t.valor_ordinario = 0;
+            t.valor_extra = 0;
             t.valor_total = 0;
             t.observaciones = "Cerrado automáticamente (>16h sin salida) - Requiere revisión SU";
             t.updated_at = nowIso;
@@ -993,7 +1065,6 @@
       const [ty, tm, td] = todayISO.split('-').map(Number);
       const todayDate = new Date(ty, tm - 1, td);
 
-      // 1. Turnos cerrados automáticamente (>16h) pendientes de revisión
       appState.asistencia.forEach(t => {
         if (t.estado_jornada === 'PENDIENTE_REVISION') {
           alerts.push({
@@ -1005,7 +1076,6 @@
         }
       });
 
-      // 2. Vigencia de ARL vencida o próxima a vencer (<= 5 días)
       appState.turnantes.forEach(e => {
         if (e.estado !== 'Inactivo' && e.arl_vencimiento) {
           const [ay, am, ad] = String(e.arl_vencimiento).slice(0, 10).split('-').map(Number);
@@ -1072,11 +1142,8 @@
 
     function resolveAlertAction(kind, id) {
       closeModal('alerts-popup-modal');
-      if (kind === 'TURNO_16H') {
-        openEditTurnoModal(id);
-      } else if (kind === 'ARL') {
-        openEditEmpModal(id);
-      }
+      if (kind === 'TURNO_16H') openEditTurnoModal(id);
+      else if (kind === 'ARL') openEditEmpModal(id);
     }
 
     function snoozeAlerts30Min() {
@@ -1086,7 +1153,6 @@
     }
 
     function closeAlertsPopup() {
-      // Al cerrar sin posponer, evita reabrirse cada 6s en esta misma sesión, pero volverá al reingresar al portal SU
       sessionStorage.setItem(SNOOZE_KEY, String(Date.now() + 24 * 3600 * 1000));
       closeModal('alerts-popup-modal');
     }
@@ -1100,7 +1166,7 @@
     ======================================================================= */
     function isCurrentDeviceAuthorized() {
       const list = cloudConfig.authorizedDevices || [];
-      if (list.length === 0) return true; // Si aún no se han fijado equipos, permite operar
+      if (list.length === 0) return true;
       return list.some(d => String(d.id).trim() === CURRENT_DEVICE_ID);
     }
 
@@ -1152,14 +1218,8 @@
 
     function authorizeCurrentDevice() {
       const list = cloudConfig.authorizedDevices || [];
-      if (list.some(d => d.id === CURRENT_DEVICE_ID)) {
-        showToast("Este equipo ya está autorizado.");
-        return;
-      }
-      if (list.length >= 2) {
-        alert("Ya hay 2 dispositivos autorizados. Elimina uno antes de agregar otro.");
-        return;
-      }
+      if (list.some(d => d.id === CURRENT_DEVICE_ID)) { showToast("Este equipo ya está autorizado."); return; }
+      if (list.length >= 2) { alert("Ya hay 2 dispositivos autorizados. Elimina uno antes de agregar otro."); return; }
       const label = prompt("Nombre identificador para este equipo (Ej: Tablet Caja / PC Recepción):", `Kiosco ${list.length + 1}`);
       if (label === null) return;
       list.push({ id: CURRENT_DEVICE_ID, label: label.trim() || `Kiosco ${list.length + 1}` });
@@ -1169,17 +1229,11 @@
 
     function authorizeCustomDevicePrompt() {
       const list = cloudConfig.authorizedDevices || [];
-      if (list.length >= 2) {
-        alert("Ya hay 2 dispositivos autorizados. Elimina uno antes de agregar otro.");
-        return;
-      }
+      if (list.length >= 2) { alert("Ya hay 2 dispositivos autorizados. Elimina uno antes de agregar otro."); return; }
       const devId = prompt("Digita el ID del equipo que aparece en la pantalla del Kiosco (Ej: EQ-XXXX-1234):");
       if (!devId || !devId.trim()) return;
       const cleanId = devId.trim().toUpperCase();
-      if (list.some(d => d.id === cleanId)) {
-        showToast("Ese ID ya está autorizado.");
-        return;
-      }
+      if (list.some(d => d.id === cleanId)) { showToast("Ese ID ya está autorizado."); return; }
       const label = prompt("Nombre para ese equipo:", `Kiosco ${list.length + 1}`) || `Kiosco ${list.length + 1}`;
       list.push({ id: cleanId, label: label.trim() });
       cloudConfig.authorizedDevices = list;
@@ -1208,8 +1262,8 @@
     }
 
     /* =======================================================================
-       GENERADOR DE CUENTAS DE COBRO EN PDF Y EMPAQUETADO .ZIP
-       (TÍTULO LIMPIO "CUENTA DE COBRO" + NOMBRE ARCHIVO CON RANGO DE FECHAS)
+       GENERADOR DE CUENTAS DE COBRO EN PDF Y .ZIP
+       (DISCRIMINA HORAS ORDINARIAS VS HORAS EXTRAS +25%)
     ======================================================================= */
     function buildCuentaCobroPDFDoc(group, corteInfo) {
       const { jsPDF } = window.jspdf;
@@ -1221,10 +1275,21 @@
       const numeroCuenta = String(empData.numero_cuenta || "").trim();
 
       const sortedTurnos = [...group.turnos].sort((a, b) => String(a.fecha_turno).localeCompare(String(b.fecha_turno)));
-      const totalHoras = sortedTurnos.reduce((s, t) => s + Number(t.horas_efectivas || 0), 0);
-      const brutoDinero = sortedTurnos.reduce((s, t) => s + Number(t.valor_total || 0), 0);
 
-      // Descuentos / Vales pendientes del turnante en este corte
+      let totalHoras = 0, totalHorasOrd = 0, totalHorasExt = 0;
+      let totalValOrd = 0, totalValExt = 0, brutoDinero = 0;
+
+      const enrichedTurnos = sortedTurnos.map(t => {
+        const b = getTurnoNormalizedBreakdown(t);
+        totalHoras += b.horasEfectivas;
+        totalHorasOrd += b.horasOrdinarias;
+        totalHorasExt += b.horasExtras;
+        totalValOrd += b.valorOrdinario;
+        totalValExt += b.valorExtra;
+        brutoDinero += b.valorTotal;
+        return { ...t, breakdown: b };
+      });
+
       const novs = getPendingNovedadesForEmpCorte(group.id_turnante, corteInfo.corte_inicio);
       const totalDescuentos = novs.reduce((s, n) => s + Number(n.monto || 0), 0);
       const netoAPagar = Math.max(0, brutoDinero - totalDescuentos);
@@ -1238,92 +1303,100 @@
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(60, 60, 60);
-      doc.text(`${empresaCiudad}, ${fechaGeneracion}`, 20, 22);
+      doc.text(`${empresaCiudad}, ${fechaGeneracion}`, 20, 20);
 
-      // Título limpio "CUENTA DE COBRO" sin números adicionales
+      // Título limpio
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
       doc.setTextColor(15, 23, 42);
-      doc.text("CUENTA DE COBRO", 108, 35, { align: "center" });
+      doc.text("CUENTA DE COBRO", 108, 32, { align: "center" });
 
       // Empresa Deudora (FAGOSA SAS)
       doc.setDrawColor(203, 213, 225);
       doc.setFillColor(248, 250, 252);
-      doc.roundedRect(20, 41, 176, 20, 2, 2, "FD");
+      doc.roundedRect(20, 38, 176, 19, 2, 2, "FD");
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(12);
       doc.setTextColor(15, 23, 42);
-      doc.text(empresaNombre, 108, 49, { align: "center" });
+      doc.text(empresaNombre, 108, 46, { align: "center" });
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(71, 85, 105);
-      doc.text(`NIT: ${empresaNit}`, 108, 56, { align: "center" });
+      doc.text(`NIT: ${empresaNit}`, 108, 52.5, { align: "center" });
 
       // Acreedor (Turnante - solo Nombre y Cédula)
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(15, 23, 42);
-      doc.text("DEBE A:", 108, 70, { align: "center" });
+      doc.text("DEBE A:", 108, 66, { align: "center" });
 
       doc.setFontSize(13);
-      doc.text(String(group.nombre || "").toUpperCase(), 108, 77, { align: "center" });
+      doc.text(String(group.nombre || "").toUpperCase(), 108, 72.5, { align: "center" });
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(51, 65, 85);
-      doc.text(`C.C. N° ${cedula}`, 108, 83, { align: "center" });
+      doc.text(`C.C. N° ${cedula}`, 108, 78.5, { align: "center" });
 
       // Valor Neto en Números y Letras
       doc.setDrawColor(16, 185, 129);
       doc.setFillColor(236, 253, 245);
-      doc.roundedRect(20, 89, 176, 21, 2, 2, "FD");
+      doc.roundedRect(20, 84, 176, 20, 2, 2, "FD");
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(11);
       doc.setTextColor(6, 95, 70);
-      doc.text(`LA SUMA DE: ${formatCOP(netoAPagar)}`, 108, 97, { align: "center" });
+      doc.text(`LA SUMA DE: ${formatCOP(netoAPagar)}`, 108, 92, { align: "center" });
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
       doc.setTextColor(15, 23, 42);
       const letrasSplit = doc.splitTextToSize(`(${numeroALetrasCOP(netoAPagar)})`, 166);
-      doc.text(letrasSplit, 108, 104, { align: "center" });
+      doc.text(letrasSplit, 108, 98.5, { align: "center" });
 
-      // Concepto con los días laborados y horas de cada día
+      // Concepto discriminando días, horas ordinarias y horas extras (+25%)
       doc.setFont("helvetica", "bold");
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
-      doc.text("POR CONCEPTO DE:", 20, 120);
+      doc.text("POR CONCEPTO DE:", 20, 113);
 
-      const detalleDiasTexto = sortedTurnos
-        .map(t => `${formatShortSpanishDay(t.fecha_turno)} (${Number(t.horas_efectivas || 0).toFixed(2)}h)`)
-        .join(", ");
+      const detalleDiasTexto = enrichedTurnos.map(t => {
+        const b = t.breakdown;
+        if (b.horasExtras > 0) {
+          return `${formatShortSpanishDay(t.fecha_turno)} (${b.horasOrdinarias.toFixed(2)}h ord. + ${b.horasExtras.toFixed(2)}h ext.)`;
+        }
+        return `${formatShortSpanishDay(t.fecha_turno)} (${b.horasEfectivas.toFixed(2)}h)`;
+      }).join(", ");
+
+      const resumenExtrasTexto = totalHorasExt > 0
+        ? `, discriminadas en ${totalHorasOrd.toFixed(2)} horas ordinarias (${formatCOP(totalValOrd)}) y ${totalHorasExt.toFixed(2)} horas extras con recargo del 25% (${formatCOP(totalValExt)})`
+        : `, correspondientes a ${totalHorasOrd.toFixed(2)} horas ordinarias`;
 
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(9.5);
+      doc.setFontSize(9.2);
       doc.setTextColor(51, 65, 85);
-      const conceptoTexto = `Prestación de servicios operativos durante el corte semanal ${corteInfo.label}, correspondientes a ${sortedTurnos.length} día(s) laborado(s): ${detalleDiasTexto}, para un total de ${totalHoras.toFixed(2)} horas efectivas trabajadas (descontando tiempos de almuerzo no remunerados), discriminados así:`;
+      const conceptoTexto = `Prestación de servicios operativos durante el corte semanal ${corteInfo.label}, correspondientes a ${enrichedTurnos.length} día(s) laborado(s): ${detalleDiasTexto}, para un total de ${totalHoras.toFixed(2)} horas efectivas trabajadas (descontando almuerzos)${resumenExtrasTexto}:`;
       const conceptoLines = doc.splitTextToSize(conceptoTexto, 176);
-      doc.text(conceptoLines, 20, 126);
+      doc.text(conceptoLines, 20, 118.5);
 
-      const tableStartY = 126 + (conceptoLines.length * 4.5) + 3;
+      const tableStartY = 118.5 + (conceptoLines.length * 4.3) + 3;
 
-      const tableBody = sortedTurnos.map(t => [
-        `${formatShortSpanishDay(t.fecha_turno)} (${t.fecha_turno})`,
-        t.hora_ingreso || "--:--",
-        t.hora_salida || "--:--",
-        `${t.minutos_almuerzo || 0} min`,
-        `${Number(t.horas_efectivas || 0).toFixed(2)} h`,
-        formatCOP(t.valor_total)
-      ]);
+      const tableBody = enrichedTurnos.map(t => {
+        const b = t.breakdown;
+        return [
+          `${formatShortSpanishDay(t.fecha_turno)} (${t.fecha_turno})`,
+          `${t.hora_ingreso || "--:--"} - ${t.hora_salida || "--:--"}`,
+          `${b.horasOrdinarias.toFixed(2)} h`,
+          b.horasExtras > 0 ? `${b.horasExtras.toFixed(2)} h` : "-",
+          formatCOP(b.valorTotal)
+        ];
+      });
 
-      // Si existen vales/descuentos en el corte, incluirlos como filas negativas antes del total
       novs.forEach(n => {
         tableBody.push([
           `Descuento (${n.tipo}): ${n.concepto}`,
-          "-",
           "-",
           "-",
           "-",
@@ -1334,17 +1407,23 @@
       doc.autoTable({
         startY: tableStartY,
         margin: { left: 20, right: 20 },
-        head: [['Detalle / Día Laborado', 'Ingreso', 'Salida', 'Almuerzo', 'Horas Ef.', 'Valor']],
+        head: [['Día Laborado / Detalle', 'Horario', 'H. Ord.', 'H. Ext (+25%)', 'Valor']],
         body: tableBody,
-        foot: [[`NETO A RECIBIR (${sortedTurnos.length} día(s))`, '', '', '', `${totalHoras.toFixed(2)} h`, formatCOP(netoAPagar)]],
+        foot: [[
+          `NETO A RECIBIR (${enrichedTurnos.length} día(s))`,
+          '',
+          `${totalHorasOrd.toFixed(2)} h`,
+          totalHorasExt > 0 ? `${totalHorasExt.toFixed(2)} h` : '0.00 h',
+          formatCOP(netoAPagar)
+        ]],
         theme: 'grid',
         headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8.5, halign: 'center' },
         bodyStyles: { fontSize: 8.5, halign: 'center', textColor: [30, 41, 59] },
         footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9, halign: 'center' },
-        columnStyles: { 0: { halign: 'left' }, 5: { halign: 'right' } }
+        columnStyles: { 0: { halign: 'left' }, 4: { halign: 'right' } }
       });
 
-      let finalY = doc.lastAutoTable.finalY + 8;
+      let finalY = doc.lastAutoTable.finalY + 7;
       if (finalY > 210) {
         doc.addPage();
         finalY = 25;
@@ -1357,16 +1436,16 @@
 
       doc.setDrawColor(203, 213, 225);
       doc.setFillColor(248, 250, 252);
-      doc.roundedRect(20, finalY, 176, 16, 2, 2, "FD");
+      doc.roundedRect(20, finalY, 176, 15, 2, 2, "FD");
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9.5);
       doc.setTextColor(15, 23, 42);
       const leyendaPago = `Solicito realizar el pago mediante transferencia a mi cuenta ${cuentaTexto} de la cual soy titular.`;
       const leyendaLines = doc.splitTextToSize(leyendaPago, 168);
-      doc.text(leyendaLines, 24, finalY + 6.5);
+      doc.text(leyendaLines, 24, finalY + 6);
 
-      finalY += 22;
+      finalY += 21;
 
       doc.setFont("helvetica", "italic");
       doc.setFontSize(8.5);
@@ -1375,14 +1454,14 @@
       const notaLines = doc.splitTextToSize(notaLegal, 176);
       doc.text(notaLines, 20, finalY);
 
-      finalY += (notaLines.length * 4.5) + 14;
+      finalY += (notaLines.length * 4.5) + 13;
 
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(15, 23, 42);
       doc.text("Atentamente,", 20, finalY);
 
-      finalY += 16;
+      finalY += 15;
       doc.setDrawColor(100, 116, 139);
       doc.line(20, finalY, 95, finalY);
 
@@ -1394,7 +1473,6 @@
       doc.setFontSize(9.5);
       doc.text(`C.C. ${cedula}`, 20, finalY + 10);
 
-      // Nombre del archivo PDF con nombre del turnante y rango de fechas exacto del corte
       const safeName = String(group.nombre || "Turnante").trim().replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]/g, '_');
       const fileName = `Cuenta_Cobro_${safeName}_${corteInfo.shortRange}.pdf`;
       return { doc, fileName };
@@ -1408,10 +1486,7 @@
         t.estado_jornada === 'FINALIZADO'
       );
       if (ef !== 'TODOS') turnos = turnos.filter(t => t.estado_pago === ef);
-      if (turnos.length === 0) {
-        showToast("No hay turnos finalizados para generar cuenta de cobro.");
-        return;
-      }
+      if (turnos.length === 0) { showToast("No hay turnos finalizados para generar cuenta de cobro."); return; }
       const corteInfo = getCorteInfo(corteInicio);
       const group = { id_turnante: idTurnante, nombre: turnos[0].nombre_turnante, turnos };
       const { doc, fileName } = buildCuentaCobroPDFDoc(group, corteInfo);
@@ -1426,10 +1501,7 @@
 
       let tc = appState.asistencia.filter(t => t.corte_inicio === ci && t.estado_jornada === 'FINALIZADO');
       if (ef !== 'TODOS') tc = tc.filter(t => t.estado_pago === ef);
-      if (tc.length === 0) {
-        showToast("No hay turnos finalizados en este corte para descargar.");
-        return;
-      }
+      if (tc.length === 0) { showToast("No hay turnos finalizados en este corte para descargar."); return; }
 
       const byEmp = {};
       tc.forEach(t => {
@@ -1468,10 +1540,7 @@
     }
 
     function openNovedadModal(preselectedEmpId = "") {
-      if (appState.turnantes.length === 0) {
-        alert("Primero registra al menos un turnante.");
-        return;
-      }
+      if (appState.turnantes.length === 0) { alert("Primero registra al menos un turnante."); return; }
       document.getElementById('n-emp-id').innerHTML = appState.turnantes.map(e => `<option value="${e.id}">${e.nombre} (CC ${e.documento})</option>`).join('');
       if (preselectedEmpId) document.getElementById('n-emp-id').value = preselectedEmpId;
       document.getElementById('n-fecha').value = getTodayISO();
@@ -1548,10 +1617,7 @@
       if (!ci) return;
       const info = getCorteInfo(ci);
       const paidInCorte = appState.asistencia.filter(t => t.corte_inicio === ci && t.estado_pago === 'PAGADO');
-      if (paidInCorte.length === 0) {
-        alert("En este corte semanal no hay turnos pagados para archivar.");
-        return;
-      }
+      if (paidInCorte.length === 0) { alert("En este corte semanal no hay turnos pagados para archivar."); return; }
       if (!confirm(`¿Archivar los ${paidInCorte.length} turno(s) ya pagados del corte ${info.label} en la pestaña Historial_Archivo de Excel?\n\nEsto mantiene la base de datos rápida y limpia.`)) return;
 
       showToast("Archivando corte en Google Sheets...");
@@ -1559,11 +1625,7 @@
         const res = await fetch(cloudConfig.url, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            token: cloudConfig.token,
-            action: 'ARCHIVE_CORTE',
-            corte_inicio: ci
-          })
+          body: JSON.stringify({ token: cloudConfig.token, action: 'ARCHIVE_CORTE', corte_inicio: ci })
         });
         const json = await res.json();
         if (json.status === 'ok') {
@@ -1646,17 +1708,13 @@
         const res = await fetch(cloudConfig.url, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            token: cloudConfig.token,
-            action: 'VERIFY_PIN',
-            pin: pinVal
-          })
+          body: JSON.stringify({ token: cloudConfig.token, action: 'VERIFY_PIN', pin: pinVal })
         });
         const json = await res.json();
         if (json.status === 'ok') {
           if (json.server_epoch_ms) syncColombiaOffset(json.server_epoch_ms);
           sessionStorage.setItem(SU_SESSION_KEY, 'true');
-          sessionStorage.removeItem(SNOOZE_KEY); // Al ingresar al portal SU siempre muestra alertas si hay pendientes
+          sessionStorage.removeItem(SNOOZE_KEY);
           activateAdminMode(true);
         } else {
           errEl.textContent = json.message || "PIN incorrecto.";
@@ -1827,10 +1885,7 @@
 
     async function handleKioskLookup(e) {
       e.preventDefault();
-      if (!isCurrentDeviceAuthorized()) {
-        updateKioskAuthorizationUI();
-        return;
-      }
+      if (!isCurrentDeviceAuthorized()) { updateKioskAuthorizationUI(); return; }
       const doc = document.getElementById('kiosk-cedula-input').value.trim();
       const err = document.getElementById('kiosk-error-msg');
 
@@ -1925,6 +1980,10 @@
           hora_salida: "",
           minutos_almuerzo: 0,
           horas_efectivas: 0,
+          horas_ordinarias: 0,
+          horas_extras: 0,
+          valor_ordinario: 0,
+          valor_extra: 0,
           valor_total: 0,
           corte_inicio: c.corte_inicio,
           corte_fin: c.corte_fin,
@@ -1959,11 +2018,16 @@
         const m = calculateJornadaMetrics(shift.hora_ingreso, shift.almuerzo_inicio, shift.almuerzo_fin, shift.hora_salida, activeKioskEmp.valor_hora_efectiva || VALOR_HORA_EFECTIVA);
         shift.minutos_almuerzo = m.minutosAlmuerzo;
         shift.horas_efectivas = m.horasEfectivas;
+        shift.horas_ordinarias = m.horasOrdinarias;
+        shift.horas_extras = m.horasExtras;
+        shift.valor_ordinario = m.valorOrdinario;
+        shift.valor_extra = m.valorExtra;
         shift.valor_total = m.valorTotal;
         shift.estado_jornada = "FINALIZADO";
         shift.updated_at = nowIso;
         ft = `Turno Finalizado: ${nowT}`;
-        fd = `Efectivo: ${formatHoursDisplay(shift.horas_efectivas)} • Pago: ${getCorteInfo(shift.fecha_turno).pagoLabel}.`;
+        const extMsg = m.horasExtras > 0 ? ` (${m.horasOrdinarias.toFixed(2)}h ord. + ${m.horasExtras.toFixed(2)}h ext. +25%)` : "";
+        fd = `Efectivo: ${formatHoursDisplay(shift.horas_efectivas)}${extMsg} • Pago: ${getCorteInfo(shift.fecha_turno).pagoLabel}.`;
       }
 
       if (shift) {
@@ -2061,11 +2125,7 @@
         const res = await fetch(cloudConfig.url, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({
-            token: cloudConfig.token,
-            action: 'BATCH_OPS',
-            ops: batch
-          })
+          body: JSON.stringify({ token: cloudConfig.token, action: 'BATCH_OPS', ops: batch })
         });
         const json = await res.json();
         if (json.status === 'ok') {
@@ -2144,6 +2204,7 @@
               if (!est || est === 'undefined') {
                 est = hOut ? 'FINALIZADO' : (aIn && !aOut ? 'EN_ALMUERZO' : 'TRABAJANDO');
               }
+              const b = getTurnoNormalizedBreakdown(a);
               mergedTurnos.set(a.id_turno, {
                 ...a,
                 documento: String(a.documento || '').trim(),
@@ -2153,8 +2214,12 @@
                 almuerzo_fin: aOut,
                 hora_salida: hOut,
                 minutos_almuerzo: Number(a.minutos_almuerzo || 0),
-                horas_efectivas: Number(a.horas_efectivas || a.horas || 0),
-                valor_total: Number(a.valor_total || 0),
+                horas_efectivas: b.horasEfectivas,
+                horas_ordinarias: b.horasOrdinarias,
+                horas_extras: b.horasExtras,
+                valor_ordinario: b.valorOrdinario,
+                valor_extra: b.valorExtra,
+                valor_total: b.valorTotal,
                 estado_jornada: est,
                 estado_pago: a.estado_pago || 'PENDIENTE'
               });
@@ -2184,6 +2249,8 @@
               ...p,
               cantidad_turnos: Number(p.cantidad_turnos || 0),
               total_horas: Number(p.total_horas || 0),
+              total_horas_ord: Number(p.total_horas_ord || p.total_horas || 0),
+              total_horas_ext: Number(p.total_horas_ext || 0),
               total_bruto: Number(p.total_bruto || p.total_pagado || 0),
               total_descuentos: Number(p.total_descuentos || 0),
               total_pagado: Number(p.total_pagado || 0)
@@ -2299,7 +2366,7 @@
       document.getElementById('kpi-live-sub').textContent = `${wc} trabajando • ${lc} en almuerzo`;
 
       const pend = appState.asistencia.filter(t => t.estado_pago === 'PENDIENTE' && t.estado_jornada === 'FINALIZADO');
-      const brutoPend = pend.filter(t => t.fecha_pago_martes >= today).reduce((s, t) => s + t.valor_total, 0);
+      const brutoPend = pend.filter(t => t.fecha_pago_martes >= today).reduce((s, t) => s + Number(t.valor_total || 0), 0);
       const descPend = (appState.novedades || []).filter(n => n.estado !== 'APLICADO').reduce((s, n) => s + Number(n.monto || 0), 0);
 
       document.getElementById('kpi-next-tuesday').textContent = formatCOP(Math.max(0, brutoPend - descPend));
@@ -2323,7 +2390,8 @@
       g.innerHTML = act.map(s => {
         const isL = s.estado_jornada === 'EN_ALMUERZO';
         const el = getShiftElapsedSeconds(s, now);
-        const ep = Math.round((el / 3600) * VALOR_HORA_EFECTIVA);
+        const heNow = el / 3600;
+        const liveSplit = computeOvertimeBreakdown(heNow, VALOR_HORA_EFECTIVA);
         const isAlert = (isL && el > 90 * 60) || (!isL && el > 12 * 3600);
         const borderCls = isAlert ? 'border-rose-400 ring-2 ring-rose-100' : (isL ? 'border-amber-300' : 'border-emerald-300');
 
@@ -2335,6 +2403,7 @@
                   <span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-0.5 rounded-full ${isL ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}">
                     <span class="w-1.5 h-1.5 rounded-full ${isL ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500 animate-ping'}"></span>${isL ? 'EN ALMUERZO' : 'TRABAJANDO'}
                   </span>
+                  ${(!isL && liveSplit.horasExtras > 0) ? `<span class="text-[10px] font-extrabold bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full">+25% EXTRA ACTIVO</span>` : ''}
                   ${isAlert ? `<span class="text-[10px] font-extrabold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">EXCESO TIEMPO</span>` : ''}
                 </div>
                 <h3 class="font-bold text-slate-900 text-base mt-1.5">${s.nombre_turnante}</h3>
@@ -2349,7 +2418,7 @@
               </div>
               <div class="text-right">
                 <p class="text-[11px] text-slate-500">Causado</p>
-                <p class="text-sm font-bold text-slate-800 tabular-nums">${isL ? 'Pausado' : formatCOP(ep)}</p>
+                <p class="text-sm font-bold text-slate-800 tabular-nums">${isL ? 'Pausado' : formatCOP(liveSplit.valorTotal)}</p>
               </div>
             </div>
           </div>
@@ -2390,8 +2459,16 @@
       });
 
       ct.innerHTML = Object.values(by).map(g => {
-        const th = g.turnos.reduce((s, t) => s + Number(t.horas_efectivas), 0);
-        const bruto = g.turnos.reduce((s, t) => s + Number(t.valor_total), 0);
+        let th = 0, thOrd = 0, thExt = 0, bruto = 0;
+        const turnosWithB = g.turnos.map(t => {
+          const b = getTurnoNormalizedBreakdown(t);
+          th += b.horasEfectivas;
+          thOrd += b.horasOrdinarias;
+          thExt += b.horasExtras;
+          bruto += b.valorTotal;
+          return { ...t, b };
+        });
+
         const novs = getPendingNovedadesForEmpCorte(g.id_turnante, ci);
         const desc = novs.reduce((s, n) => s + Number(n.monto || 0), 0);
         const neto = Math.max(0, bruto - desc);
@@ -2405,7 +2482,9 @@
             <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div>
                 <h3 class="font-bold text-slate-900 text-base">${g.nombre}</h3>
-                <p class="text-xs text-slate-500">${g.turnos.length} día(s) • <strong>${formatHoursDisplay(th)}</strong> • Pago: <strong>${info.pagoLabel}</strong> • <span class="text-slate-700 font-medium">${bankLabel}</span></p>
+                <p class="text-xs text-slate-500">
+                  ${g.turnos.length} día(s) • <strong>${thOrd.toFixed(2)}h ord.</strong>${thExt > 0 ? ` + <strong class="text-sky-700">${thExt.toFixed(2)}h ext. (+25%)</strong>` : ''} • <span class="text-slate-700 font-medium">${bankLabel}</span>
+                </p>
               </div>
               <div class="flex flex-wrap items-center gap-2.5">
                 <div class="text-right mr-2">
@@ -2422,15 +2501,16 @@
               </div>
             </div>
             <div class="divide-y divide-slate-100">
-              ${g.turnos.map(t => `
+              ${turnosWithB.map(t => `
                 <div class="px-4 py-2.5 flex items-center justify-between text-xs">
                   <div>
                     <span class="font-semibold text-slate-800">${t.fecha_turno}</span>
                     <span class="text-slate-500">(${t.hora_ingreso}-${t.hora_salida} | Alm: ${t.minutos_almuerzo}m)</span>
-                    <span class="font-bold text-emerald-700">${Number(t.horas_efectivas).toFixed(2)}h</span>
+                    <span class="font-bold text-emerald-700">${t.b.horasOrdinarias.toFixed(2)}h ord.</span>
+                    ${t.b.horasExtras > 0 ? `<span class="ml-1 bg-sky-100 text-sky-800 px-1.5 py-0.5 rounded font-bold">+${t.b.horasExtras.toFixed(2)}h ext. (+25%)</span>` : ''}
                   </div>
                   <div class="flex items-center gap-3">
-                    <span class="font-bold text-slate-900 tabular-nums">${formatCOP(t.valor_total)}</span>
+                    <span class="font-bold text-slate-900 tabular-nums">${formatCOP(t.b.valorTotal)}</span>
                     <button onclick="openEditTurnoModal('${t.id_turno}')" class="text-slate-400 hover:text-slate-800 underline">Editar</button>
                   </div>
                 </div>
@@ -2469,13 +2549,17 @@
 
       tb.innerHTML = l.length === 0 ? `<tr><td colspan="7" class="py-10 text-center text-slate-400">Sin marcaciones.</td></tr>` : l.map(t => {
         const isRev = t.estado_jornada === 'PENDIENTE_REVISION';
+        const b = getTurnoNormalizedBreakdown(t);
         return `
           <tr class="${isRev ? 'bg-rose-50/80' : 'hover:bg-slate-50/70'}">
             <td class="py-3 px-4"><p class="font-bold text-slate-900">${t.nombre_turnante}</p><p class="text-xs text-slate-500">${t.fecha_turno}</p></td>
             <td class="py-3 px-4 text-xs">${t.hora_ingreso || '--:--'} → ${t.hora_salida || (isRev ? '<span class="text-rose-600 font-bold">Sin salida (+16h)</span>' : 'En curso')}</td>
             <td class="py-3 px-4 text-xs text-amber-700">${t.almuerzo_inicio ? `${t.almuerzo_inicio}-${t.almuerzo_fin || '...'} (${t.minutos_almuerzo}m)` : 'Sin almuerzo'}</td>
-            <td class="py-3 px-4 text-right font-bold tabular-nums">${Number(t.horas_efectivas || 0).toFixed(2)} h</td>
-            <td class="py-3 px-4 text-right font-extrabold tabular-nums">${formatCOP(t.valor_total)}</td>
+            <td class="py-3 px-4 text-right text-xs tabular-nums">
+              <span class="font-bold text-slate-800">${b.horasOrdinarias.toFixed(2)}h ord.</span>
+              ${b.horasExtras > 0 ? `<span class="block text-sky-700 font-bold">+${b.horasExtras.toFixed(2)}h ext.</span>` : ''}
+            </td>
+            <td class="py-3 px-4 text-right font-extrabold tabular-nums">${formatCOP(b.valorTotal)}</td>
             <td class="py-3 px-4 text-xs">
               ${isRev
                 ? `<span class="px-2 py-0.5 rounded font-extrabold bg-rose-100 text-rose-800">REVISAR (>16h)</span>`
@@ -2504,13 +2588,9 @@
           const [ay, am, ad] = String(e.arl_vencimiento).slice(0, 10).split('-').map(Number);
           const arlDate = new Date(ay, am - 1, ad);
           const diffDays = Math.ceil((arlDate - todayDate) / (1000 * 3600 * 24));
-          if (diffDays < 0) {
-            arlBadge = `<span class="text-[11px] font-extrabold bg-rose-100 text-rose-800 px-2 py-0.5 rounded">ARL VENCIDA (${e.arl_vencimiento})</span>`;
-          } else if (diffDays <= 5) {
-            arlBadge = `<span class="text-[11px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">ARL vence en ${diffDays}d (${e.arl_vencimiento})</span>`;
-          } else {
-            arlBadge = `<span class="text-[11px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">ARL vigente hasta ${e.arl_vencimiento}</span>`;
-          }
+          if (diffDays < 0) arlBadge = `<span class="text-[11px] font-extrabold bg-rose-100 text-rose-800 px-2 py-0.5 rounded">ARL VENCIDA (${e.arl_vencimiento})</span>`;
+          else if (diffDays <= 5) arlBadge = `<span class="text-[11px] font-extrabold bg-amber-100 text-amber-800 px-2 py-0.5 rounded">ARL vence en ${diffDays}d (${e.arl_vencimiento})</span>`;
+          else arlBadge = `<span class="text-[11px] font-semibold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded">ARL vigente hasta ${e.arl_vencimiento}</span>`;
         }
 
         return `
@@ -2527,7 +2607,7 @@
               <span class="text-xs font-mono font-bold bg-slate-900 text-emerald-400 px-2.5 py-1 rounded-lg shrink-0">CC ${e.documento}</span>
             </div>
             <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-              <span class="text-slate-500">Tarifa: <strong>${formatCOP(e.valor_hora_efectiva || VALOR_HORA_EFECTIVA)}/h</strong></span>
+              <span class="text-slate-500">Base: <strong>${formatCOP(e.valor_hora_efectiva || VALOR_HORA_EFECTIVA)}/h</strong></span>
               <div class="space-x-3">
                 <button onclick="openEditEmpModal('${e.id}')" class="text-sky-600 hover:underline font-semibold">Editar</button>
                 <button onclick="deleteTurnante('${e.id}')" class="text-rose-500 hover:underline font-semibold">Eliminar</button>
@@ -2598,6 +2678,8 @@
       const c = getCorteInfo(f);
       document.getElementById('prev-alm-min').textContent = `${m.minutosAlmuerzo} min`;
       document.getElementById('prev-horas-ef').textContent = formatHoursDisplay(m.horasEfectivas);
+      document.getElementById('prev-horas-ord').textContent = `${m.horasOrdinarias.toFixed(2)} h (${formatCOP(m.valorOrdinario)})`;
+      document.getElementById('prev-horas-ext').textContent = `${m.horasExtras.toFixed(2)} h (${formatCOP(m.valorExtra)})`;
       document.getElementById('prev-valor-total').textContent = formatCOP(m.valorTotal);
       document.getElementById('prev-corte').textContent = c.label;
       document.getElementById('prev-martes').textContent = c.pagoLabel;
@@ -2634,6 +2716,10 @@
             hora_salida: s,
             minutos_almuerzo: m.minutosAlmuerzo,
             horas_efectivas: m.horasEfectivas,
+            horas_ordinarias: m.horasOrdinarias,
+            horas_extras: m.horasExtras,
+            valor_ordinario: m.valorOrdinario,
+            valor_extra: m.valorExtra,
             valor_total: m.valorTotal,
             corte_inicio: c.corte_inicio,
             corte_fin: c.corte_fin,
@@ -2658,6 +2744,10 @@
           hora_salida: s,
           minutos_almuerzo: m.minutosAlmuerzo,
           horas_efectivas: m.horasEfectivas,
+          horas_ordinarias: m.horasOrdinarias,
+          horas_extras: m.horasExtras,
+          valor_ordinario: m.valorOrdinario,
+          valor_extra: m.valorExtra,
           valor_total: m.valorTotal,
           corte_inicio: c.corte_inicio,
           corte_fin: c.corte_fin,
@@ -2722,10 +2812,7 @@
       const doc = document.getElementById('e-doc').value.trim();
 
       const dup = appState.turnantes.find(t => String(t.documento).trim() === doc && String(t.id) !== String(editId));
-      if (dup) {
-        alert("Ya existe otro turnante con esa cédula.");
-        return;
-      }
+      if (dup) { alert("Ya existe otro turnante con esa cédula."); return; }
 
       let rec = null;
       if (editId) {
@@ -2763,9 +2850,7 @@
         showToast("Turnante registrado y sincronizado");
       }
 
-      if (rec) {
-        enqueueAtomicOp({ type: "UPSERT_TURNANTE", record: rec });
-      }
+      if (rec) enqueueAtomicOp({ type: "UPSERT_TURNANTE", record: rec });
       closeModal('emp-modal');
       persistLocal();
       renderAllAdmin();
@@ -2788,14 +2873,21 @@
       const empObj = appState.turnantes.find(e => String(e.id) === String(idT)) || {};
       const defaultMetodo = (empObj.banco && empObj.numero_cuenta) ? `${empObj.banco} - ${empObj.numero_cuenta}` : "Transferencia / Nequi";
 
-      const bruto = tg.reduce((s, t) => s + Number(t.valor_total), 0);
-      const th = tg.reduce((s, t) => s + Number(t.horas_efectivas), 0);
+      let bruto = 0, th = 0, thOrd = 0, thExt = 0;
+      tg.forEach(t => {
+        const b = getTurnoNormalizedBreakdown(t);
+        bruto += b.valorTotal;
+        th += b.horasEfectivas;
+        thOrd += b.horasOrdinarias;
+        thExt += b.horasExtras;
+      });
+
       const novs = getPendingNovedadesForEmpCorte(idT, ci);
       const desc = novs.reduce((s, n) => s + Number(n.monto || 0), 0);
       const neto = Math.max(0, bruto - desc);
 
       const cInfo = getCorteInfo(ci);
-      const met = prompt(`Liquidar NETO ${formatCOP(neto)} (Bruto ${formatCOP(bruto)} - Desc ${formatCOP(desc)} | ${th.toFixed(2)}h) a ${tg[0].nombre_turnante}.\nMétodo:`, defaultMetodo);
+      const met = prompt(`Liquidar NETO ${formatCOP(neto)} (Bruto ${formatCOP(bruto)} - Desc ${formatCOP(desc)} | ${thOrd.toFixed(2)}h ord + ${thExt.toFixed(2)}h ext) a ${tg[0].nombre_turnante}.\nMétodo:`, defaultMetodo);
       if (met === null) return;
 
       const idR = "REC-" + Date.now().toString().slice(-6);
@@ -2821,6 +2913,8 @@
         nombre_turnante: tg[0].nombre_turnante,
         cantidad_turnos: tg.length,
         total_horas: Number(th.toFixed(2)),
+        total_horas_ord: Number(thOrd.toFixed(2)),
+        total_horas_ext: Number(thExt.toFixed(2)),
         total_bruto: bruto,
         total_descuentos: desc,
         total_pagado: neto,
@@ -2852,11 +2946,15 @@
       document.getElementById('rec-metodo').textContent = `Método: ${p.metodo_pago}`;
       document.getElementById('rec-total').textContent = formatCOP(p.total_pagado);
 
-      const turnoRows = tr.map(t => `<div class="flex justify-between py-1 border-b border-slate-100"><span>${t.fecha_turno} (${t.hora_ingreso}-${t.hora_salida} | ${Number(t.horas_efectivas).toFixed(2)}h)</span><span class="font-bold">${formatCOP(t.valor_total)}</span></div>`).join('');
+      const turnoRows = tr.map(t => {
+        const b = getTurnoNormalizedBreakdown(t);
+        const detExt = b.horasExtras > 0 ? ` (${b.horasOrdinarias.toFixed(2)}h ord + ${b.horasExtras.toFixed(2)}h ext)` : ` (${b.horasEfectivas.toFixed(2)}h)`;
+        return `<div class="flex justify-between py-1 border-b border-slate-100"><span>${t.fecha_turno} [${t.hora_ingreso}-${t.hora_salida}]${detExt}</span><span class="font-bold">${formatCOP(b.valorTotal)}</span></div>`;
+      }).join('');
       const novRows = novs.map(n => `<div class="flex justify-between py-1 border-b border-slate-100 text-rose-600"><span>Descuento (${n.tipo}): ${n.concepto}</span><span class="font-bold">-${formatCOP(n.monto)}</span></div>`).join('');
       document.getElementById('rec-items').innerHTML = turnoRows + novRows;
 
-      currentReceiptText = `*COMPROBANTE PAGO TURNANTES - FAGOSA SAS*\nRecibo: ${p.id_recibo}\nTurnante: ${p.nombre_turnante}\nCorte: ${p.corte_semana}\nHoras efectivas: ${p.total_horas}h\n${p.total_descuentos > 0 ? `Descuentos: -${formatCOP(p.total_descuentos)}\n` : ''}*Neto Pagado: ${formatCOP(p.total_pagado)}*`;
+      currentReceiptText = `*COMPROBANTE PAGO TURNANTES - FAGOSA SAS*\nRecibo: ${p.id_recibo}\nTurnante: ${p.nombre_turnante}\nCorte: ${p.corte_semana}\nHoras: ${p.total_horas}h (${p.total_horas_ord || p.total_horas}h ord / ${p.total_horas_ext || 0}h ext +25%)\n${p.total_descuentos > 0 ? `Descuentos: -${formatCOP(p.total_descuentos)}\n` : ''}*Neto Pagado: ${formatCOP(p.total_pagado)}*`;
       openModal('receipt-modal');
     }
 
@@ -2926,8 +3024,11 @@
     function closeModal(id) { const m = document.getElementById(id); m.classList.add('hidden'); m.classList.remove('flex'); }
 
     function exportToCSV() {
-      const h = ["ID", "Turnante", "Cedula", "Fecha", "Ingreso", "Alm_Ini", "Alm_Fin", "Salida", "Min_Alm", "Horas_Ef", "Valor_COP", "Corte", "Pago_Martes", "Estado_Jornada", "Estado_Pago"];
-      const r = appState.asistencia.map(t => [t.id_turno, `"${t.nombre_turnante}"`, t.documento, t.fecha_turno, t.hora_ingreso, t.almuerzo_inicio, t.almuerzo_fin, t.hora_salida, t.minutos_almuerzo, t.horas_efectivas, t.valor_total, t.corte_inicio, t.fecha_pago_martes, t.estado_jornada, t.estado_pago]);
+      const h = ["ID", "Turnante", "Cedula", "Fecha", "Ingreso", "Alm_Ini", "Alm_Fin", "Salida", "Min_Alm", "Horas_Ef", "Horas_Ord", "Horas_Ext_25", "Valor_Ord", "Valor_Ext", "Valor_Total_COP", "Corte", "Pago_Martes", "Estado_Jornada", "Estado_Pago"];
+      const r = appState.asistencia.map(t => {
+        const b = getTurnoNormalizedBreakdown(t);
+        return [t.id_turno, `"${t.nombre_turnante}"`, t.documento, t.fecha_turno, t.hora_ingreso, t.almuerzo_inicio, t.almuerzo_fin, t.hora_salida, t.minutos_almuerzo, b.horasEfectivas, b.horasOrdinarias, b.horasExtras, b.valorOrdinario, b.valorExtra, b.valorTotal, t.corte_inicio, t.fecha_pago_martes, t.estado_jornada, t.estado_pago];
+      });
       const csv = "\uFEFF" + [h.join(","), ...r.map(x => x.join(","))].join("\n");
       const a = document.createElement("a");
       a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
