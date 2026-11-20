@@ -7,7 +7,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     body { font-family: 'Inter', sans-serif; }
@@ -21,14 +20,14 @@
       position: fixed;
       inset: 0;
       pointer-events: none;
-      z-index: 5;
+      z-index: 0;
       display: flex;
       align-items: center;
       justify-content: center;
-      opacity: 0.045;
+      opacity: 0.018;
     }
     .brand-watermark-bg img {
-      width: min(500px, 70vw);
+      width: min(260px, 42vw);
       height: auto;
       object-fit: contain;
     }
@@ -187,7 +186,7 @@
       </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 no-print">
+    <main class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 no-print">
       <!-- KPIs -->
       <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
@@ -264,8 +263,8 @@
             <button onclick="archiveSelectedCorte()" title="Mover turnos pagados de esta semana a Historial_Archivo en Excel" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-lg transition">
               Archivar Corte Pagado
             </button>
-            <button onclick="downloadAllCuentasCobroZIP()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-xs transition">
-              Descargar Cuentas de Cobro (.ZIP)
+            <button onclick="downloadAllCuentasCobroPDFs()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-xs transition">
+              Descargar Todas las Cuentas de Cobro (PDF)
             </button>
           </div>
         </div>
@@ -1291,8 +1290,9 @@
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
 
-      const empData = appState.turnantes.find(e => String(e.id) === String(group.id_turnante)) || {};
-      const cedula = empData.documento || (group.turnos[0] && group.turnos[0].documento) || "N/A";
+      const canon = getCanonicalTurnanteKey(group.turnos[0] || group);
+      const empData = canon.emp || appState.turnantes.find(e => String(e.documento || '').trim() === String(group.documento || '').trim() || String(e.id) === String(group.id_turnante)) || {};
+      const cedula = empData.documento || group.documento || (group.turnos[0] && group.turnos[0].documento) || "N/A";
       const banco = String(empData.banco || "").trim();
       const numeroCuenta = String(empData.numero_cuenta || "").trim();
 
@@ -1312,7 +1312,7 @@
         return { ...t, breakdown: b };
       });
 
-      const novs = getPendingNovedadesForEmpCorte(group.id_turnante, corteInfo.corte_inicio);
+      const novs = getPendingNovedadesForEmpCorte(group.id_turnante, corteInfo.corte_inicio, canon.key);
       const totalDescuentos = novs.reduce((s, n) => s + Number(n.monto || 0), 0);
       const netoAPagar = Math.max(0, brutoDinero - totalDescuentos);
 
@@ -1513,23 +1513,25 @@
       return { doc, fileName };
     }
 
-    function downloadSingleCuentaCobro(idTurnante, corteInicio) {
+    function downloadSingleCuentaCobro(encodedCanonicalKey, corteInicio) {
+      const canonicalKey = decodeURIComponent(encodedCanonicalKey);
       const ef = document.getElementById('filter-corte-estado').value;
       let turnos = appState.asistencia.filter(t =>
-        String(t.id_turnante) === String(idTurnante) &&
+        matchesCanonicalKey(t, canonicalKey) &&
         t.corte_inicio === corteInicio &&
         t.estado_jornada === 'FINALIZADO'
       );
       if (ef !== 'TODOS') turnos = turnos.filter(t => t.estado_pago === ef);
       if (turnos.length === 0) { showToast("No hay turnos finalizados para generar cuenta de cobro."); return; }
+      const canon = getCanonicalTurnanteKey(turnos[0]);
       const corteInfo = getCorteInfo(corteInicio);
-      const group = { id_turnante: idTurnante, nombre: turnos[0].nombre_turnante, turnos };
+      const group = { canonicalKey, id_turnante: canon.id_turnante, documento: canon.documento, nombre: canon.nombre, turnos };
       const { doc, fileName } = buildCuentaCobroPDFDoc(group, corteInfo);
       doc.save(fileName);
-      showToast(`PDF generado: ${fileName}`);
+      showToast(`PDF consolidado generado (${turnos.length} día(s)): ${fileName}`);
     }
 
-    async function downloadAllCuentasCobroZIP() {
+    async function downloadAllCuentasCobroPDFs() {
       const ci = document.getElementById('filter-corte-semana').value;
       const ef = document.getElementById('filter-corte-estado').value;
       if (!ci) return;
@@ -1540,35 +1542,65 @@
 
       const byEmp = {};
       tc.forEach(t => {
-        if (!byEmp[t.id_turnante]) byEmp[t.id_turnante] = { id_turnante: t.id_turnante, nombre: t.nombre_turnante, turnos: [] };
-        byEmp[t.id_turnante].turnos.push(t);
+        const canon = getCanonicalTurnanteKey(t);
+        if (!byEmp[canon.key]) {
+          byEmp[canon.key] = { canonicalKey: canon.key, id_turnante: canon.id_turnante, documento: canon.documento, nombre: canon.nombre, turnos: [] };
+        }
+        byEmp[canon.key].turnos.push(t);
       });
 
       const groups = Object.values(byEmp);
       const corteInfo = getCorteInfo(ci);
-      const zip = new JSZip();
+      showToast(`Descargando ${groups.length} cuenta(s) de cobro en PDF...`);
 
-      groups.forEach(g => {
-        const { doc, fileName } = buildCuentaCobroPDFDoc(g, corteInfo);
-        const pdfArrayBuffer = doc.output('arraybuffer');
-        zip.file(fileName, pdfArrayBuffer);
-      });
-
-      const blob = await zip.generateAsync({ type: 'blob' });
-      const zipName = `Cuentas_Cobro_FAGOSA_${corteInfo.shortRange}.zip`;
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = zipName;
-      link.click();
-      showToast(`ZIP descargado con ${groups.length} cuenta(s) de cobro`);
+      for (let i = 0; i < groups.length; i++) {
+        const { doc, fileName } = buildCuentaCobroPDFDoc(groups[i], corteInfo);
+        doc.save(fileName);
+        if (i < groups.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 450));
+        }
+      }
+      showToast(`Listo: ${groups.length} archivo(s) PDF descargados`);
     }
 
     /* =======================================================================
        VALES, PRÉSTAMOS Y DESCUENTOS
     ======================================================================= */
-    function getPendingNovedadesForEmpCorte(idTurnante, corteInicio) {
+
+    function getCanonicalTurnanteKey(record) {
+      const doc = String(record.documento || "").trim();
+      const idT = String(record.id_turnante || "").trim();
+      const nameNorm = String(record.nombre_turnante || record.nombre || "").trim().toUpperCase().replace(/\s+/g, " ");
+
+      // Buscar en el catálogo actual de turnantes para unificar si hubo re-importación con distinto id
+      const empByDoc = doc ? appState.turnantes.find(e => String(e.documento || "").trim() === doc) : null;
+      if (empByDoc) return { key: "DOC:" + doc, emp: empByDoc, id_turnante: empByDoc.id, documento: doc, nombre: empByDoc.nombre };
+
+      const empById = idT ? appState.turnantes.find(e => String(e.id || "").trim() === idT) : null;
+      if (empById) {
+        const eDoc = String(empById.documento || "").trim();
+        return { key: eDoc ? "DOC:" + eDoc : "ID:" + empById.id, emp: empById, id_turnante: empById.id, documento: eDoc, nombre: empById.nombre };
+      }
+
+      const empByName = nameNorm ? appState.turnantes.find(e => String(e.nombre || "").trim().toUpperCase().replace(/\s+/g, " ") === nameNorm) : null;
+      if (empByName) {
+        const eDoc = String(empByName.documento || "").trim();
+        return { key: eDoc ? "DOC:" + eDoc : "ID:" + empByName.id, emp: empByName, id_turnante: empByName.id, documento: eDoc, nombre: empByName.nombre };
+      }
+
+      if (doc) return { key: "DOC:" + doc, emp: null, id_turnante: idT, documento: doc, nombre: record.nombre_turnante || record.nombre || "Turnante" };
+      if (idT) return { key: "ID:" + idT, emp: null, id_turnante: idT, documento: "", nombre: record.nombre_turnante || record.nombre || "Turnante" };
+      return { key: "NAME:" + nameNorm, emp: null, id_turnante: idT, documento: "", nombre: record.nombre_turnante || record.nombre || "Turnante" };
+    }
+
+    function matchesCanonicalKey(record, canonicalKey) {
+      return getCanonicalTurnanteKey(record).key === canonicalKey;
+    }
+
+    function getPendingNovedadesForEmpCorte(idTurnante, corteInicio, canonicalKey = null) {
+      const targetKey = canonicalKey || getCanonicalTurnanteKey({ id_turnante: idTurnante }).key;
       return (appState.novedades || []).filter(n =>
-        String(n.id_turnante) === String(idTurnante) &&
+        matchesCanonicalKey(n, targetKey) &&
         String(n.corte_inicio) === String(corteInicio) &&
         n.estado !== 'APLICADO'
       );
@@ -2244,6 +2276,8 @@
                 ...a,
                 documento: String(a.documento || '').trim(),
                 fecha_turno: String(a.fecha_turno || '').slice(0, 10),
+                corte_inicio: a.fecha_turno ? getCorteInfo(String(a.fecha_turno).slice(0, 10)).corte_inicio : String(a.corte_inicio || '').slice(0, 10),
+                corte_fin: a.fecha_turno ? getCorteInfo(String(a.fecha_turno).slice(0, 10)).corte_fin : String(a.corte_fin || '').slice(0, 10),
                 hora_ingreso: hIn,
                 almuerzo_inicio: aIn,
                 almuerzo_fin: aOut,
@@ -2489,11 +2523,22 @@
 
       const by = {};
       tc.forEach(t => {
-        if (!by[t.id_turnante]) by[t.id_turnante] = { id_turnante: t.id_turnante, nombre: t.nombre_turnante, turnos: [] };
-        by[t.id_turnante].turnos.push(t);
+        const canon = getCanonicalTurnanteKey(t);
+        if (!by[canon.key]) {
+          by[canon.key] = {
+            canonicalKey: canon.key,
+            id_turnante: canon.id_turnante,
+            documento: canon.documento,
+            nombre: canon.nombre,
+            empObj: canon.emp,
+            turnos: []
+          };
+        }
+        by[canon.key].turnos.push(t);
       });
 
       ct.innerHTML = Object.values(by).map(g => {
+        g.turnos.sort((a, b) => String(a.fecha_turno).localeCompare(String(b.fecha_turno)));
         let th = 0, thOrd = 0, thExt = 0, bruto = 0;
         const turnosWithB = g.turnos.map(t => {
           const b = getTurnoNormalizedBreakdown(t);
@@ -2504,35 +2549,39 @@
           return { ...t, b };
         });
 
-        const novs = getPendingNovedadesForEmpCorte(g.id_turnante, ci);
+        const novs = getPendingNovedadesForEmpCorte(g.id_turnante, ci, g.canonicalKey);
         const desc = novs.reduce((s, n) => s + Number(n.monto || 0), 0);
         const neto = Math.max(0, bruto - desc);
 
         const pt = g.turnos.filter(t => t.estado_pago === 'PENDIENTE');
-        const empObj = appState.turnantes.find(e => String(e.id) === String(g.id_turnante)) || {};
+        const empObj = g.empObj || appState.turnantes.find(e => String(e.documento || '').trim() === String(g.documento || '').trim() || String(e.id) === String(g.id_turnante)) || {};
         const bankLabel = (empObj.banco && empObj.numero_cuenta) ? `${empObj.banco} (${empObj.numero_cuenta})` : "Sin cuenta registrada";
+        const safeKeyEnc = encodeURIComponent(g.canonicalKey);
 
         return `
           <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div>
-                <h3 class="font-bold text-slate-900 text-base">${g.nombre}</h3>
-                <p class="text-xs text-slate-500">
-                  ${g.turnos.length} día(s) • <strong>${thOrd.toFixed(2)}h ord.</strong>${thExt > 0 ? ` + <strong class="text-sky-700">${thExt.toFixed(2)}h ext. (+25%)</strong>` : ''} • <span class="text-slate-700 font-medium">${bankLabel}</span>
+                <div class="flex items-center gap-2">
+                  <h3 class="font-bold text-slate-900 text-base">${g.nombre}</h3>
+                  <span class="text-[11px] font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">${g.turnos.length} turno(s) acumulado(s)</span>
+                </div>
+                <p class="text-xs text-slate-500 mt-0.5">
+                  Total semana: <strong>${thOrd.toFixed(2)}h ord.</strong>${thExt > 0 ? ` + <strong class="text-sky-700">${thExt.toFixed(2)}h ext. (+25%)</strong>` : ''} • <span class="text-slate-700 font-medium">${bankLabel}</span>
                 </p>
               </div>
               <div class="flex flex-wrap items-center gap-2.5">
                 <div class="text-right mr-2">
-                  <p class="text-[11px] uppercase font-bold text-slate-400">${desc > 0 ? `Bruto ${formatCOP(bruto)} - Desc ${formatCOP(desc)}` : 'Neto a Pagar'}</p>
+                  <p class="text-[11px] uppercase font-bold text-slate-400">${desc > 0 ? `Bruto ${formatCOP(bruto)} - Desc ${formatCOP(desc)}` : 'Consolidado Semana'}</p>
                   <p class="text-lg font-extrabold text-slate-900 tabular-nums">${formatCOP(neto)}</p>
                 </div>
                 <button onclick="openNovedadModal('${g.id_turnante}')" class="bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold px-3 py-2.5 rounded-lg transition">
                   - Vale/Desc
                 </button>
-                <button onclick="downloadSingleCuentaCobro('${g.id_turnante}', '${ci}')" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-lg transition">
-                  PDF Cuenta de Cobro
+                <button onclick="downloadSingleCuentaCobro('${safeKeyEnc}', '${ci}')" class="bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-lg transition">
+                  PDF Cuenta de Cobro (${g.turnos.length}d)
                 </button>
-                ${pt.length > 0 ? `<button onclick="liquidarGrupo('${g.id_turnante}','${ci}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg">Liquidar (${formatCOP(neto)})</button>` : `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg">PAGADO</span>`}
+                ${pt.length > 0 ? `<button onclick="liquidarGrupo('${safeKeyEnc}','${ci}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 py-2.5 rounded-lg">Liquidar (${formatCOP(neto)})</button>` : `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-lg">PAGADO</span>`}
               </div>
             </div>
             <div class="divide-y divide-slate-100">
@@ -2902,10 +2951,13 @@
       flushOfflineQueue();
     }
 
-    function liquidarGrupo(idT, ci) {
-      const tg = appState.asistencia.filter(t => String(t.id_turnante) === String(idT) && t.corte_inicio === ci && t.estado_pago === 'PENDIENTE' && t.estado_jornada === 'FINALIZADO');
+    function liquidarGrupo(encodedCanonicalKey, ci) {
+      const canonicalKey = decodeURIComponent(encodedCanonicalKey);
+      const tg = appState.asistencia.filter(t => matchesCanonicalKey(t, canonicalKey) && t.corte_inicio === ci && t.estado_pago === 'PENDIENTE' && t.estado_jornada === 'FINALIZADO');
       if (tg.length === 0) return;
-      const empObj = appState.turnantes.find(e => String(e.id) === String(idT)) || {};
+      const canon = getCanonicalTurnanteKey(tg[0]);
+      const empObj = canon.emp || {};
+      const idT = canon.id_turnante;
       const defaultMetodo = (empObj.banco && empObj.numero_cuenta) ? `${empObj.banco} - ${empObj.numero_cuenta}` : "Transferencia / Nequi";
 
       let bruto = 0, th = 0, thOrd = 0, thExt = 0;
@@ -2917,12 +2969,12 @@
         thExt += b.horasExtras;
       });
 
-      const novs = getPendingNovedadesForEmpCorte(idT, ci);
+      const novs = getPendingNovedadesForEmpCorte(idT, ci, canonicalKey);
       const desc = novs.reduce((s, n) => s + Number(n.monto || 0), 0);
       const neto = Math.max(0, bruto - desc);
 
       const cInfo = getCorteInfo(ci);
-      const met = prompt(`Liquidar NETO ${formatCOP(neto)} (Bruto ${formatCOP(bruto)} - Desc ${formatCOP(desc)} | ${thOrd.toFixed(2)}h ord + ${thExt.toFixed(2)}h ext) a ${tg[0].nombre_turnante}.\nMétodo:`, defaultMetodo);
+      const met = prompt(`Liquidar NETO ${formatCOP(neto)} (${tg.length} día(s) | Bruto ${formatCOP(bruto)} - Desc ${formatCOP(desc)}) a ${canon.nombre}.\nMétodo:`, defaultMetodo);
       if (met === null) return;
 
       const idR = "REC-" + Date.now().toString().slice(-6);
