@@ -1321,30 +1321,22 @@
       const empresaCiudad = (cloudConfig.empCiudad || DEFAULT_COMPANY.ciudad).toUpperCase();
       const fechaGeneracion = getDynamicSpanishDate();
 
-      // Marca de agua centrada en el PDF (Helena Adentro tipografía)
+      // Logo completo en esquina superior derecha del PDF (totalmente encima del recuadro)
       try {
-        doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: 0.065 }));
-        doc.addImage(BRAND_LOGO_WATERMARK, 'PNG', 43, 95.28, 130, 88.83);
-        doc.restoreGraphicsState();
-      } catch (e) {}
-
-      // Logo completo en esquina superior derecha del PDF
-      try {
-        doc.addImage(BRAND_LOGO_FULL, 'PNG', 168, 10, 26, 36.28);
+        doc.addImage(BRAND_LOGO_FULL, 'PNG', 174, 8, 20, 27.9);
       } catch (e) {}
 
       // Ciudad y Fecha Dinámica
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(60, 60, 60);
-      doc.text(`${empresaCiudad}, ${fechaGeneracion}`, 20, 22);
+      doc.text(`${empresaCiudad}, ${fechaGeneracion}`, 20, 20);
 
       // Título limpio
       doc.setFont("helvetica", "bold");
       doc.setFontSize(16);
       doc.setTextColor(15, 23, 42);
-      doc.text("CUENTA DE COBRO", 108, 35, { align: "center" });
+      doc.text("CUENTA DE COBRO", 108, 33, { align: "center" });
 
       // Empresa Deudora (FAGOSA SAS)
       doc.setDrawColor(203, 213, 225);
@@ -1507,6 +1499,14 @@
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9.5);
       doc.text(`C.C. ${cedula}`, 20, finalY + 10);
+
+      // Marca de agua centrada y completa en el PDF
+      try {
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.05 }));
+        doc.addImage(BRAND_LOGO_WATERMARK, 'PNG', 53, 105, 110, 75.16);
+        doc.restoreGraphicsState();
+      } catch (e) {}
 
       const safeName = String(group.nombre || "Turnante").trim().replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]/g, '_');
       const fileName = `Cuenta_Cobro_${safeName}_${corteInfo.shortRange}.pdf`;
