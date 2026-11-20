@@ -168,7 +168,7 @@
               <h1 class="font-bold text-base sm:text-lg tracking-tight leading-none">TurnoPay</h1>
               <span class="text-[10px] font-extrabold uppercase bg-amber-400 text-slate-950 px-2 py-0.5 rounded">Super Usuario</span>
             </div>
-            <p class="text-[11px] text-slate-400 hidden sm:block">7h ord. ($80.000) • H8+ extra +25% ($14.286/h)</p>
+            <p class="text-[11px] text-slate-400 hidden sm:block">7h ord. ($80.000) • >7h extra +25% ($14.286/h)</p>
           </div>
         </div>
         <div class="flex items-center gap-2">
@@ -230,10 +230,10 @@
         <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="font-bold text-slate-800 text-base">Jornadas Activas (7h Ordinarias + Extras +25% desde H8 completa)</h2>
+              <h2 class="font-bold text-slate-800 text-base">Jornadas Activas (7h Ordinarias + Extras +25% después de 7.0h)</h2>
               <span class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></span> EN VIVO</span>
             </div>
-            <p class="text-xs text-slate-500 mt-0.5">Al completar la primera hora adicional (8.00h efectivas), el recargo del +25% se activa sobre el tiempo extra. Cierre automático tras 16h.</p>
+            <p class="text-xs text-slate-500 mt-0.5">Todo tiempo trabajado por encima de 7.00 horas efectivas (sin contar almuerzo) se liquida automáticamente con recargo del +25%. Cierre automático tras 16h.</p>
           </div>
           <div class="flex gap-2">
             <button onclick="manualForceSync()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold px-3.5 py-2.5 rounded-xl transition">Actualizar Ya</button>
@@ -262,6 +262,9 @@
             </button>
             <button onclick="archiveSelectedCorte()" title="Mover turnos pagados de esta semana a Historial_Archivo en Excel" class="bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-lg transition">
               Archivar Corte Pagado
+            </button>
+            <button onclick="downloadDaviviendaPlainFile()" title="Generar archivo plano para dispersión de pagos en Davivienda" class="bg-rose-700 hover:bg-rose-800 text-white text-xs font-bold px-3.5 py-2.5 rounded-lg shadow-xs transition">
+              Archivo Plano Davivienda (.TXT)
             </button>
             <button onclick="downloadAllCuentasCobroPDFs()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-xs transition">
               Descargar Todas las Cuentas de Cobro (PDF)
@@ -352,9 +355,27 @@
 
       <!-- VIEW 6: HISTORIAL DE RECIBOS -->
       <section id="view-historial" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="p-4 border-b border-slate-100">
-          <h2 class="font-bold text-slate-800 text-base">Comprobantes Emitidos</h2>
+        <div class="p-4 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div>
+            <h2 class="font-bold text-slate-800 text-base">Comprobantes Emitidos</h2>
+            <p class="text-xs text-slate-500">Filtra por turnante o rango de fechas de liquidación, descarga el comprobante en PDF o compártelo por WhatsApp.</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <select id="filter-hist-emp" onchange="renderHistorialTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-slate-800 outline-none">
+              <option value="ALL">Todos los turnantes</option>
+            </select>
+            <div class="flex items-center gap-1.5 text-xs">
+              <span class="text-slate-500 font-semibold">Desde:</span>
+              <input type="date" id="filter-hist-desde" onchange="renderHistorialTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none" />
+            </div>
+            <div class="flex items-center gap-1.5 text-xs">
+              <span class="text-slate-500 font-semibold">Hasta:</span>
+              <input type="date" id="filter-hist-hasta" onchange="renderHistorialTable()" class="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs outline-none" />
+            </div>
+            <button onclick="clearHistorialFilters()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold px-3 py-2 rounded-lg transition">Limpiar</button>
+          </div>
         </div>
+        <div id="historial-summary-bar" class="hidden px-4 py-2.5 bg-emerald-50/80 border-b border-emerald-100 flex flex-wrap items-center justify-between gap-2 text-xs"></div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse">
             <thead>
@@ -366,7 +387,7 @@
                 <th class="py-3 px-4 text-right">Horas Ef.</th>
                 <th class="py-3 px-4 text-right">Descuentos</th>
                 <th class="py-3 px-4 text-right">Neto Pagado</th>
-                <th class="py-3 px-4 text-right">Acción</th>
+                <th class="py-3 px-4 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody id="historial-tbody" class="divide-y divide-slate-100 text-sm"></tbody>
@@ -418,13 +439,13 @@
             <div class="text-xs text-slate-600 flex flex-col justify-center space-y-0.5">
               <p class="font-bold text-slate-800">Esquema Tarifario Vigente:</p>
               <p>• Primeras <strong>7.0h</strong>: <strong>$11.428,57/h</strong> ($80.000/día)</p>
-              <p>• Desde <strong>8.0h completa en adelante</strong>: <strong>+25%</strong> ($14.285,71/h)</p>
+              <p>• Después de <strong>7.0h efectivas</strong>: <strong>+25%</strong> ($14.285,71/h)</p>
             </div>
           </div>
 
-          <!-- Datos Empresa para Cuentas de Cobro -->
+          <!-- Datos Empresa, WhatsApp RRHH y Davivienda -->
           <div class="space-y-3 pt-2 border-t border-slate-100">
-            <h3 class="font-bold text-slate-800 text-sm">Datos de la Empresa (Encabezado PDF Cuentas de Cobro)</h3>
+            <h3 class="font-bold text-slate-800 text-sm">Datos Empresa, WhatsApp RRHH y Cuenta Origen Davivienda</h3>
             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label class="block text-xs font-semibold text-slate-600 mb-1">Razón Social</label>
@@ -439,7 +460,24 @@
                 <input type="text" id="cfg-emp-ciudad" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold" />
               </div>
             </div>
-            <button onclick="saveCompanyConfig()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg text-xs">Guardar Datos Empresa</button>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">WhatsApp Recursos Humanos (con 57)</label>
+                <input type="tel" id="cfg-rh-whatsapp" placeholder="Ej: 573001234567" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Cuenta Origen Davivienda (Empresa)</label>
+                <input type="text" id="cfg-dav-cuenta" inputmode="numeric" placeholder="Ej: 001234567890" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-mono font-bold" />
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">Tipo Cuenta Origen Davivienda</label>
+                <select id="cfg-dav-tipo" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-xs font-bold bg-white">
+                  <option value="CA">Cuenta de Ahorros (CA)</option>
+                  <option value="CC">Cuenta Corriente (CC)</option>
+                </select>
+              </div>
+            </div>
+            <button onclick="saveCompanyConfig()" class="bg-slate-900 hover:bg-slate-800 text-white font-semibold px-4 py-2 rounded-lg text-xs">Guardar Datos Empresa y Davivienda</button>
           </div>
 
           <!-- Conexión Google Drive y Cola Offline -->
@@ -531,7 +569,7 @@
           <div class="flex justify-between"><span class="text-slate-600">Almuerzo descontado:</span><strong id="prev-alm-min" class="text-amber-700">0 min</strong></div>
           <div class="flex justify-between"><span class="text-slate-600">Total horas efectivas:</span><strong id="prev-horas-ef" class="text-slate-900">0.00 h</strong></div>
           <div class="flex justify-between"><span class="text-slate-600">Horas ordinarias (base):</span><strong id="prev-horas-ord" class="text-slate-800">0.00 h ($0)</strong></div>
-          <div class="flex justify-between"><span class="text-slate-600">Horas extras (+25% desde H8 completa):</span><strong id="prev-horas-ext" class="text-sky-700">0.00 h ($0)</strong></div>
+          <div class="flex justify-between"><span class="text-slate-600">Horas extras (+25% después de 7h):</span><strong id="prev-horas-ext" class="text-sky-700">0.00 h ($0)</strong></div>
           <div class="flex justify-between text-sm pt-1.5 border-t border-emerald-200/70"><span class="font-bold text-emerald-900">Total Día:</span><strong id="prev-valor-total" class="text-emerald-700 font-extrabold">$0</strong></div>
           <div class="flex justify-between text-[11px] text-slate-500 pt-0.5"><span>Corte: <strong id="prev-corte">-</strong></span><span>Pago: <strong id="prev-martes">-</strong></span></div>
         </div>
@@ -738,10 +776,27 @@
           <p id="rec-total" class="text-xl font-extrabold text-emerald-600 tabular-nums"></p>
         </div>
       </div>
-      <div class="px-6 py-3 bg-slate-100 flex items-center justify-between gap-2 no-print">
-        <button onclick="copyWhatsAppReceipt()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg">Copiar WhatsApp</button>
-        <button onclick="window.print()" class="bg-white border border-slate-300 text-slate-700 text-xs font-bold py-2.5 px-3 rounded-lg">Imprimir</button>
-        <button onclick="closeModal('receipt-modal')" class="text-slate-500 text-xs font-semibold px-2 py-2">Cerrar</button>
+      <div class="px-6 py-3.5 bg-slate-100 space-y-2 border-t border-slate-200 no-print">
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="downloadCurrentReceiptPDF()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold py-2.5 px-3 rounded-lg transition">
+            Descargar PDF Comprobante
+          </button>
+          <button onclick="copyWhatsAppReceipt()" class="bg-white hover:bg-slate-50 border border-slate-300 text-slate-800 text-xs font-bold py-2.5 px-3 rounded-lg transition">
+            Copiar Texto
+          </button>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="sendReceiptWhatsApp('EMPLEADO')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg transition">
+            WhatsApp Turnante →
+          </button>
+          <button onclick="sendReceiptWhatsApp('RRHH')" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold py-2.5 px-3 rounded-lg transition">
+            WhatsApp RRHH →
+          </button>
+        </div>
+        <div class="flex items-center justify-between pt-1">
+          <button onclick="window.print()" class="text-slate-500 hover:text-slate-800 text-xs font-semibold underline">Imprimir Tirilla</button>
+          <button onclick="closeModal('receipt-modal')" class="text-slate-600 hover:text-slate-900 text-xs font-bold px-2 py-1">Cerrar</button>
+        </div>
       </div>
     </div>
   </div>
@@ -789,6 +844,9 @@
       empNombre: savedCloud.empNombre || DEFAULT_COMPANY.nombre,
       empNit: savedCloud.empNit || DEFAULT_COMPANY.nit,
       empCiudad: savedCloud.empCiudad || DEFAULT_COMPANY.ciudad,
+      rhWhatsapp: savedCloud.rhWhatsapp || "",
+      davCuenta: savedCloud.davCuenta || "",
+      davTipo: savedCloud.davTipo || "CA",
       authorizedDevices: Array.isArray(savedCloud.authorizedDevices) ? savedCloud.authorizedDevices : []
     };
 
@@ -904,10 +962,10 @@
       const he = Math.max(0, Number(horasEfectivas) || 0);
       const rate = Number(vhBase) || VALOR_HORA_EFECTIVA;
 
-      let horasOrdinarias = he;
+      let horasOrdinarias = 0;
       let horasExtras = 0;
 
-      if (he >= 8.0) {
+      if (he > 7.0) {
         horasOrdinarias = 7.0;
         horasExtras = Number((he - 7.0).toFixed(4));
       } else {
@@ -2331,10 +2389,16 @@
             const rEmp = json.data.config.find(c => c.clave === 'empNombre');
             const rNit = json.data.config.find(c => c.clave === 'empNit');
             const rCiu = json.data.config.find(c => c.clave === 'empCiudad');
+            const rRh = json.data.config.find(c => c.clave === 'rhWhatsapp');
+            const rDavC = json.data.config.find(c => c.clave === 'davCuenta');
+            const rDavT = json.data.config.find(c => c.clave === 'davTipo');
             const rDevs = json.data.config.find(c => c.clave === 'authorizedDevices');
             if (rEmp && rEmp.valor) cloudConfig.empNombre = String(rEmp.valor).trim();
             if (rNit && rNit.valor) cloudConfig.empNit = String(rNit.valor).trim();
             if (rCiu && rCiu.valor) cloudConfig.empCiudad = String(rCiu.valor).trim();
+            if (rRh && rRh.valor !== undefined) cloudConfig.rhWhatsapp = String(rRh.valor).trim();
+            if (rDavC && rDavC.valor !== undefined) cloudConfig.davCuenta = String(rDavC.valor).trim();
+            if (rDavT && rDavT.valor) cloudConfig.davTipo = String(rDavT.valor).trim();
             if (rDevs && rDevs.valor) {
               try { cloudConfig.authorizedDevices = JSON.parse(rDevs.valor); } catch (e) {}
             }
@@ -2702,20 +2766,86 @@
       }).join('');
     }
 
+    function clearHistorialFilters() {
+      document.getElementById('filter-hist-emp').value = 'ALL';
+      document.getElementById('filter-hist-desde').value = '';
+      document.getElementById('filter-hist-hasta').value = '';
+      renderHistorialTable();
+    }
+
     function renderHistorialTable() {
       const tb = document.getElementById('historial-tbody');
-      tb.innerHTML = appState.pagos.length === 0 ? `<tr><td colspan="8" class="py-10 text-center text-slate-400">Sin liquidaciones.</td></tr>` : appState.pagos.map(p => `
-        <tr class="hover:bg-slate-50">
-          <td class="py-3 px-4 font-mono text-xs font-bold">${p.id_recibo}</td>
-          <td class="py-3 px-4 text-xs">${p.fecha_liquidacion}</td>
-          <td class="py-3 px-4 text-xs">${p.corte_semana}</td>
-          <td class="py-3 px-4 font-bold">${p.nombre_turnante}</td>
-          <td class="py-3 px-4 text-right text-xs">${Number(p.total_horas).toFixed(2)} h</td>
-          <td class="py-3 px-4 text-right text-xs text-rose-600 font-semibold">${p.total_descuentos > 0 ? '-' + formatCOP(p.total_descuentos) : '$0'}</td>
-          <td class="py-3 px-4 text-right font-extrabold text-emerald-600">${formatCOP(p.total_pagado)}</td>
-          <td class="py-3 px-4 text-right"><button onclick="viewReceipt('${p.id_recibo}')" class="text-xs font-semibold underline">Ver</button></td>
-        </tr>
-      `).join('');
+      const sel = document.getElementById('filter-hist-emp');
+      const sumBar = document.getElementById('historial-summary-bar');
+      if (!tb || !sel) return;
+
+      const prevKey = sel.value || 'ALL';
+      const empOptionsMap = new Map();
+      appState.turnantes.forEach(e => {
+        const c = getCanonicalTurnanteKey(e);
+        empOptionsMap.set(c.key, c.nombre);
+      });
+      appState.pagos.forEach(p => {
+        const c = getCanonicalTurnanteKey(p);
+        if (!empOptionsMap.has(c.key)) empOptionsMap.set(c.key, c.nombre);
+      });
+
+      sel.innerHTML = `<option value="ALL">Todos los turnantes</option>` +
+        Array.from(empOptionsMap.entries())
+          .sort((a, b) => a[1].localeCompare(b[1]))
+          .map(([k, name]) => `<option value="${encodeURIComponent(k)}">${name}</option>`)
+          .join('');
+      if (prevKey && Array.from(sel.options).some(o => o.value === prevKey)) {
+        sel.value = prevKey;
+      }
+
+      const selectedEmpEnc = sel.value;
+      const desde = document.getElementById('filter-hist-desde').value;
+      const hasta = document.getElementById('filter-hist-hasta').value;
+
+      const filtered = appState.pagos.filter(p => {
+        if (selectedEmpEnc !== 'ALL') {
+          const targetKey = decodeURIComponent(selectedEmpEnc);
+          if (!matchesCanonicalKey(p, targetKey)) return false;
+        }
+        const fLiq = String(p.fecha_liquidacion || '').slice(0, 10);
+        if (desde && fLiq < desde) return false;
+        if (hasta && fLiq > hasta) return false;
+        return true;
+      });
+
+      if (sumBar) {
+        if (filtered.length > 0 && (selectedEmpEnc !== 'ALL' || desde || hasta)) {
+          const sumHoras = filtered.reduce((s, p) => s + Number(p.total_horas || 0), 0);
+          const sumDesc = filtered.reduce((s, p) => s + Number(p.total_descuentos || 0), 0);
+          const sumNeto = filtered.reduce((s, p) => s + Number(p.total_pagado || 0), 0);
+          sumBar.innerHTML = `
+            <span class="font-bold text-emerald-900">Filtro activo: ${filtered.length} comprobante(s) encontrado(s)</span>
+            <span class="text-slate-700">Horas: <strong>${sumHoras.toFixed(2)}h</strong> • Descuentos: <strong>${formatCOP(sumDesc)}</strong> • Total Pagado: <strong class="text-emerald-700 text-sm">${formatCOP(sumNeto)}</strong></span>
+          `;
+          sumBar.classList.remove('hidden');
+        } else {
+          sumBar.classList.add('hidden');
+        }
+      }
+
+      tb.innerHTML = filtered.length === 0
+        ? `<tr><td colspan="8" class="py-10 text-center text-slate-400">No hay comprobantes que coincidan con el filtro seleccionado.</td></tr>`
+        : filtered.map(p => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-4 font-mono text-xs font-bold">${p.id_recibo}</td>
+            <td class="py-3 px-4 text-xs">${p.fecha_liquidacion}</td>
+            <td class="py-3 px-4 text-xs">${p.corte_semana}</td>
+            <td class="py-3 px-4 font-bold">${p.nombre_turnante}</td>
+            <td class="py-3 px-4 text-right text-xs">${Number(p.total_horas).toFixed(2)} h</td>
+            <td class="py-3 px-4 text-right text-xs text-rose-600 font-semibold">${p.total_descuentos > 0 ? '-' + formatCOP(p.total_descuentos) : '$0'}</td>
+            <td class="py-3 px-4 text-right font-extrabold text-emerald-600">${formatCOP(p.total_pagado)}</td>
+            <td class="py-3 px-4 text-right space-x-2">
+              <button onclick="viewReceipt('${p.id_recibo}')" class="text-xs font-semibold text-slate-700 hover:text-slate-900 underline">Ver</button>
+              <button onclick="downloadReceiptPDFById('${p.id_recibo}')" class="text-xs font-bold text-emerald-700 hover:underline">PDF</button>
+            </td>
+          </tr>
+        `).join('');
     }
 
     function openTurnoModal() {
@@ -3015,12 +3145,192 @@
       renderAllAdmin();
       flushOfflineQueue();
       viewReceipt(idR);
+      showToast("Pago liquidado. Usa los botones inferiores para enviar PDF a WhatsApp del Turnante y RRHH.");
+    }
+
+    let currentReceiptId = "";
+
+    function formatColombianWhatsAppPhone(rawPhone) {
+      const digits = String(rawPhone || "").replace(/\D/g, "");
+      if (!digits) return "";
+      if (digits.length === 10 && digits.startsWith("3")) return "57" + digits;
+      if (digits.startsWith("57") && digits.length >= 12) return digits;
+      return digits;
+    }
+
+    function buildReceiptPDFDoc(idR) {
+      const p = appState.pagos.find(x => x.id_recibo === idR);
+      if (!p) return null;
+      const canon = getCanonicalTurnanteKey(p);
+      const emp = canon.emp || appState.turnantes.find(e => String(e.id) === String(p.id_turnante)) || {};
+      const tr = appState.asistencia.filter(t => t.id_recibo === idR).sort((a, b) => String(a.fecha_turno).localeCompare(String(b.fecha_turno)));
+      const novs = (appState.novedades || []).filter(n => n.id_recibo === idR);
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+
+      const empresaNombre = (cloudConfig.empNombre || DEFAULT_COMPANY.nombre).toUpperCase();
+      const empresaNit = cloudConfig.empNit || DEFAULT_COMPANY.nit;
+      const empresaCiudad = (cloudConfig.empCiudad || DEFAULT_COMPANY.ciudad).toUpperCase();
+
+      try {
+        doc.addImage(BRAND_LOGO_FULL, 'PNG', 174, 8, 20, 27.9);
+      } catch (e) {}
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      doc.setTextColor(15, 23, 42);
+      doc.text(empresaNombre, 20, 18);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9.5);
+      doc.setTextColor(71, 85, 105);
+      doc.text(`NIT: ${empresaNit} • ${empresaCiudad}`, 20, 24);
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(15);
+      doc.setTextColor(6, 95, 70);
+      doc.text(`COMPROBANTE DE PAGO N° ${p.id_recibo}`, 108, 42, { align: "center" });
+
+      doc.setDrawColor(203, 213, 225);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(20, 48, 176, 30, 2, 2, "FD");
+
+      doc.setFontSize(9.5);
+      doc.setTextColor(15, 23, 42);
+      doc.setFont("helvetica", "bold");
+      doc.text("Turnante:", 25, 56);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(p.nombre_turnante || "").toUpperCase(), 55, 56);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Cédula:", 25, 63);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(emp.documento || canon.documento || "N/A"), 55, 63);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Corte Semanal:", 25, 70);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(p.corte_semana || ""), 55, 70);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Fecha Pago:", 120, 56);
+      doc.setFont("helvetica", "normal");
+      doc.text(String(p.fecha_liquidacion || ""), 146, 56);
+
+      doc.setFont("helvetica", "bold");
+      doc.text("Destino Pago:", 120, 63);
+      doc.setFont("helvetica", "normal");
+      const metLines = doc.splitTextToSize(String(p.metodo_pago || ""), 48);
+      doc.text(metLines, 146, 63);
+
+      const tableBody = tr.map(t => {
+        const b = getTurnoNormalizedBreakdown(t);
+        return [
+          `${formatShortSpanishDay(t.fecha_turno)} (${t.fecha_turno})`,
+          `${t.hora_ingreso || "--:--"} - ${t.hora_salida || "--:--"}`,
+          `${b.horasOrdinarias.toFixed(2)} h`,
+          b.horasExtras > 0 ? `${b.horasExtras.toFixed(2)} h` : "-",
+          formatCOP(b.valorTotal)
+        ];
+      });
+
+      novs.forEach(n => {
+        tableBody.push([
+          `Descuento (${n.tipo}): ${n.concepto}`,
+          "-",
+          "-",
+          "-",
+          `-${formatCOP(n.monto)}`
+        ]);
+      });
+
+      doc.autoTable({
+        startY: 84,
+        margin: { left: 20, right: 20 },
+        head: [['Detalle / Fecha', 'Horario', 'H. Ord.', 'H. Ext (+25%)', 'Valor']],
+        body: tableBody,
+        foot: [[
+          'TOTAL NETO PAGADO',
+          '',
+          `${Number(p.total_horas_ord || p.total_horas).toFixed(2)} h`,
+          Number(p.total_horas_ext || 0) > 0 ? `${Number(p.total_horas_ext).toFixed(2)} h` : '0.00 h',
+          formatCOP(p.total_pagado)
+        ]],
+        theme: 'grid',
+        headStyles: { fillColor: [6, 95, 70], textColor: 255, fontSize: 8.5, halign: 'center' },
+        bodyStyles: { fontSize: 8.5, halign: 'center', textColor: [30, 41, 59] },
+        footStyles: { fillColor: [236, 253, 245], textColor: [6, 95, 70], fontStyle: 'bold', fontSize: 9.5, halign: 'center' },
+        columnStyles: { 0: { halign: 'left' }, 4: { halign: 'right' } }
+      });
+
+      let finalY = doc.lastAutoTable.finalY + 10;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.setTextColor(15, 23, 42);
+      doc.text(`Son: ${numeroALetrasCOP(p.total_pagado)}`, 20, finalY);
+
+      try {
+        doc.saveGraphicsState();
+        doc.setGState(new doc.GState({ opacity: 0.05 }));
+        doc.addImage(BRAND_LOGO_WATERMARK, 'PNG', 53, 105, 110, 75.16);
+        doc.restoreGraphicsState();
+      } catch (e) {}
+
+      const safeName = String(p.nombre_turnante || "Turnante").trim().replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ_-]/g, '_');
+      const fileName = `Comprobante_Pago_${safeName}_${p.id_recibo}.pdf`;
+      return { doc, fileName, p, emp };
+    }
+
+    function downloadReceiptPDFById(idR) {
+      const built = buildReceiptPDFDoc(idR);
+      if (!built) return;
+      built.doc.save(built.fileName);
+      showToast(`Comprobante PDF descargado: ${built.fileName}`);
+    }
+
+    function downloadCurrentReceiptPDF() {
+      if (!currentReceiptId) return;
+      downloadReceiptPDFById(currentReceiptId);
+    }
+
+    function sendReceiptWhatsApp(target) {
+      if (!currentReceiptId) return;
+      const built = buildReceiptPDFDoc(currentReceiptId);
+      if (!built) return;
+
+      // Descarga el PDF automáticamente para adjuntarlo en el chat que se abre
+      built.doc.save(built.fileName);
+
+      let phone = "";
+      if (target === 'EMPLEADO') {
+        phone = formatColombianWhatsAppPhone(built.emp.telefono || (built.emp.banco === 'Nequi' || built.emp.banco === 'Daviplata' ? built.emp.numero_cuenta : ''));
+        if (!phone) {
+          const manualTel = prompt(`El turnante ${built.p.nombre_turnante} no tiene celular registrado. Digita el número WhatsApp (10 dígitos):`);
+          if (!manualTel) return;
+          phone = formatColombianWhatsAppPhone(manualTel);
+        }
+      } else if (target === 'RRHH') {
+        phone = formatColombianWhatsAppPhone(cloudConfig.rhWhatsapp);
+        if (!phone) {
+          const manualRh = prompt("Aún no has guardado el WhatsApp de Recursos Humanos en Configuración SU. Digítalo aquí (Ej: 3001234567):");
+          if (!manualRh) return;
+          phone = formatColombianWhatsAppPhone(manualRh);
+        }
+      }
+
+      const encodedMsg = encodeURIComponent(currentReceiptText + "\n\n_(Se adjunta comprobante PDF descargado)_");
+      const waUrl = phone ? `https://wa.me/${phone}?text=${encodedMsg}` : `https://wa.me/?text=${encodedMsg}`;
+      window.open(waUrl, '_blank');
+      showToast(`Abriendo WhatsApp (${target === 'RRHH' ? 'Recursos Humanos' : built.p.nombre_turnante}) con PDF listo`);
     }
 
     function viewReceipt(idR) {
       const p = appState.pagos.find(x => x.id_recibo === idR);
       if (!p) return;
-      const emp = appState.turnantes.find(e => String(e.id) === String(p.id_turnante));
+      currentReceiptId = idR;
+      const canon = getCanonicalTurnanteKey(p);
+      const emp = canon.emp || appState.turnantes.find(e => String(e.id) === String(p.id_turnante));
       const tr = appState.asistencia.filter(t => t.id_recibo === idR);
       const novs = (appState.novedades || []).filter(n => n.id_recibo === idR);
 
@@ -3041,7 +3351,8 @@
       const novRows = novs.map(n => `<div class="flex justify-between py-1 border-b border-slate-100 text-rose-600"><span>Descuento (${n.tipo}): ${n.concepto}</span><span class="font-bold">-${formatCOP(n.monto)}</span></div>`).join('');
       document.getElementById('rec-items').innerHTML = turnoRows + novRows;
 
-      currentReceiptText = `*COMPROBANTE PAGO TURNANTES - FAGOSA SAS*\nRecibo: ${p.id_recibo}\nTurnante: ${p.nombre_turnante}\nCorte: ${p.corte_semana}\nHoras: ${p.total_horas}h (${p.total_horas_ord || p.total_horas}h ord / ${p.total_horas_ext || 0}h ext +25%)\n${p.total_descuentos > 0 ? `Descuentos: -${formatCOP(p.total_descuentos)}\n` : ''}*Neto Pagado: ${formatCOP(p.total_pagado)}*`;
+      const empresaTitle = (cloudConfig.empNombre || DEFAULT_COMPANY.nombre).toUpperCase();
+      currentReceiptText = `*COMPROBANTE DE PAGO - ${empresaTitle}*\nRecibo: ${p.id_recibo}\nTurnante: ${p.nombre_turnante}\nCédula: ${emp ? emp.documento : 'N/A'}\nCorte: ${p.corte_semana}\nHoras: ${p.total_horas}h (${p.total_horas_ord || p.total_horas}h ord / ${p.total_horas_ext || 0}h ext +25%)\n${p.total_descuentos > 0 ? `Descuentos: -${formatCOP(p.total_descuentos)}\n` : ''}Destino: ${p.metodo_pago}\n*Neto Pagado: ${formatCOP(p.total_pagado)}*`;
       openModal('receipt-modal');
     }
 
@@ -3050,11 +3361,185 @@
       showToast("Copiado para WhatsApp");
     }
 
+    /* =======================================================================
+       GENERADOR DE ARCHIVO PLANO PARA PAGOS MASIVOS DAVIVIENDA (.TXT)
+       (Portal Empresarial Davivienda - Registro Control RC + Registros Detalle TR)
+    ======================================================================= */
+    function getDaviviendaBankCode(bankName) {
+      const b = String(bankName || "").toLowerCase().trim();
+      if (b.includes("davivienda") || b.includes("daviplata")) return "0051";
+      if (b.includes("bancolombia") || b.includes("nequi")) return "0007";
+      if (b.includes("bogot")) return "0001";
+      if (b.includes("popular")) return "0002";
+      if (b.includes("colpatria") || b.includes("scotiabank")) return "0019";
+      if (b.includes("occidente")) return "0023";
+      if (b.includes("agrario")) return "0040";
+      if (b.includes("av villas")) return "0052";
+      if (b.includes("caja social")) return "0032";
+      if (b.includes("bbva")) return "0013";
+      if (b.includes("nu ")) return "0071";
+      if (b.includes("lulo")) return "0070";
+      if (b.includes("movii")) return "0801";
+      if (b.includes("dale")) return "0802";
+      return "0051";
+    }
+
+    function getDaviviendaProductCode(bankName) {
+      const b = String(bankName || "").toLowerCase().trim();
+      if (b.includes("daviplata")) return "DP";
+      if (b.includes("nequi") || b.includes("movii") || b.includes("dale")) return "CA";
+      return "CA"; // Cuenta de Ahorros por defecto
+    }
+
+    function padLeftZero(val, len) {
+      return String(val || "").replace(/\D/g, "").padStart(len, "0").slice(-len);
+    }
+
+    function padRightSpace(val, len) {
+      const clean = String(val || "")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9\s-]/g, " ")
+        .toUpperCase()
+        .trim();
+      return clean.padEnd(len, " ").slice(0, len);
+    }
+
+    function downloadDaviviendaPlainFile() {
+      const ci = document.getElementById('filter-corte-semana').value;
+      const ef = document.getElementById('filter-corte-estado').value;
+      if (!ci) return;
+
+      let tc = appState.asistencia.filter(t => t.corte_inicio === ci && t.estado_jornada === 'FINALIZADO');
+      if (ef !== 'TODOS') tc = tc.filter(t => t.estado_pago === ef);
+      if (tc.length === 0) {
+        showToast("No hay turnos finalizados en este corte para generar archivo Davivienda.");
+        return;
+      }
+
+      const byEmp = {};
+      tc.forEach(t => {
+        const canon = getCanonicalTurnanteKey(t);
+        if (!byEmp[canon.key]) {
+          byEmp[canon.key] = { canonicalKey: canon.key, empObj: canon.emp, id_turnante: canon.id_turnante, documento: canon.documento, nombre: canon.nombre, turnos: [] };
+        }
+        byEmp[canon.key].turnos.push(t);
+      });
+
+      const validRows = [];
+      const missingBankNames = [];
+      let totalLoteValor = 0;
+
+      Object.values(byEmp).forEach(g => {
+        const emp = g.empObj || {};
+        const banco = String(emp.banco || "").trim();
+        const cuenta = String(emp.numero_cuenta || "").replace(/\D/g, "");
+        const cedula = String(emp.documento || g.documento || "").replace(/\D/g, "");
+
+        let bruto = 0;
+        g.turnos.forEach(t => { bruto += getTurnoNormalizedBreakdown(t).valorTotal; });
+        const novs = getPendingNovedadesForEmpCorte(g.id_turnante, ci, g.canonicalKey);
+        const desc = novs.reduce((s, n) => s + Number(n.monto || 0), 0);
+        const neto = Math.max(0, bruto - desc);
+
+        if (neto <= 0) return;
+        if (!banco || !cuenta || banco.toLowerCase() === 'efectivo') {
+          missingBankNames.push(g.nombre);
+          return;
+        }
+
+        totalLoteValor += neto;
+        validRows.push({
+          cedula,
+          nombre: g.nombre,
+          banco,
+          cuenta,
+          neto
+        });
+      });
+
+      if (missingBankNames.length > 0) {
+        alert(`Atención: Los siguientes turnantes no tienen cuenta bancaria/billetera configurada y se omitirán del archivo Davivienda:\n• ${missingBankNames.join("\n• ")}`);
+      }
+
+      if (validRows.length === 0) {
+        showToast("Ningún turnante con saldo tiene cuenta bancaria válida.");
+        return;
+      }
+
+      const nitEmpresa = padLeftZero(cloudConfig.empNit || DEFAULT_COMPANY.nit, 16);
+      const cuentaOrigen = padLeftZero(cloudConfig.davCuenta || "000000000000", 16);
+      const tipoCuentaOrigen = (cloudConfig.davTipo || "CA").toUpperCase().slice(0, 2);
+      const fechaHoy = getTodayISO().replace(/-/g, "");
+      const horaHoy = getCurrentHHMM().replace(":", "") + "00";
+      const totalCentavos = padLeftZero(Math.round(totalLoteValor * 100), 18);
+      const cantRegistros = padLeftZero(validRows.length, 6);
+
+      // Registro Control (RC) estándar Portal Empresarial Davivienda
+      const rcLine = [
+        "RC",
+        nitEmpresa,
+        "PROV",
+        "0000",
+        cuentaOrigen,
+        tipoCuentaOrigen,
+        "0051",
+        totalCentavos,
+        cantRegistros,
+        fechaHoy,
+        horaHoy,
+        "0000",
+        "9999",
+        padRightSpace(`PAGO TURNANTES ${ci}`, 40)
+      ].join("");
+
+      // Registros Detalle (TR) por cada beneficiario
+      const trLines = validRows.map(r => {
+        const idBen = padLeftZero(r.cedula, 16);
+        const refBen = padRightSpace(r.cedula, 16);
+        const ctaDest = padLeftZero(r.cuenta, 16);
+        const tipoProd = getDaviviendaProductCode(r.banco);
+        const codBanco = getDaviviendaBankCode(r.banco);
+        const valCentavos = padLeftZero(Math.round(r.neto * 100), 18);
+        const tipoDoc = "01"; // 01 = Cédula de Ciudadanía
+        const nombreBen = padRightSpace(r.nombre, 40);
+
+        return [
+          "TR",
+          idBen,
+          refBen,
+          ctaDest,
+          tipoProd,
+          codBanco,
+          valCentavos,
+          "000000",
+          tipoDoc,
+          "0",
+          "0000",
+          nombreBen
+        ].join("");
+      });
+
+      const fileContent = [rcLine, ...trLines].join("\r\n");
+      const corteInfo = getCorteInfo(ci);
+      const fileName = `Davivienda_Pagos_FAGOSA_${corteInfo.shortRange}.txt`;
+
+      const blob = new Blob([fileContent], { type: "text/plain;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = fileName;
+      link.click();
+
+      showToast(`Archivo Davivienda generado (${validRows.length} pagos por ${formatCOP(totalLoteValor)})`);
+    }
+
     function loadCloudConfigInputs() {
       document.getElementById('cfg-su-pin').value = "";
       document.getElementById('cfg-emp-nombre').value = cloudConfig.empNombre || DEFAULT_COMPANY.nombre;
       document.getElementById('cfg-emp-nit').value = cloudConfig.empNit || DEFAULT_COMPANY.nit;
       document.getElementById('cfg-emp-ciudad').value = cloudConfig.empCiudad || DEFAULT_COMPANY.ciudad;
+      document.getElementById('cfg-rh-whatsapp').value = cloudConfig.rhWhatsapp || "";
+      document.getElementById('cfg-dav-cuenta').value = cloudConfig.davCuenta || "";
+      document.getElementById('cfg-dav-tipo').value = cloudConfig.davTipo || "CA";
       document.getElementById('cfg-api-url').value = cloudConfig.url || DEFAULT_API_URL;
       document.getElementById('cfg-api-token').value = cloudConfig.token || DEFAULT_API_TOKEN;
       renderAuthorizedDevicesList();
@@ -3078,13 +3563,19 @@
       cloudConfig.empNombre = document.getElementById('cfg-emp-nombre').value.trim() || DEFAULT_COMPANY.nombre;
       cloudConfig.empNit = document.getElementById('cfg-emp-nit').value.trim() || DEFAULT_COMPANY.nit;
       cloudConfig.empCiudad = document.getElementById('cfg-emp-ciudad').value.trim() || DEFAULT_COMPANY.ciudad;
+      cloudConfig.rhWhatsapp = document.getElementById('cfg-rh-whatsapp').value.replace(/\D/g, '');
+      cloudConfig.davCuenta = document.getElementById('cfg-dav-cuenta').value.replace(/\D/g, '');
+      cloudConfig.davTipo = document.getElementById('cfg-dav-tipo').value || "CA";
       const nowIso = new Date().toISOString();
       enqueueAtomicOp({ type: "UPSERT_CONFIG", record: { clave: "empNombre", valor: cloudConfig.empNombre, ultima_actualizacion: nowIso } });
       enqueueAtomicOp({ type: "UPSERT_CONFIG", record: { clave: "empNit", valor: cloudConfig.empNit, ultima_actualizacion: nowIso } });
       enqueueAtomicOp({ type: "UPSERT_CONFIG", record: { clave: "empCiudad", valor: cloudConfig.empCiudad, ultima_actualizacion: nowIso } });
+      enqueueAtomicOp({ type: "UPSERT_CONFIG", record: { clave: "rhWhatsapp", valor: cloudConfig.rhWhatsapp, ultima_actualizacion: nowIso } });
+      enqueueAtomicOp({ type: "UPSERT_CONFIG", record: { clave: "davCuenta", valor: cloudConfig.davCuenta, ultima_actualizacion: nowIso } });
+      enqueueAtomicOp({ type: "UPSERT_CONFIG", record: { clave: "davTipo", valor: cloudConfig.davTipo, ultima_actualizacion: nowIso } });
       persistLocal();
       flushOfflineQueue();
-      showToast("Datos de empresa guardados");
+      showToast("Datos de empresa, WhatsApp RRHH y Davivienda guardados");
     }
 
     function saveCloudConfig() {
